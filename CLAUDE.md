@@ -53,7 +53,12 @@ carries neither — the invariant is in the type rather than in a `!` at every c
 and `strokeT`, and with them the single `TIME_EPS`. Ask it rather than recomputing
 `release.t + flightTime`: that sum was previously rebuilt at five call sites with three
 different epsilons, and the drawing and the transport could disagree about whether a
-shot had landed.
+shot had landed. It also owns the two lookups that answer the same question about a
+frame list — `frameIndexAt` and `sampleTrajectory`, which lived in `sheet.ts` until the
+module that owns the clock could no longer describe itself without pointing at the
+drawing. Both take the bare `{t}` / `{t,x,y}` shape they read rather than
+`ShotResult['frames']`, because `types.ts` imports `ShotTimeline` from here and naming
+those types would close an import cycle.
 
 Coulomb friction lags the bearing loads by one step on purpose (the loads depend on the
 accelerations which depend on the friction). At the step sizes used this is far below
@@ -144,14 +149,22 @@ effect goes on observing the detached node forever.
 
 ## The drawing
 
-**`sheet.ts` decides what is drawn; `paint.ts` puts it on a canvas.** `layout()` returns
-plain `Instruction` objects in screen pixels and `paint()` walks them. The split exists
+**Three modules: `draft.ts` holds the drafting vocabulary, `sheet.ts` composes a machine
+out of it, `paint.ts` puts the result on a canvas.** `layout()` returns plain
+`Instruction` objects in screen pixels and `paint()` walks them. The canvas split exists
 because every rule worth arguing about — when a dimension is too short to letter
 (`MIN_DIMENSION`), when a protractor's figure goes inside its arc
 (`LABEL_INSIDE_RADIUS`), what a grid step rounds to — used to sit in a private function
 behind a single `void` export whose only entry point was a `CanvasRenderingContext2D`.
-jsdom has no canvas, so none of it could be reached from a test at all. Add drawing
-rules to `sheet.ts` and assert on the instructions; add *canvas* concerns to `paint.ts`.
+jsdom has no canvas, so none of it could be reached from a test at all.
+
+`draft.ts` splits off for the same reason one step further in. Those rules were public
+on `sheet.ts` purely so a test could reach them: eight exports no caller used, and a
+suite that mostly asserted on the sheet's internals. Now each half is tested through an
+interface something actually calls — `draft.test.ts` against the drafting rules,
+`sheet.test.ts` against `layout()`. **`draft.ts` must not learn what a trebuchet is**;
+that is the line that keeps it testable without a machine. Add drafting rules there,
+machine composition to `sheet.ts`, *canvas* concerns to `paint.ts`.
 
 Two things stay on the canvas side deliberately. Clipping is a `clip` polygon on an
 instruction rather than trimmed geometry — working out where a hatch line crosses a

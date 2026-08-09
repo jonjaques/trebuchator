@@ -1,12 +1,14 @@
-import { layout, type Font, type Instruction, type MeasureText, type SheetInput } from './sheet.ts'
+import { layout, type SheetInput } from './sheet.ts'
+import type { Font, Instruction, MeasureText } from './draft.ts'
 
 /**
  * The canvas adapter for the sheet.
  *
- * Everything about *what* the drawing contains lives in `sheet.ts`; this walks
- * the instruction list and puts it on a 2D context. Keeping the two apart is
- * what lets the drafting rules be tested — jsdom has no canvas, so while this
- * was the only way in, none of them could be reached at all.
+ * Everything about *what* the drawing contains lives in `sheet.ts` and
+ * `draft.ts`; this walks the instruction list and puts it on a 2D context.
+ * Keeping them apart is what lets the drafting rules be tested — jsdom has no
+ * canvas, so while this was the only way in, none of them could be reached at
+ * all.
  *
  * The context is expected to arrive with the device-pixel-ratio transform
  * already applied, and `w`/`h` are therefore CSS pixels.
@@ -129,4 +131,5 @@ export function paint(ctx: CanvasRenderingContext2D, input: SheetInput) {
   render(ctx, layout(input, canvasMeasurer(ctx)))
 }
 
-export type { Ghost, Instruction, Palette, SheetInput } from './sheet.ts'
+export type { Ghost, Palette, SheetInput } from './sheet.ts'
+export type { Instruction } from './draft.ts'

@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { clampT, isDone, isFlying, phaseAt, strokeT, type ShotTimeline } from './timeline.ts'
+import {
+  clampT,
+  frameIndexAt,
+  isDone,
+  isFlying,
+  phaseAt,
+  sampleTrajectory,
+  strokeT,
+  type ShotTimeline,
+} from './timeline.ts'
 
 const tl: ShotTimeline = { liftoffT: 0.2, releaseT: 0.6, duration: 2.6 }
 
@@ -61,5 +70,43 @@ describe('cursor arithmetic', () => {
     expect(strokeT(tl, 0.6)).toBe(0.6)
     expect(strokeT(tl, 2.5)).toBe(2.5)
     expect(strokeT(tl, 99)).toBe(2.6)
+  })
+})
+
+describe('reading a shot at a time', () => {
+  const frames = [0, 0.1, 0.2, 0.3, 0.4].map((t) => ({ t }))
+
+  it('finds the last frame at or before the cursor', () => {
+    expect(frameIndexAt(frames, -1)).toBe(0)
+    expect(frameIndexAt(frames, 0.2)).toBe(2)
+    expect(frameIndexAt(frames, 0.25)).toBe(2)
+    expect(frameIndexAt(frames, 99)).toBe(4)
+  })
+
+  const traj = [
+    { t: 0, x: 0, y: 10, vx: 1, vy: 0 },
+    { t: 1, x: 10, y: 20, vx: 1, vy: 0 },
+    { t: 2, x: 30, y: 0, vx: 1, vy: 0 },
+  ]
+
+  it('interpolates between flight samples', () => {
+    expect(sampleTrajectory(traj, 0.5)).toEqual({ x: 5, y: 15 })
+    expect(sampleTrajectory(traj, 1.25)).toEqual({ x: 15, y: 15 })
+  })
+
+  it('holds at both ends rather than running off them', () => {
+    expect(sampleTrajectory(traj, -5)).toBe(traj[0])
+    expect(sampleTrajectory(traj, 0)).toBe(traj[0])
+    expect(sampleTrajectory(traj, 99)).toBe(traj[2])
+  })
+
+  it('survives two samples sharing a timestamp', () => {
+    const flat = [
+      { t: 0, x: 0, y: 0, vx: 0, vy: 0 },
+      { t: 0, x: 4, y: 4, vx: 0, vy: 0 },
+    ]
+    const at = sampleTrajectory(flat, 0.5)
+    expect(Number.isFinite(at.x)).toBe(true)
+    expect(Number.isFinite(at.y)).toBe(true)
   })
 })

@@ -11,6 +11,12 @@
  * none in the transport), each recomputing `release.t + flightTime` from parts.
  * The drawing and the transport could therefore disagree about whether a shot
  * had landed, on the last frame, where it is most visible.
+ *
+ * The two lookups at the bottom are here for the same reason. "Which frame is
+ * this?" and "where is the shot?" are the same question as "what time is it?",
+ * but they lived in `sheet.ts` — so the module that owned the clock had to
+ * describe its own behaviour by pointing at a function in the drawing, and a
+ * second reader of the clock would have had to import the drawing to get one.
  */
 
 /** The instants that bound a shot, seconds from the beam being let go. */
@@ -66,8 +72,48 @@ export function clampT(tl: ShotTimeline, t: number): number {
  * past release (with the shot's mass off the sling) so the arm's follow-through
  * animates, so this is simply the clamped cursor. Frames may still end before
  * `duration` — the follow-through is capped — and a lookup then holds the last
- * pose, which `frameIndexAt` already does.
+ * pose, which `frameIndexAt` below already does.
  */
 export function strokeT(tl: ShotTimeline, t: number): number {
   return clampT(tl, t)
+}
+
+// --- lookups -----------------------------------------------------------------
+
+/**
+ * Both lookups take the bare shape they read rather than `ShotResult['frames']`
+ * and `['trajectory']`, for two reasons. `types.ts` imports `ShotTimeline` from
+ * this module, so naming those types here would close an import cycle; and
+ * neither function looks at anything but the timestamp, so a narrower parameter
+ * is the honest one — it also lets a test hand over four numbers instead of
+ * casting a stub through `never`.
+ */
+
+/** Index of the last frame at or before `t`. Frames are time-ordered. */
+export function frameIndexAt(frames: readonly { t: number }[], t: number): number {
+  let lo = 0
+  let hi = frames.length - 1
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1
+    if (frames[mid].t <= t) lo = mid
+    else hi = mid - 1
+  }
+  return lo
+}
+
+/** Position along the flight path at `t`, interpolated between samples. */
+export function sampleTrajectory(
+  traj: readonly { t: number; x: number; y: number }[],
+  t: number,
+): { x: number; y: number } {
+  if (t <= 0) return traj[0]
+  for (let i = 1; i < traj.length; i++) {
+    if (traj[i].t >= t) {
+      const a = traj[i - 1]
+      const b = traj[i]
+      const k = (t - a.t) / Math.max(1e-9, b.t - a.t)
+      return { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k }
+    }
+  }
+  return traj[traj.length - 1]
 }
