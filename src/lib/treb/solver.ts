@@ -26,12 +26,24 @@ import type { TrebuchetParams } from './types.ts'
 
 const EPS_V = 1e-4 // velocity below which Coulomb friction is smoothly faded out
 
-/** Dense LU with partial pivoting. n <= 3 here, so allocation-free and inlined-ish. */
-function luSolve(A: Float64Array, b: Float64Array, n: number, out: Float64Array): boolean {
-  const a = A.slice()
-  const x = b.slice()
-  const piv = new Int32Array(n)
-  for (let i = 0; i < n; i++) piv[i] = i
+/**
+ * Dense LU with partial pivoting. n <= 3 here. `workA`/`workX` receive copies of
+ * A and b so the caller's arrays survive — they come from the scratch struct
+ * because this runs a dozen times per integration step, and per-call `slice()`s
+ * were most of the solver's garbage.
+ */
+function luSolve(
+  A: Float64Array,
+  b: Float64Array,
+  n: number,
+  out: Float64Array,
+  workA: Float64Array,
+  workX: Float64Array,
+): boolean {
+  const a = workA
+  const x = workX
+  a.set(A)
+  x.set(b)
 
   for (let col = 0; col < n; col++) {
     let best = col
@@ -90,10 +102,22 @@ export interface DynamicsScratch {
   qdd: Float64Array
   tmpA: Float64Array
   tmpB: Float64Array
+  /** Work space for `luSolve` — see the comment there. */
+  luA: Float64Array
+  luX: Float64Array
+  /** RK4 stage buffers. A stroke is thousands of steps, so these live here
+   *  rather than being reallocated per step. */
+  rkQ0: Float64Array
+  rkV0: Float64Array
+  rkQt: Float64Array
+  rkVt: Float64Array
+  rkKq: Float64Array[]
+  rkKv: Float64Array[]
 }
 
 export function makeScratch(n: number, nBodies: number): DynamicsScratch {
   const mk = () => Array.from({ length: nBodies }, () => new Float64Array(n))
+  const mk4 = () => Array.from({ length: 4 }, () => new Float64Array(n))
   return {
     n,
     M: new Float64Array(n * n),
@@ -109,6 +133,14 @@ export function makeScratch(n: number, nBodies: number): DynamicsScratch {
     qdd: new Float64Array(n),
     tmpA: new Float64Array(n),
     tmpB: new Float64Array(n),
+    luA: new Float64Array(n * n),
+    luX: new Float64Array(n),
+    rkQ0: new Float64Array(n),
+    rkV0: new Float64Array(n),
+    rkQt: new Float64Array(n),
+    rkVt: new Float64Array(n),
+    rkKq: mk4(),
+    rkKv: mk4(),
   }
 }
 
@@ -236,8 +268,9 @@ export function dynamics(
 
   for (let i = 0; i < n; i++) rhs[i] = Q[i] - cor[i] - grav[i]
 
+  const { luA, luX } = scratch
   if (!opts.constrained) {
-    if (!luSolve(M, rhs, n, qdd)) qdd.fill(0)
+    if (!luSolve(M, rhs, n, qdd, luA, luX)) qdd.fill(0)
     return { lambda: 0, frictionPower, dragPower }
   }
 
@@ -256,13 +289,13 @@ export function dynamics(
   const target = -quad - 2 * alpha * gDot - alpha * alpha * gVal
 
   const { tmpA, tmpB } = scratch
-  if (!luSolve(M, rhs, n, tmpA)) {
+  if (!luSolve(M, rhs, n, tmpA, luA, luX)) {
     qdd.fill(0)
     return { lambda: 0, frictionPower, dragPower }
   }
-  const gVec = new Float64Array(n)
-  for (let i = 0; i < n; i++) gVec[i] = G[i]
-  if (!luSolve(M, gVec, n, tmpB)) {
+  // G aliases the projectile's Jacobian row; safe to pass straight through
+  // because `luSolve` works on its own copies.
+  if (!luSolve(M, G, n, tmpB, luA, luX)) {
     qdd.fill(0)
     return { lambda: 0, frictionPower, dragPower }
   }
@@ -281,7 +314,7 @@ export function dynamics(
     frictionPower += Math.abs(f * vP.x)
     // Re-solve with friction folded in; one extra pass is cheaper than an
     // iteration and the coupling is weak (friction is normal to the constraint).
-    if (luSolve(M, rhs, n, tmpA)) {
+    if (luSolve(M, rhs, n, tmpA, luA, luX)) {
       let g2 = 0
       for (let i = 0; i < n; i++) g2 += G[i] * tmpA[i]
       const lam2 = Math.abs(gMinvG) < 1e-14 ? 0 : (target - g2) / gMinvG
@@ -381,12 +414,9 @@ export function rk4Step(
   opts: RhsOptions,
 ): RhsResult {
   const n = model.nq
-  const q0 = st.q.slice()
-  const v0 = st.qd.slice()
-  const kq = [new Float64Array(n), new Float64Array(n), new Float64Array(n), new Float64Array(n)]
-  const kv = [new Float64Array(n), new Float64Array(n), new Float64Array(n), new Float64Array(n)]
-  const qt = new Float64Array(n)
-  const vt = new Float64Array(n)
+  const { rkQ0: q0, rkV0: v0, rkQt: qt, rkVt: vt, rkKq: kq, rkKv: kv } = scratch
+  q0.set(st.q)
+  v0.set(st.qd)
   const weights = [0, 0.5, 0.5, 1]
   let first: RhsResult = { lambda: 0, frictionPower: 0, dragPower: 0 }
 

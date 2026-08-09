@@ -94,9 +94,12 @@ export function Stage({
   const [palette, setPalette] = useState<Palette | null>(null)
   const [fontsReady, setFontsReady] = useState(false)
   const [grabbing, setGrabbing] = useState(false)
-  // Bumped to request one more frame while the camera is still easing. The
-  // parent re-renders us every frame during playback, but a mode change while
-  // paused would otherwise freeze the zoom halfway.
+  // Bumped whenever the canvas needs a frame the parent will not provide: the
+  // camera still easing after a mode change, and every pan/zoom gesture. The
+  // parent re-renders us each frame during playback, which masked a real bug —
+  // the gesture handlers below mutate `camRef` and set the mode to 'free', but
+  // once the mode already *is* 'free' that state write bails out, so with
+  // playback paused a drag moved the camera without ever repainting it.
   const [tick, setTick] = useState(0)
   const dragRef = useRef<{ x: number; y: number; cx: number; cy: number } | null>(null)
 
@@ -235,10 +238,25 @@ export function Stage({
         className="block h-full w-full touch-none"
         style={{ width: size.w, height: size.h, cursor: grabbing ? 'grabbing' : 'grab' }}
         onWheel={(e) => {
-          if (!camRef.current) return
+          const cam = camRef.current
+          if (!cam) return
           const factor = Math.exp(-e.deltaY * 0.0015)
-          camRef.current = { ...camRef.current, scale: camRef.current.scale * factor }
+          // Zoom about the cursor: the world point under it stays put. Zooming
+          // about the viewport centre instead made the machine slide away from
+          // the very detail being zoomed toward.
+          const rect = e.currentTarget.getBoundingClientRect()
+          const px = e.clientX - rect.left
+          const py = e.clientY - rect.top
+          const scale = cam.scale * factor
+          const wx = cam.cx + (px - size.w / 2) / cam.scale
+          const wy = cam.cy - (py - size.h / 2) / cam.scale
+          camRef.current = {
+            scale,
+            cx: wx - (px - size.w / 2) / scale,
+            cy: wy + (py - size.h / 2) / scale,
+          }
           onModeChange('free')
+          setTick((n) => n + 1)
         }}
         onPointerDown={(e) => {
           if (!camRef.current) return
@@ -261,6 +279,7 @@ export function Stage({
             cy: d.cy + (e.clientY - d.y) / cam.scale,
           }
           onModeChange('free')
+          setTick((n) => n + 1)
         }}
         onPointerUp={(e) => {
           e.currentTarget.releasePointerCapture(e.pointerId)

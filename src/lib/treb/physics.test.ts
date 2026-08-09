@@ -26,15 +26,16 @@ function fire(p: TrebuchetParams, opts?: SimOptions): FiredShot {
 }
 
 /**
- * Reference machine: the instrumented trebuchet in Bernaola, Fernández and
- * Gómez, "The swinging counterweight trebuchet. Experiments on inner movement
- * and ranges" (arXiv:2502.19442), whose beam, counterweight and sling angles
- * were recorded with rotation sensors through real shots.
+ * Reference machine: the instrumented trebuchet in Horsdal, Johansen and
+ * Rasmussen, "The swinging counterweight trebuchet. Experiments on inner
+ * movement and ranges" (arXiv:2502.19442), whose beam, counterweight and sling
+ * angles were recorded with rotation sensors through real shots.
  *
  * Table 1 gives the geometry and masses; Table 2 the longest vacuum ranges and
- * release times. The `lab` preset is frictionless, so it reproduces their *ab
- * initio* machine rather than the measured one — the two are related by the
- * loss factor the paper itself reports, and that relation is asserted below.
+ * release times; Table 3 compares the field-measured 34.4 ± 1.5 m against the
+ * paper's own *ab initio* frictionless calculation of 42.8 m. The `lab` preset
+ * is frictionless, so it is that 42.8 m machine it must reproduce — the gap to
+ * the field figure is the real machine's friction and drag, not solver error.
  */
 describe('validation against the published laboratory trebuchet', () => {
   it('reproduces the paper’s available potential energy of 204 J', () => {
@@ -46,16 +47,14 @@ describe('validation against the published laboratory trebuchet', () => {
     expect(r.energy.available).toBeLessThan(206)
   })
 
-  it('matches the 717 g range once the paper’s own loss factor is applied', () => {
+  it('reproduces the paper’s ab initio frictionless range of 42.8 m', () => {
     const r = simulateShot(lab())
     expect(r.ok).toBe(true)
-    // The paper measures 36.6 m and reports 68.8% experimental efficiency
-    // against 80.4% for the same machine with no mechanical losses. Scaling its
-    // measured range by that ratio gives the frictionless range this solver
-    // should produce.
-    const idealised = 36.6 * (80.4 / 68.8)
-    expect(r.range).toBeGreaterThan(idealised * 0.95)
-    expect(r.range).toBeLessThan(idealised * 1.05)
+    // Table 3: theoretical range with no friction or drag, 717 g shot — the
+    // same idealisation the lab preset runs. (Their field measurement is
+    // 34.4 ± 1.5 m; the difference is the real machine's losses.)
+    expect(r.range).toBeGreaterThan(42.8 * 0.95)
+    expect(r.range).toBeLessThan(42.8 * 1.05)
   })
 
   it('reproduces the published release times for both projectile masses', () => {
@@ -66,6 +65,8 @@ describe('validation against the published laboratory trebuchet', () => {
   })
 
   it('shows the light shot flying further but wasting far more of the machine', () => {
+    // The paper prints the efficiencies directly: ε ≈ 69% for the 717 g shot,
+    // ≈ 11% for the 68.5 g one. The bounds bracket those figures loosely.
     const heavy = simulateShot(lab())
     const light = simulateShot({ ...lab(), projectileMass: 0.0685 })
     expect(light.range).toBeGreaterThan(heavy.range)
@@ -249,6 +250,34 @@ describe('ballistics', () => {
   it('carries further onto lower ground', () => {
     const p = lab()
     expect(simulateShot({ ...p, targetDrop: 20 }).range).toBeGreaterThan(simulateShot(p).range)
+  })
+
+  it('lands on an uphill target only where the arc comes back down onto it', () => {
+    const p = lab()
+    // 25 m/s of vertical speed tops out at ~32 m, so a 5 m rise is well within
+    // reach — but the crossing on the way *up* at ~0.2 s must not count as the
+    // landing. The old detector fired on any step below the plane and would
+    // have called that ascent an impact.
+    const r = flyBallistic({ ...p, targetDrop: -5 }, 0, 0, 10, 25, false)
+    expect(r.landed).toBe(true)
+    expect(r.time).toBeGreaterThan(25 / 9.81) // past the apex, i.e. descending
+    expect(r.trajectory.at(-1)!.y).toBeCloseTo(5, 6)
+    expect(r.trajectory.at(-1)!.vy).toBeLessThan(0)
+  })
+
+  it('reports an unreachable uphill target instead of inventing a range', () => {
+    const p = lab()
+    // From 3 m up at 20/10 m/s the arc tops out around 8 m; a 60 m rise is
+    // simply out of reach and must come back as not-landed, not as whatever x
+    // the integrator happened to stop at.
+    const wall = flyBallistic({ ...p, targetDrop: -60 }, 0, 3, 20, 10, false)
+    expect(wall.landed).toBe(false)
+
+    // And a whole shot against that target is a refusal with a reason, so the
+    // panel explains itself rather than printing a confident nonsense number.
+    const shot = simulateShot({ ...presetById('backyard')!.params, targetDrop: -60 })
+    expect(shot.ok).toBe(false)
+    expect(shot.errors.length).toBeGreaterThan(0)
   })
 })
 

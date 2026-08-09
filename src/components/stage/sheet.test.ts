@@ -315,4 +315,36 @@ describe('the whole sheet', () => {
     )
     expect(dashedGhosts).toHaveLength(1)
   })
+
+  it('letters each ghost at its apex so saved shots can be told apart', () => {
+    const ghosts = [
+      { trajectory: [{ x: 0, y: 1 }, { x: 5, y: 4 }, { x: 12, y: 0 }], label: 'earlier' },
+      { trajectory: [{ x: 0, y: 1 }, { x: 7, y: 6 }, { x: 16, y: 0 }], label: 'longer sling' },
+    ]
+    const ins = layout(sheet({ ghosts }), measure)
+    const labels = texts(ins).map((t) => t.text)
+    expect(labels).toContain('earlier')
+    expect(labels).toContain('longer sling')
+  })
+
+  it('lands the impact and the range dimension on the target plane, not the machine’s', () => {
+    const dropped = simulateShot({ ...params, targetDrop: 20 })
+    if (!dropped.ok) throw new Error('the dropped-target shot should throw')
+    const level = layout(sheet({ t: result.timeline.duration }), measure)
+    const below = layout(
+      sheet({ params: { ...params, targetDrop: 20 }, result: dropped, t: dropped.timeline.duration }),
+      measure,
+    )
+    // The caption follows the dimension, which hangs below the landing plane.
+    const caption = (ins: Instruction[]) =>
+      texts(ins).find((t) => t.text === 'RANGE FROM PIVOT')!
+    expect(caption(below).y).toBeGreaterThan(caption(level).y)
+    // A second ground line appears: the shelf of target ground under the impact.
+    const groundLines = (ins: Instruction[]) =>
+      ins.filter(
+        (i): i is Extract<Instruction, { op: 'path' }> =>
+          i.op === 'path' && !i.close && i.stroke?.color === palette.ink2 && i.stroke.width === 1.5,
+      )
+    expect(groundLines(below)).toHaveLength(groundLines(level).length + 1)
+  })
 })

@@ -1,8 +1,8 @@
 /**
  * Parameter model for the trebuchet simulator. Everything here is SI —
  * metres, kilograms, seconds, radians-on-the-inside/degrees-on-the-outside.
- * Unit conversion happens at the UI boundary only (see units.ts), because a
- * mixed-unit core is how you end up throwing a 300 kg stone 4 furlongs.
+ * Unit conversion happens at the UI boundary only (see lib/format.ts), because
+ * a mixed-unit core is how you end up throwing a 300 kg stone 4 furlongs.
  */
 
 import type { ShotTimeline } from './timeline.ts'
@@ -98,7 +98,11 @@ export interface TrebuchetParams {
   // ---- Projectile ---------------------------------------------------------
   projectileMass: number
   projectileDiameter: number
-  /** Drag coefficient. ~0.47 sphere, ~0.6 rough stone, ~0.8 a pumpkin.  */
+  /**
+   * Drag coefficient. ~0.47 smooth sphere, ~0.55 rough stone or pumpkin
+   * (pumpkin-chucking literature measures 0.45–0.6, not the 0.8 folklore
+   * suggests), ~0.8 something genuinely lumpy tumbling end over end.
+   */
   projectileCd: number
 
   // ---- Environment --------------------------------------------------------

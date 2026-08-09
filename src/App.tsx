@@ -19,7 +19,7 @@ import {
 } from '@/lib/treb/optimize.ts'
 import type { TrebuchetParams } from '@/lib/treb/types.ts'
 import { TIME_EPS } from '@/lib/treb/timeline.ts'
-import { detectUnitSystem, num, type UnitSystem } from '@/lib/format.ts'
+import { detectUnitSystem, num, show, unitSymbol, type UnitSystem } from '@/lib/format.ts'
 import { NotesContext } from '@/lib/notes.ts'
 import { cn } from '@/lib/utils.ts'
 
@@ -241,9 +241,12 @@ export default function App() {
   const nextId = useRef(1)
   const saveShot = useCallback(() => {
     if (!result?.ok) return
+    // Lettered in whichever units are showing when it is saved — a ghost
+    // labelled "60 kg" on a sheet reading in pounds names a machine the reader
+    // never built.
     const label = presetId
       ? PRESETS.find((p) => p.id === presetId)!.name
-      : `${num(params.cwMass, 0)} kg · ${num(params.slingLength, 2)} m sling`
+      : `${show(params.cwMass, 'mass', units, 0)} ${unitSymbol('mass', units)} · ${show(params.slingLength, 'length', units, 2)} ${unitSymbol('length', units)} sling`
     setSaved((prev) =>
       [
         ...prev,
@@ -256,7 +259,7 @@ export default function App() {
         },
       ].slice(-6),
     )
-  }, [result, params, presetId])
+  }, [result, params, presetId, units])
 
   const ghosts = useMemo(
     () => saved.map((s) => ({ trajectory: s.trajectory, label: s.label })),
@@ -317,6 +320,7 @@ export default function App() {
           dark={dark}
           onDark={setDark}
           onSave={saveShot}
+          canSave={result?.ok ?? false}
           onAutoTune={autoTune}
           tuning={tuning}
           busy={busy}
@@ -333,6 +337,20 @@ export default function App() {
         />
 
         <div className="relative flex min-h-0 flex-1">
+          {/* Below `xl` the rails float over the sheet; a tap on the sheet
+              should put them away, the way every drawer behaves. The scrim
+              only exists while a rail is open, so the sheet's own pan and zoom
+              are untouched the rest of the time. */}
+          {(showDesign || showResults) && (
+            <div
+              className="absolute inset-0 z-10 xl:hidden"
+              onClick={() => {
+                setShowDesign(false)
+                setShowResults(false)
+              }}
+              aria-hidden
+            />
+          )}
           <aside
             className={cn(
               'rule-r w-[21rem] shrink-0 bg-sheet xl:block',

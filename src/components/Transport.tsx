@@ -114,8 +114,8 @@ export function Transport({
             className="tap-target relative size-8"
             disabled={disabled}
             onClick={onReplay}
-            aria-label="Fire again from the start"
-            title="Fire again"
+            aria-label="Fire again from the start (R)"
+            title="Fire again (R)"
           >
             <RotateCcw className="size-3.5" aria-hidden />
           </Button>
@@ -124,8 +124,8 @@ export function Transport({
             className="tap-target relative size-8"
             disabled={disabled}
             onClick={playing ? onPause : onPlay}
-            aria-label={playing ? 'Pause' : 'Play the shot'}
-            title={playing ? 'Pause' : 'Play'}
+            aria-label={playing ? 'Pause (Space)' : 'Play the shot (Space)'}
+            title={playing ? 'Pause (Space)' : 'Play (Space)'}
           >
             {playing ? (
               <Pause className="size-3.5" aria-hidden />
@@ -191,14 +191,14 @@ export function Transport({
         <IconToggle
           on={showDimensions}
           onClick={() => onShowDimensions(!showDimensions)}
-          label="Show dimensions"
+          label="Show dimensions (D)"
         >
           <Ruler className="size-3.5" aria-hidden />
         </IconToggle>
-        <IconToggle on={showAngles} onClick={() => onShowAngles(!showAngles)} label="Show angles">
+        <IconToggle on={showAngles} onClick={() => onShowAngles(!showAngles)} label="Show angles (A)">
           <DraftingCompass className="size-3.5" aria-hidden />
         </IconToggle>
-        <IconToggle on={showGrid} onClick={() => onShowGrid(!showGrid)} label="Show grid">
+        <IconToggle on={showGrid} onClick={() => onShowGrid(!showGrid)} label="Show grid (G)">
           <Grid3x3 className="size-3.5" aria-hidden />
         </IconToggle>
 
@@ -212,7 +212,7 @@ export function Transport({
         <IconToggle
           on={notes}
           onClick={() => onNotes(!notes)}
-          label="Show the notes beside each reading"
+          label="Show the notes beside each reading (N)"
         >
           <Info className="size-3.5" aria-hidden />
         </IconToggle>

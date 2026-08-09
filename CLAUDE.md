@@ -7,8 +7,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 A working full-screen trebuchet calculator. `src/lib/treb/` is the solver and is the
 part to be careful with; `src/components/` is the drawing and the panels.
 
-The directory is **not a git repository** — `git init` before assuming any VCS command works.
-
 ## Commands
 
 Package manager is **bun** (`bun.lock` is the lockfile — do not introduce npm/yarn/pnpm).
@@ -69,18 +67,21 @@ maximises range. Its value is that `release.gamma` then *is* the pin angle to bu
 
 `physics.test.ts` checks the solver against an instrumented machine from
 [arXiv:2502.19442] (geometry and masses in Table 1, ranges and release times in
-Table 2). The `lab` preset is frictionless, so it reproduces their *ab initio* figures;
-their measured 36.6 m relates to it by the loss factor the paper itself reports
-(68.8 % experimental against 80.4 % ideal). Available energy matches to 0.1 %.
+Table 2). The `lab` preset is frictionless, so it must reproduce the paper's own
+*ab initio* frictionless range of 42.8 m (Table 3), not the field-measured
+34.4 ± 1.5 m — the gap between the two is the real machine's friction and drag.
+Available energy matches the printed 204 J to 0.1 %.
 
 The suite also asserts emergent behaviour rather than just numbers: efficiency against
 counterweight mass peaks at a 100:1 weight ratio, and the vacuum launch optimum is 45°.
 If a change breaks those, the change is wrong, not the test.
 
-Sources: [arXiv:2502.19442] and [arXiv:2510.18789] for the swinging-counterweight
-model and experimental data; Siano's *Trebuchet Mechanics* for the 3.75:1 arm and
-sling-equals-long-arm rules of thumb; virtualtrebuchet.com for the parameter
-definitions this app's inputs mirror.
+Sources: [arXiv:2502.19442] (Horsdal, Johansen and Rasmussen) for the
+swinging-counterweight experiments and ranges; [arXiv:2510.18789] (Horsdal) is its
+theory-only companion on internal forces — the model behind the bearing-load
+readouts, not a source of experimental data; Siano's *Trebuchet Mechanics* for the
+3.75:1 arm and sling-equals-long-arm rules of thumb; virtualtrebuchet.com for the
+parameter definitions this app's inputs mirror.
 
 [arXiv:2502.19442]: https://arxiv.org/abs/2502.19442
 [arXiv:2510.18789]: https://arxiv.org/abs/2510.18789

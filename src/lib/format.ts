@@ -9,8 +9,10 @@
 
 export type UnitSystem = 'metric' | 'imperial'
 
-/** Regions that build in feet and pounds. The UK is not one of them — timber is */
-/* sold in millimetres there and weights in kilos, whatever the road signs say. */
+/**
+ * Regions that build in feet and pounds. The UK is not one of them — timber is
+ * sold in millimetres there and weights in kilos, whatever the road signs say.
+ */
 const NON_METRIC_REGIONS = new Set(['US', 'LR', 'MM'])
 
 /**

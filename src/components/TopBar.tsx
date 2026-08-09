@@ -14,6 +14,9 @@ interface Props {
   dark: boolean
   onDark: (v: boolean) => void
   onSave: () => void
+  /** False while there is no fired shot to keep — the save button no-ops then,
+   *  so it should look like it will. */
+  canSave: boolean
   onAutoTune: () => void
   tuning: boolean
   busy: boolean
@@ -37,6 +40,7 @@ export function TopBar({
   dark,
   onDark,
   onSave,
+  canSave,
   onAutoTune,
   tuning,
   busy,
@@ -136,6 +140,7 @@ export function TopBar({
         size="sm"
         className="label h-8 shrink-0 gap-1.5"
         onClick={onSave}
+        disabled={!canSave}
         title="Keep this shot on the sheet as a dashed ghost to compare against"
       >
         <BookmarkPlus className="size-3.5" aria-hidden />

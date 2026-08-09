@@ -811,19 +811,19 @@ export function layout(input: SheetInput, measure: MeasureText): Instruction[] {
     if (i === 0) continue
     const gx = p.x(i * step)
     out.push(seg(gx, groundY, gx, groundY + 5, { color: pal.ink3, width: 1 }))
-    // Every other figure once the ticks crowd, rather than letting them merge.
-    if (i % (step * cam.scale < 60 ? 2 : 1) === 0) {
-      out.push({
-        op: 'text',
-        x: gx,
-        y: groundY + 16,
-        text: `${num(toDisplay(i * step, 'length', units), 0)}${u}`,
-        font: mono(10),
-        fill: { color: pal.ink3 },
-        align: 'center',
-        baseline: 'top',
-      })
-    }
+    // Every tick gets its figure: `gridStep` never spaces ticks closer than
+    // 90 px, so they cannot crowd. (A thinning rule used to sit here, keyed on
+    // a spacing below 60 px that the grid can never produce.)
+    out.push({
+      op: 'text',
+      x: gx,
+      y: groundY + 16,
+      text: `${num(toDisplay(i * step, 'length', units), 0)}${u}`,
+      font: mono(10),
+      fill: { color: pal.ink3 },
+      align: 'center',
+      baseline: 'top',
+    })
   }
 
   // --- ghosts -------------------------------------------------------------
@@ -833,6 +833,20 @@ export function layout(input: SheetInput, measure: MeasureText): Instruction[] {
       op: 'path',
       points: ghost.trajectory.map((pt): Point => [p.x(pt.x), p.y(pt.y)]),
       stroke: { color: pal.ink3, width: 1, alpha: 0.4, dash: [3, 4] },
+    })
+    // Lettered at the apex — with several ghosts on the sheet the dashed
+    // curves are otherwise indistinguishable, and the apex is the one point
+    // where neighbouring trajectories are furthest apart.
+    let apex = ghost.trajectory[0]
+    for (const pt of ghost.trajectory) if (pt.y > apex.y) apex = pt
+    out.push({
+      op: 'text',
+      x: p.x(apex.x),
+      y: p.y(apex.y) - 6,
+      text: ghost.label,
+      font: sans(10, 400),
+      fill: { color: pal.ink3, alpha: 0.85 },
+      align: 'center',
     })
   }
 
@@ -928,29 +942,55 @@ export function layout(input: SheetInput, measure: MeasureText): Instruction[] {
   }
 
   // --- impact + range dimension -------------------------------------------
+  // The shot lands on the *target's* ground plane, which sits below (or above)
+  // the machine's whenever "drop to target" is set. Everything about the
+  // landing — the shelf of ground, the splash, the range dimension — belongs on
+  // that plane; drawn on the machine's, the trajectory punched through the
+  // ground line and the splash floated where nothing ever landed.
   const impactX = p.x(result.range)
+  const targetY = p.y(-params.targetDrop)
+  if (Math.abs(targetY - groundY) > 2) {
+    // A shelf of target ground running from just short of the impact to the
+    // sheet edge, in the same idiom as the machine's ground line. The model has
+    // no opinion about where the slope between the two planes lies, so the
+    // shelf claims only the ground the landing actually needs.
+    const shelfX = Math.min(Math.max(impactX - 60, 0), w)
+    out.push(seg(shelfX, targetY, w, targetY, { color: pal.ink2, width: 1.5 }))
+    const shelfClip: Point[] = [
+      [shelfX, targetY],
+      [w, targetY],
+      [w, targetY + band],
+      [shelfX, targetY + band],
+    ]
+    for (const [a, b] of hatchLines(shelfX, targetY, w, targetY + band, 9)) {
+      out.push({ op: 'path', points: [a, b], stroke: { color: pal.ink3, width: 1, alpha: 0.5 }, clip: shelfClip })
+    }
+  }
+
   if (isDone(timeline, t)) {
     for (let i = 0; i < 5; i++) {
       const a = -Math.PI * (0.15 + i * 0.175)
       out.push(
         seg(
           impactX + Math.cos(a) * 4,
-          groundY + Math.sin(a) * 4,
+          targetY + Math.sin(a) * 4,
           impactX + Math.cos(a) * 11,
-          groundY + Math.sin(a) * 11,
+          targetY + Math.sin(a) * 11,
           { color: pal.quench, width: 1.5 },
         ),
       )
     }
   }
 
-  // The headline measurement, drawn rather than displayed.
+  // The headline measurement, drawn rather than displayed. It hangs below the
+  // lower of the two ground planes so its witness lines reach the landing.
+  const dimY = Math.max(groundY, targetY)
   out.push(
     ...dimension(
       p.x(0),
-      groundY,
+      dimY,
       impactX,
-      groundY,
+      dimY,
       40,
       `${num(toDisplay(result.range, 'length', units), 1)} ${u}`,
       pal.verdigris,
@@ -962,7 +1002,7 @@ export function layout(input: SheetInput, measure: MeasureText): Instruction[] {
   out.push({
     op: 'text',
     x: (Math.min(Math.max(impactX, 60), w - 60) + p.x(0)) / 2,
-    y: groundY + 62,
+    y: dimY + 62,
     text: 'RANGE FROM PIVOT',
     font: sans(9, 500, 0.14),
     fill: { color: pal.ink3 },

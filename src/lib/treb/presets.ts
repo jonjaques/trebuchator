@@ -155,7 +155,7 @@ export const PRESETS: Preset[] = [
     name: 'Warwolf, Stirling 1304',
     era: 'historical',
     blurb:
-      "Edward I's monster, built on site over three months for the siege of Stirling Castle. No drawings survive; these are the scholarly reconstruction figures — roughly 12 tonnes of counterweight throwing 120 kg stones.",
+      "Edward I's monster, built on site over three months for the siege of Stirling Castle. No drawings or dimensions survive, so these figures follow the larger modern reconstructions — roughly 12 tonnes of counterweight throwing 120 kg stones.",
     params: make({
       // ~13 m beam of green oak, roughly 600 mm square at the axle tapering to
       // 250 mm: about 2.3 m3 at 750 kg/m3 before the ironwork.
@@ -185,7 +185,7 @@ export const PRESETS: Preset[] = [
     name: 'Laboratory Reference',
     era: 'reference',
     blurb:
-      'The instrumented machine from Bernaola et al. (arXiv:2502.19442), whose measured ranges and rotation-sensor data this simulator is validated against. Drag and friction off to match their published vacuum figures.',
+      'The instrumented machine from Horsdal et al. (arXiv:2502.19442), whose rotation-sensor data and ranges this simulator is validated against. Drag and friction off to match their published ab initio figures.',
     params: {
       ...BASE,
       type: 'hinged',

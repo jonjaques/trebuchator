@@ -300,7 +300,7 @@ export function DesignRail({ params, patch, units, onTunePin, tuning }: Props) {
         />
         <Field
           label="Drag coefficient"
-          hint="0.47 smooth sphere · 0.55 rough stone · 0.8 something lumpy"
+          hint="0.47 smooth sphere · 0.55 rough stone or pumpkin · 0.8 something lumpy"
           value={params.projectileCd}
           onChange={(v) => patch({ projectileCd: v })}
           min={0.1}

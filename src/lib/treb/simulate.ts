@@ -246,6 +246,17 @@ export function simulateShot(p: TrebuchetParams, opts: SimOptions = {}): ShotRes
 
   // --- Flight ---------------------------------------------------------------
   const flight = flyBallistic(p, rel.x, rel.y, rel.vx, rel.vy, p.enableDrag)
+  if (!flight.landed) {
+    // Two ways not to land: an uphill target above the whole arc, or a
+    // near-buoyant projectile still drifting when the integrator gave up.
+    return emptyResult([
+      p.targetDrop < 0
+        ? 'The target sits higher than the top of this trajectory, so the shot can never land on it. Bring "drop to target" back toward level, or throw faster.'
+        : 'The shot was still airborne after two minutes of flight. This projectile floats more than it flies — give it more mass or less drag.',
+    ])
+  }
+  // Drag only ever lowers the arc, so if the real flight landed the vacuum one
+  // does too — but guard it anyway rather than let a phantom range through.
   const vac = p.enableDrag ? flyBallistic(p, rel.x, rel.y, rel.vx, rel.vy, false) : flight
 
   // --- Energy audit ---------------------------------------------------------
@@ -331,11 +342,13 @@ export function simulateShot(p: TrebuchetParams, opts: SimOptions = {}): ShotRes
   if (before(stalledAt)) warnings.push('The beam stalled or reversed before the sling let go.')
   if (rel.angle < 15 || rel.angle > 70)
     warnings.push(`Launch angle of ${rel.angle.toFixed(0)}° is well away from the ~42° that maximises range.`)
-  if (energy.residual / available > 0.02)
+  // An audit that misses in either direction is the same fault, so the check
+  // is on the magnitude — a negative residual used to slip through unremarked.
+  if (Math.abs(energy.residual) / available > 0.02)
     warnings.push('Energy audit does not close — the integration step may be too coarse for this machine.')
   const ratio = p.cwMass / p.projectileMass
   if (ratio < 25)
-    warnings.push(`Counterweight is only ${ratio.toFixed(0)}× the shot. Historical machines ran 100–200×.`)
+    warnings.push(`Counterweight is only ${ratio.toFixed(0)}× the shot. Historical engines ran 100× and up.`)
 
   const frames: SimFrame[] = opts.lightweight
     ? []
@@ -379,7 +392,7 @@ export function simulateShot(p: TrebuchetParams, opts: SimOptions = {}): ShotRes
     impactAngle: flight.impactAngle,
     impactEnergy,
     efficiency: keProjectile / available,
-    vacuumRange: vac.range,
+    vacuumRange: vac.landed ? vac.range : Number.NaN,
     energy,
     peaks,
   }
@@ -468,9 +481,9 @@ function pickRelease(
   for (let i = 0; i < candidates.length; i += stride) {
     const st = stateAt(model, candidates[i])
     if (st.vx <= 0) continue
-    const r = flyBallistic(p, st.x, st.y, st.vx, st.vy, p.enableDrag, 4e-3).range
-    if (r > best) {
-      best = r
+    const fl = flyBallistic(p, st.x, st.y, st.vx, st.vy, p.enableDrag, 4e-3)
+    if (fl.landed && fl.range > best) {
+      best = fl.range
       bestIdx = i
     }
   }
@@ -480,9 +493,9 @@ function pickRelease(
   for (let i = lo; i <= hi; i++) {
     const st = stateAt(model, candidates[i])
     if (st.vx <= 0) continue
-    const r = flyBallistic(p, st.x, st.y, st.vx, st.vy, p.enableDrag, 1e-3).range
-    if (r > best) {
-      best = r
+    const fl = flyBallistic(p, st.x, st.y, st.vx, st.vy, p.enableDrag, 1e-3)
+    if (fl.landed && fl.range > best) {
+      best = fl.range
       bestIdx = i
     }
   }
@@ -496,6 +509,12 @@ export interface FlightResult {
   time: number
   impactSpeed: number
   impactAngle: number
+  /**
+   * False when the flight never comes down onto the target plane — an uphill
+   * target higher than the arc's top. `range` is then just where the
+   * integration stopped and means nothing.
+   */
+  landed: boolean
 }
 
 /**
@@ -554,7 +573,11 @@ export function flyBallistic(
     const nvx = vx + (dt / 6) * (a1x + 2 * a2x + 2 * a3x + a4x)
     const nvy = vy + (dt / 6) * (a1y + 2 * a2y + 2 * a3y + a4y)
 
-    if (ny <= groundY && t + dt > 1e-6) {
+    // A landing is a *downward* crossing from at-or-above the plane. The bare
+    // "below the plane" test used here before also fired while an uphill shot
+    // was still climbing toward its target, and extrapolated a phantom landing
+    // backwards along the ascent.
+    if (y >= groundY && ny <= groundY) {
       // Land exactly on the plane rather than one step past it.
       const frac = (y - groundY) / Math.max(y - ny, 1e-12)
       const fx = x + (nx - x) * frac
@@ -569,6 +592,23 @@ export function flyBallistic(
         time: t,
         impactSpeed: Math.hypot(fvx, fvy),
         impactAngle: (Math.atan2(-fvy, fvx) * 180) / Math.PI,
+        landed: true,
+      }
+    }
+
+    if (ny <= groundY && nvy <= 0) {
+      // Below an uphill target plane and descending: nothing pushes the shot
+      // back up, so it can never land. Stop here rather than integrating the
+      // full 120 s of fall and calling wherever that ends a range.
+      traj.push({ t: t + dt, x: nx, y: ny, vx: nvx, vy: nvy })
+      return {
+        trajectory: traj,
+        range: nx,
+        apex,
+        time: t + dt,
+        impactSpeed: Math.hypot(nvx, nvy),
+        impactAngle: (Math.atan2(-nvy, nvx) * 180) / Math.PI,
+        landed: false,
       }
     }
 
@@ -588,6 +628,7 @@ export function flyBallistic(
     time: t,
     impactSpeed: Math.hypot(vx, vy),
     impactAngle: (Math.atan2(-vy, vx) * 180) / Math.PI,
+    landed: false,
   }
 }
 

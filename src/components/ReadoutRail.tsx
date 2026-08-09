@@ -143,10 +143,13 @@ export function ReadoutRail({ result, error, params, units, saved, onRecall, onD
           unit={lengthU}
         />
         <Stat label="Time of flight" value={num(result.flightTime, 2)} unit="s" />
-        {params.enableDrag && (
+        {/* A strong tailwind can push the shot past its vacuum range, at which
+            point the air is a gain, not a cost — the sign and the label both
+            have to say so, or the row prints "−-3.1". */}
+        {params.enableDrag && Number.isFinite(dragCost) && (
           <Stat
-            label="Cost of air"
-            value={`−${show(dragCost, 'length', units, 1)}`}
+            label={dragCost >= 0 ? 'Cost of air' : 'Gained from wind'}
+            value={`${dragCost >= 0 ? '−' : '+'}${show(Math.abs(dragCost), 'length', units, 1)}`}
             unit={lengthU}
             hint={`In vacuum this shot would carry ${show(result.vacuumRange, 'length', units, 1)} ${lengthU}.`}
           />
