@@ -67,8 +67,7 @@ export function SweepChart({
     // Bars start at zero. Sensitivity curves are about *relative* differences,
     // and a truncated y-axis turns a 2% spread into a dramatic cliff.
     const yTop = toDisplay(top, 'length', units) * 1.1
-    const sx = (v: number) =>
-      PAD.l + ((v - x0) / Math.max(1e-9, x1 - x0)) * (W - PAD.l - PAD.r)
+    const sx = (v: number) => PAD.l + ((v - x0) / Math.max(1e-9, x1 - x0)) * (W - PAD.l - PAD.r)
     const sy = (vDisplay: number) =>
       H - PAD.b - (vDisplay / Math.max(1e-9, yTop)) * (H - PAD.t - PAD.b)
     let best = valid[0]
@@ -139,207 +138,207 @@ export function SweepChart({
   return (
     <figure className="m-0">
       <div ref={plotRef} className="w-full">
-      <svg
-        width={W}
-        height={H}
-        viewBox={`0 0 ${W} ${H}`}
-        className="block cursor-crosshair select-none"
-        role="img"
-        aria-label={`Range against ${spec?.label ?? paramKey}. Currently ${fmtX(current)} giving ${num(dsp(atCurrent), 1)} ${yUnit}. Best is ${fmtX(best.value)} giving ${num(dsp(best.range), 1)} ${yUnit}.`}
-        onMouseLeave={() => {
-          setHover(null)
-          onHover?.(null)
-        }}
-        onMouseMove={(e) => {
-          const r = e.currentTarget.getBoundingClientRect()
-          const vx = e.clientX - r.left
-          let bi = 0
-          for (let i = 1; i < valid.length; i++)
-            if (Math.abs(sx(valid[i].value) - vx) < Math.abs(sx(valid[bi].value) - vx)) bi = i
-          setHover(bi)
-          onHover?.(valid[bi].value)
-        }}
-        onClick={() => hovered && onPick(hovered.value)}
-      >
-        {/* y grid — recessive, but present, so a value can be read off */}
-        {yTicks.map((v) => (
-          <g key={v}>
-            <line
-              x1={PAD.l}
-              y1={sy(v)}
-              x2={W - PAD.r}
-              y2={sy(v)}
-              stroke="var(--rule)"
-              strokeWidth={1}
-              opacity={v === 0 ? 1 : 0.45}
-              vectorEffect="non-scaling-stroke"
-            />
-            <text
-              x={PAD.l - 8}
-              y={sy(v) + 3}
-              textAnchor="end"
-              fill="var(--ink-3)"
-              fontSize={10}
-              fontFamily="'Geist Mono Variable', monospace"
-            >
-              {num(v, yDecimals)}
-            </text>
-          </g>
-        ))}
-        <text
-          x={PAD.l - 8}
-          y={PAD.t - 3}
-          textAnchor="end"
-          fill="var(--ink-3)"
-          fontSize={9}
-          fontFamily="'Instrument Sans Variable', sans-serif"
+        <svg
+          width={W}
+          height={H}
+          viewBox={`0 0 ${W} ${H}`}
+          className="block cursor-crosshair select-none"
+          role="img"
+          aria-label={`Range against ${spec?.label ?? paramKey}. Currently ${fmtX(current)} giving ${num(dsp(atCurrent), 1)} ${yUnit}. Best is ${fmtX(best.value)} giving ${num(dsp(best.range), 1)} ${yUnit}.`}
+          onMouseLeave={() => {
+            setHover(null)
+            onHover?.(null)
+          }}
+          onMouseMove={(e) => {
+            const r = e.currentTarget.getBoundingClientRect()
+            const vx = e.clientX - r.left
+            let bi = 0
+            for (let i = 1; i < valid.length; i++)
+              if (Math.abs(sx(valid[i].value) - vx) < Math.abs(sx(valid[bi].value) - vx)) bi = i
+            setHover(bi)
+            onHover?.(valid[bi].value)
+          }}
+          onClick={() => hovered && onPick(hovered.value)}
         >
-          {yUnit}
-        </text>
-
-        {deadBands.map((b, i) => (
-          <rect
-            key={i}
-            x={sx(b.from)}
-            y={PAD.t}
-            width={Math.max(2, sx(b.to) - sx(b.from))}
-            height={H - PAD.t - PAD.b}
-            fill="var(--ink-3)"
-            opacity={0.12}
-          />
-        ))}
-
-        {/* x ticks */}
-        {xTicks.map((v) => {
-          // Ticks are chosen on round display values, then mapped back through
-          // SI to a pixel — so "0.5 m" and "1.5 ft" both land on tidy numbers.
-          const px = sx(
-            x0 + ((v - toDisplay(x0, dim, units)) / Math.max(1e-9, xSpanDisplay)) * (x1 - x0),
-          )
-          return (
+          {/* y grid — recessive, but present, so a value can be read off */}
+          {yTicks.map((v) => (
             <g key={v}>
               <line
-                x1={px}
-                y1={H - PAD.b}
-                x2={px}
-                y2={H - PAD.b + 4}
+                x1={PAD.l}
+                y1={sy(v)}
+                x2={W - PAD.r}
+                y2={sy(v)}
                 stroke="var(--rule)"
                 strokeWidth={1}
+                opacity={v === 0 ? 1 : 0.45}
                 vectorEffect="non-scaling-stroke"
               />
               <text
-                x={px}
-                y={H - PAD.b + 15}
-                textAnchor="middle"
+                x={PAD.l - 8}
+                y={sy(v) + 3}
+                textAnchor="end"
                 fill="var(--ink-3)"
                 fontSize={10}
                 fontFamily="'Geist Mono Variable', monospace"
               >
-                {num(v, xDecimals)}
+                {num(v, yDecimals)}
               </text>
             </g>
-          )
-        })}
-
-        <path
-          d={path}
-          fill="none"
-          stroke="var(--quench)"
-          strokeWidth={2}
-          strokeLinejoin="round"
-          strokeLinecap="round"
-          vectorEffect="non-scaling-stroke"
-        />
-
-        {/* Best */}
-        <g>
-          <circle
-            cx={sx(best.value)}
-            cy={sy(dsp(best.range))}
-            r={4}
-            fill="var(--quench)"
-            stroke="var(--sheet)"
-            strokeWidth={1.5}
-          />
+          ))}
           <text
-            x={Math.min(Math.max(sx(best.value), PAD.l + 34), W - PAD.r - 34)}
-            y={Math.max(sy(dsp(best.range)) - 9, PAD.t + 8)}
-            textAnchor="middle"
-            fill="var(--ink-2)"
-            fontSize={11}
-            fontFamily="'Geist Mono Variable', monospace"
+            x={PAD.l - 8}
+            y={PAD.t - 3}
+            textAnchor="end"
+            fill="var(--ink-3)"
+            fontSize={9}
+            fontFamily="'Instrument Sans Variable', sans-serif"
           >
-            best {num(dsp(best.range), 1)}
+            {yUnit}
           </text>
-        </g>
 
-        {/* Where this machine sits, in the sheet's dimension idiom */}
-        {inRange && (
-          <g>
-            <line
-              x1={sx(current)}
-              y1={PAD.t}
-              x2={sx(current)}
-              y2={H - PAD.b}
-              stroke="var(--verdigris)"
-              strokeWidth={1}
-              strokeDasharray="3 3"
-              vectorEffect="non-scaling-stroke"
+          {deadBands.map((b, i) => (
+            <rect
+              key={i}
+              x={sx(b.from)}
+              y={PAD.t}
+              width={Math.max(2, sx(b.to) - sx(b.from))}
+              height={H - PAD.t - PAD.b}
+              fill="var(--ink-3)"
+              opacity={0.12}
             />
-            {Number.isFinite(atCurrent) && (
-              <circle
-                cx={sx(current)}
-                cy={sy(dsp(atCurrent))}
-                r={3.5}
-                fill="var(--verdigris)"
-                stroke="var(--sheet)"
-                strokeWidth={1.5}
-              />
-            )}
-            <polygon
-              points={`${sx(current)},${H - PAD.b - 5} ${sx(current) - 4},${H - PAD.b + 2} ${sx(current) + 4},${H - PAD.b + 2}`}
-              fill="var(--verdigris)"
-            />
-            {/* Dropped when it would letter over the "best" figure. That one
-                carries a number and this one does not, and the caption names
-                both regardless. */}
-            {Math.abs(sx(current) - sx(best.value)) > 56 && (
-              <text
-                x={Math.min(Math.max(sx(current), PAD.l + 26), W - PAD.r - 26)}
-                y={PAD.t + 9}
-                textAnchor="middle"
-                fill="var(--verdigris)"
-                fontSize={10}
-                fontFamily="'Instrument Sans Variable', sans-serif"
-              >
-                yours
-              </text>
-            )}
-          </g>
-        )}
+          ))}
 
-        {hovered && (
+          {/* x ticks */}
+          {xTicks.map((v) => {
+            // Ticks are chosen on round display values, then mapped back through
+            // SI to a pixel — so "0.5 m" and "1.5 ft" both land on tidy numbers.
+            const px = sx(
+              x0 + ((v - toDisplay(x0, dim, units)) / Math.max(1e-9, xSpanDisplay)) * (x1 - x0),
+            )
+            return (
+              <g key={v}>
+                <line
+                  x1={px}
+                  y1={H - PAD.b}
+                  x2={px}
+                  y2={H - PAD.b + 4}
+                  stroke="var(--rule)"
+                  strokeWidth={1}
+                  vectorEffect="non-scaling-stroke"
+                />
+                <text
+                  x={px}
+                  y={H - PAD.b + 15}
+                  textAnchor="middle"
+                  fill="var(--ink-3)"
+                  fontSize={10}
+                  fontFamily="'Geist Mono Variable', monospace"
+                >
+                  {num(v, xDecimals)}
+                </text>
+              </g>
+            )
+          })}
+
+          <path
+            d={path}
+            fill="none"
+            stroke="var(--quench)"
+            strokeWidth={2}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
+          />
+
+          {/* Best */}
           <g>
-            <line
-              x1={sx(hovered.value)}
-              y1={PAD.t}
-              x2={sx(hovered.value)}
-              y2={H - PAD.b}
-              stroke="var(--ink-3)"
-              strokeWidth={1}
-              vectorEffect="non-scaling-stroke"
-            />
             <circle
-              cx={sx(hovered.value)}
-              cy={sy(dsp(hovered.range))}
+              cx={sx(best.value)}
+              cy={sy(dsp(best.range))}
               r={4}
               fill="var(--quench)"
               stroke="var(--sheet)"
-              strokeWidth={2}
+              strokeWidth={1.5}
             />
+            <text
+              x={Math.min(Math.max(sx(best.value), PAD.l + 34), W - PAD.r - 34)}
+              y={Math.max(sy(dsp(best.range)) - 9, PAD.t + 8)}
+              textAnchor="middle"
+              fill="var(--ink-2)"
+              fontSize={11}
+              fontFamily="'Geist Mono Variable', monospace"
+            >
+              best {num(dsp(best.range), 1)}
+            </text>
           </g>
-        )}
-      </svg>
+
+          {/* Where this machine sits, in the sheet's dimension idiom */}
+          {inRange && (
+            <g>
+              <line
+                x1={sx(current)}
+                y1={PAD.t}
+                x2={sx(current)}
+                y2={H - PAD.b}
+                stroke="var(--verdigris)"
+                strokeWidth={1}
+                strokeDasharray="3 3"
+                vectorEffect="non-scaling-stroke"
+              />
+              {Number.isFinite(atCurrent) && (
+                <circle
+                  cx={sx(current)}
+                  cy={sy(dsp(atCurrent))}
+                  r={3.5}
+                  fill="var(--verdigris)"
+                  stroke="var(--sheet)"
+                  strokeWidth={1.5}
+                />
+              )}
+              <polygon
+                points={`${sx(current)},${H - PAD.b - 5} ${sx(current) - 4},${H - PAD.b + 2} ${sx(current) + 4},${H - PAD.b + 2}`}
+                fill="var(--verdigris)"
+              />
+              {/* Dropped when it would letter over the "best" figure. That one
+                carries a number and this one does not, and the caption names
+                both regardless. */}
+              {Math.abs(sx(current) - sx(best.value)) > 56 && (
+                <text
+                  x={Math.min(Math.max(sx(current), PAD.l + 26), W - PAD.r - 26)}
+                  y={PAD.t + 9}
+                  textAnchor="middle"
+                  fill="var(--verdigris)"
+                  fontSize={10}
+                  fontFamily="'Instrument Sans Variable', sans-serif"
+                >
+                  yours
+                </text>
+              )}
+            </g>
+          )}
+
+          {hovered && (
+            <g>
+              <line
+                x1={sx(hovered.value)}
+                y1={PAD.t}
+                x2={sx(hovered.value)}
+                y2={H - PAD.b}
+                stroke="var(--ink-3)"
+                strokeWidth={1}
+                vectorEffect="non-scaling-stroke"
+              />
+              <circle
+                cx={sx(hovered.value)}
+                cy={sy(dsp(hovered.range))}
+                r={4}
+                fill="var(--quench)"
+                stroke="var(--sheet)"
+                strokeWidth={2}
+              />
+            </g>
+          )}
+        </svg>
       </div>
 
       <figcaption className="flex flex-wrap items-baseline gap-x-4 gap-y-1 pt-1.5">
@@ -371,7 +370,9 @@ export function SweepChart({
             <>
               {' '}
               for{' '}
-              <span className="tnum font-mono text-quench">+{num(dsp(gain), 1)} {yUnit}</span>
+              <span className="tnum font-mono text-quench">
+                +{num(dsp(gain), 1)} {yUnit}
+              </span>
             </>
           )}
           {Number.isFinite(gain) && gain <= 0.05 && ' — you are already there'}

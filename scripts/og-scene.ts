@@ -101,13 +101,20 @@ const sheetAt = (t: number) =>
 const groundY = p.y(0)
 const furniture = (i: Instruction): boolean => {
   if (i.op === 'rect' || i.op === 'text') return true
-  if (i.op === 'path' && i.clip?.length === 4 && i.clip[0][0] === 0 && i.clip[1][0] === W) return true
+  if (i.op === 'path' && i.clip?.length === 4 && i.clip[0][0] === 0 && i.clip[1][0] === W)
+    return true
   if (i.op === 'path' && i.points.length === 2) {
     const [[x0, y0], [x1, y1]] = i.points
     if (x0 === 0 && x1 === W && y0 === y1 && Math.abs(y0 - groundY) < 0.75) return true
-    if (x0 === x1 && Math.abs(y0 - groundY) < 0.75 && Math.abs(y1 - (groundY + 5)) < 0.75) return true
+    if (x0 === x1 && Math.abs(y0 - groundY) < 0.75 && Math.abs(y1 - (groundY + 5)) < 0.75)
+      return true
   }
-  if (i.op === 'path' && i.stroke?.dash && i.stroke.color === PAL.quench && (i.stroke.alpha ?? 1) < 0.3)
+  if (
+    i.op === 'path' &&
+    i.stroke?.dash &&
+    i.stroke.color === PAL.quench &&
+    (i.stroke.alpha ?? 1) < 0.3
+  )
     return true
   return false
 }
@@ -120,7 +127,8 @@ const isShot = (i: Instruction): boolean =>
 // thumbnail size the whip, the flown segment and the shot itself need weight.
 const emphasize = (i: Instruction): Instruction => {
   if (isShot(i)) {
-    if (i.op === 'path' && i.stroke) return { ...i, stroke: { ...i.stroke, width: (i.stroke.width ?? 1) * 2.2 } }
+    if (i.op === 'path' && i.stroke)
+      return { ...i, stroke: { ...i.stroke, width: (i.stroke.width ?? 1) * 2.2 } }
     if (i.op === 'circle') return { ...i, r: Math.max(i.r, 10) }
   }
   if (i.op === 'path' && i.stroke?.color === PAL.ink3 && i.stroke.alpha === 0.45)
@@ -162,7 +170,9 @@ function toSvg(i: Instruction): string {
       let clip = ''
       if (i.clip) {
         const id = `clip${clipN++}`
-        defs.push(`<clipPath id="${id}"><polygon points="${i.clip.map(fmtPt).join(', ')}"/></clipPath>`)
+        defs.push(
+          `<clipPath id="${id}"><polygon points="${i.clip.map(fmtPt).join(', ')}"/></clipPath>`,
+        )
         clip = ` clip-path="url(#${id})"`
       }
       return `<path d="${d}" ${fillAttrs(i.fill)} ${strokeAttrs(i.stroke)}${clip}/>`
@@ -210,10 +220,16 @@ const effFig = `${Math.round(result.efficiency * 100)}%`
 
 const b64 = (path: string) => readFileSync(path).toString('base64')
 const sansFont = b64(
-  join(ROOT, 'node_modules/@fontsource-variable/instrument-sans/files/instrument-sans-latin-wght-normal.woff2'),
+  join(
+    ROOT,
+    'node_modules/@fontsource-variable/instrument-sans/files/instrument-sans-latin-wght-normal.woff2',
+  ),
 )
 const monoFont = b64(
-  join(ROOT, 'node_modules/@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2'),
+  join(
+    ROOT,
+    'node_modules/@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2',
+  ),
 )
 
 // --- the page ----------------------------------------------------------------

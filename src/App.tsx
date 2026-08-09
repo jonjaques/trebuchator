@@ -66,9 +66,7 @@ export default function App() {
   // On by default: the product's second job is teaching, and a builder meeting
   // "hanger length" for the first time should not have to discover a tooltip to
   // find out what it measures. One click folds them all away again.
-  const [notes, setNotes] = useState(
-    () => localStorage.getItem('trebuchator:notes') !== 'off',
-  )
+  const [notes, setNotes] = useState(() => localStorage.getItem('trebuchator:notes') !== 'off')
   const [dark, setDark] = useState(
     () =>
       localStorage.getItem('trebuchator:theme') !== 'light' &&
@@ -523,290 +521,294 @@ export default function App() {
   const ratio = params.armLong / Math.max(params.armShort, 1e-6)
   const massRatio = params.cwMass / Math.max(params.projectileMass, 1e-9)
   const machineName =
-    params.type === 'hinged' ? 'Hinged counterweight' : params.type === 'fixed' ? 'Bolted counterweight' : 'Floating arm'
+    params.type === 'hinged'
+      ? 'Hinged counterweight'
+      : params.type === 'fixed'
+        ? 'Bolted counterweight'
+        : 'Floating arm'
 
   return (
     <NotesContext value={notes}>
       <PointAtContext value={setPointedAt}>
-      <div className="flex h-dvh w-full flex-col overflow-hidden bg-ground text-ink">
-        <TopBar
-          presetId={presetId}
-          onPreset={loadPreset}
-          units={units}
-          onUnits={setUnits}
-          dark={dark}
-          onDark={setDark}
-          onSave={saveShot}
-          canSave={result?.ok ?? false}
-          machines={machines}
-          onSaveMachine={saveMachine}
-          onLoadMachine={loadMachine}
-          onDeleteMachine={deleteMachine}
-          onOptimize={optimize}
-          optimizing={tuning}
-          pareto={pareto}
-          goal={goal}
-          onGoal={changeGoal}
-          onApplyPareto={applyPareto}
-          onPreviewPareto={previewPareto}
-          busy={busy}
-          showDesign={showDesign}
-          showResults={showResults}
-          onToggleDesign={() => {
-            setShowDesign((v) => !v)
-            setShowResults(false)
-          }}
-          onToggleResults={() => {
-            setShowResults((v) => !v)
-            setShowDesign(false)
-          }}
-        />
+        <div className="flex h-dvh w-full flex-col overflow-hidden bg-ground text-ink">
+          <TopBar
+            presetId={presetId}
+            onPreset={loadPreset}
+            units={units}
+            onUnits={setUnits}
+            dark={dark}
+            onDark={setDark}
+            onSave={saveShot}
+            canSave={result?.ok ?? false}
+            machines={machines}
+            onSaveMachine={saveMachine}
+            onLoadMachine={loadMachine}
+            onDeleteMachine={deleteMachine}
+            onOptimize={optimize}
+            optimizing={tuning}
+            pareto={pareto}
+            goal={goal}
+            onGoal={changeGoal}
+            onApplyPareto={applyPareto}
+            onPreviewPareto={previewPareto}
+            busy={busy}
+            showDesign={showDesign}
+            showResults={showResults}
+            onToggleDesign={() => {
+              setShowDesign((v) => !v)
+              setShowResults(false)
+            }}
+            onToggleResults={() => {
+              setShowResults((v) => !v)
+              setShowDesign(false)
+            }}
+          />
 
-        <div className="relative flex min-h-0 flex-1">
-          {/* Below `xl` the rails float over the sheet; a tap on the sheet
+          <div className="relative flex min-h-0 flex-1">
+            {/* Below `xl` the rails float over the sheet; a tap on the sheet
               should put them away, the way every drawer behaves. The scrim
               only exists while a rail is open, so the sheet's own pan and zoom
               are untouched the rest of the time. */}
-          {(showDesign || showResults) && (
-            <div
-              className="absolute inset-0 z-10 xl:hidden"
-              onClick={() => {
-                setShowDesign(false)
-                setShowResults(false)
-              }}
-              aria-hidden
-            />
-          )}
-          <aside
-            /* The catch-all for the highlight. A control clears it on
+            {(showDesign || showResults) && (
+              <div
+                className="absolute inset-0 z-10 xl:hidden"
+                onClick={() => {
+                  setShowDesign(false)
+                  setShowResults(false)
+                }}
+                aria-hidden
+              />
+            )}
+            <aside
+              /* The catch-all for the highlight. A control clears it on
                pointerleave, but a rail that closes — or a field that unmounts
                when the machine type changes — never fires one, and the sheet
                was left with a dimension lit for a control that is no longer on
                screen. */
-            onPointerLeave={() => setPointedAt(null)}
-            className={cn(
-              'rule-r w-[21rem] shrink-0 bg-sheet xl:block',
-              showDesign
-                ? 'absolute inset-y-0 left-0 z-20 block shadow-2xl xl:relative xl:shadow-none'
-                : 'hidden',
-            )}
-          >
-            <DesignRail
-              params={params}
-              patch={patch}
-              units={units}
-              onTunePin={tunePin}
-              tuning={tuning}
-              materials={materials}
-              onMaterials={changeMaterials}
-            />
-          </aside>
-
-          <main className="flex min-w-0 flex-1 flex-col">
-            <div className="relative min-h-0 flex-1">
-              <Stage
-                result={result}
+              onPointerLeave={() => setPointedAt(null)}
+              className={cn(
+                'rule-r w-[21rem] shrink-0 bg-sheet xl:block',
+                showDesign
+                  ? 'absolute inset-y-0 left-0 z-20 block shadow-2xl xl:relative xl:shadow-none'
+                  : 'hidden',
+              )}
+            >
+              <DesignRail
                 params={params}
-                t={t}
+                patch={patch}
                 units={units}
-                showDimensions={showDimensions}
-                showAngles={showAngles}
-                showGrid={showGrid}
-                ghosts={ghosts}
-                preview={preview}
-                highlight={pointedAt}
-                /* Pointing counts as editing. Without this the highlight is
+                onTunePin={tunePin}
+                tuning={tuning}
+                materials={materials}
+                onMaterials={changeMaterials}
+              />
+            </aside>
+
+            <main className="flex min-w-0 flex-1 flex-col">
+              <div className="relative min-h-0 flex-1">
+                <Stage
+                  result={result}
+                  params={params}
+                  t={t}
+                  units={units}
+                  showDimensions={showDimensions}
+                  showAngles={showAngles}
+                  showGrid={showGrid}
+                  ghosts={ghosts}
+                  preview={preview}
+                  highlight={pointedAt}
+                  /* Pointing counts as editing. Without this the highlight is
                    invisible in the ordinary case: with playback parked at the
                    end of a flight the camera is framed on the whole field, the
                    machine is a few dozen pixels tall, and every dimension is
                    below `MIN_DIMENSION` and correctly dropped — so pointing at
                    a control lit nothing at all. Framing is what makes the
                    measurement legible enough to be worth drawing. */
-                editing={editing || pointedAt !== null}
-                mode={cameraMode}
-                onModeChange={setCameraMode}
-              />
+                  editing={editing || pointedAt !== null}
+                  mode={cameraMode}
+                  onModeChange={setCameraMode}
+                />
 
-              {/* Title block, the way a drawing carries its own identification.
+                {/* Title block, the way a drawing carries its own identification.
                   Top right rather than the traditional bottom corner, because the
                   bottom of the sheet belongs to the range dimension. Everything in
                   it is derived from the machine, not decorative. */}
-              <div className="pointer-events-none absolute right-3 top-3 hidden border border-rule bg-sheet/85 backdrop-blur-[2px] sm:block">
-                <div className="label rule-b px-2.5 py-1.5 text-ink-2">{machineName}</div>
-                <dl className="grid grid-cols-[auto_auto] gap-x-4 gap-y-1 px-2.5 py-2">
-                  <dt className="label text-ink-3">Arm ratio</dt>
-                  <dd className="tnum text-right font-mono text-[11px] text-ink">
-                    {num(ratio, 2)} : 1
-                  </dd>
-                  <dt className="label text-ink-3">Weight ratio</dt>
-                  <dd className="tnum text-right font-mono text-[11px] text-ink">
-                    {num(massRatio, 0)} : 1
-                  </dd>
-                  <dt className="label text-ink-3">Sling</dt>
-                  <dd className="tnum text-right font-mono text-[11px] text-ink">
-                    {num((params.slingLength / params.armLong) * 100, 0)}% of arm
-                  </dd>
-                </dl>
+                <div className="pointer-events-none absolute right-3 top-3 hidden border border-rule bg-sheet/85 backdrop-blur-[2px] sm:block">
+                  <div className="label rule-b px-2.5 py-1.5 text-ink-2">{machineName}</div>
+                  <dl className="grid grid-cols-[auto_auto] gap-x-4 gap-y-1 px-2.5 py-2">
+                    <dt className="label text-ink-3">Arm ratio</dt>
+                    <dd className="tnum text-right font-mono text-[11px] text-ink">
+                      {num(ratio, 2)} : 1
+                    </dd>
+                    <dt className="label text-ink-3">Weight ratio</dt>
+                    <dd className="tnum text-right font-mono text-[11px] text-ink">
+                      {num(massRatio, 0)} : 1
+                    </dd>
+                    <dt className="label text-ink-3">Sling</dt>
+                    <dd className="tnum text-right font-mono text-[11px] text-ink">
+                      {num((params.slingLength / params.armLong) * 100, 0)}% of arm
+                    </dd>
+                  </dl>
+                </div>
               </div>
-            </div>
 
-            {sweepOpen && (
-              <div className="rule-t bg-sheet px-3 pb-2 pt-2">
-                {/* The collapse control leads the row rather than floating right
+              {sweepOpen && (
+                <div className="rule-t bg-sheet px-3 pb-2 pt-2">
+                  {/* The collapse control leads the row rather than floating right
                     on an `ml-auto`. In a wrapping row that put it alone on a line
                     of its own once the buttons wrapped — and a disclosure belongs
                     next to the name of the thing it discloses anyway, which is
                     where the collapsed state already puts it. */}
-                {/* The controls share the row's width — the select takes the
+                  {/* The controls share the row's width — the select takes the
                     slack — instead of clustering left and wrapping the last
                     button onto its own lonely line. */}
-                <div className="flex flex-wrap items-center gap-2 pb-1">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="tap-target relative -ml-1 size-7 shrink-0 text-ink-3"
-                    onClick={() => setSweepOpen(false)}
-                    aria-expanded
-                    aria-label="Hide the what-if panel"
-                  >
-                    <ChevronDown className="size-4" aria-hidden />
-                  </Button>
-                  <span className="stencil shrink-0 text-ink">What if</span>
-                  {/* A native select for a 12-item list — the platform picker is
+                  <div className="flex flex-wrap items-center gap-2 pb-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="tap-target relative -ml-1 size-7 shrink-0 text-ink-3"
+                      onClick={() => setSweepOpen(false)}
+                      aria-expanded
+                      aria-label="Hide the what-if panel"
+                    >
+                      <ChevronDown className="size-4" aria-hidden />
+                    </Button>
+                    <span className="stencil shrink-0 text-ink">What if</span>
+                    {/* A native select for a 12-item list — the platform picker is
                       the right control on a phone — but with its own chrome off,
                       because a macOS select is rounder than anything else drawn
                       on this sheet. */}
-                  <div className="relative min-w-[9rem] flex-1">
-                    <select
-                      value={sweepKey}
-                      onChange={(e) => setSweepKey(e.target.value as TunableKey)}
-                      aria-label="Parameter to sweep"
-                      className="label w-full appearance-none rounded-sm border border-rule bg-ground py-1 pl-2 pr-6 text-ink-2 focus-visible:border-verdigris"
-                    >
-                      {TUNABLES.map((s) => (
-                        <option key={s.key} value={s.key}>
-                          {s.label}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown
-                      className="pointer-events-none absolute right-1.5 top-1/2 size-3 -translate-y-1/2 text-ink-3"
-                      aria-hidden
-                    />
-                  </div>
+                    <div className="relative min-w-[9rem] flex-1">
+                      <select
+                        value={sweepKey}
+                        onChange={(e) => setSweepKey(e.target.value as TunableKey)}
+                        aria-label="Parameter to sweep"
+                        className="label w-full appearance-none rounded-sm border border-rule bg-ground py-1 pl-2 pr-6 text-ink-2 focus-visible:border-verdigris"
+                      >
+                        {TUNABLES.map((s) => (
+                          <option key={s.key} value={s.key}>
+                            {s.label}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown
+                        className="pointer-events-none absolute right-1.5 top-1/2 size-3 -translate-y-1/2 text-ink-3"
+                        aria-hidden
+                      />
+                    </div>
 
-                  {/* Holding the pin angle while sweeping a dimension conflates
+                    {/* Holding the pin angle while sweeping a dimension conflates
                       "this dimension is better" with "my pin happens to suit it",
                       which is the fastest way to make a curve untrustworthy.
                       Naming both readings, and letting you switch, is the fix. */}
-                  <SegmentedControl
-                    label="How each point is set up"
-                    value={sweepMode}
-                    onChange={setSweepMode}
-                    options={[
-                      {
-                        value: 'asBuilt',
-                        label: 'As built',
-                        title: 'Change this one number and nothing else.',
-                      },
-                      {
-                        value: 'bestCase',
-                        label: 'Best case',
-                        title:
-                          'Re-cock the beam and release at the ideal instant for every value — what this dimension could give you if you tuned around it.',
-                      },
-                    ]}
-                  />
+                    <SegmentedControl
+                      label="How each point is set up"
+                      value={sweepMode}
+                      onChange={setSweepMode}
+                      options={[
+                        {
+                          value: 'asBuilt',
+                          label: 'As built',
+                          title: 'Change this one number and nothing else.',
+                        },
+                        {
+                          value: 'bestCase',
+                          label: 'Best case',
+                          title:
+                            'Re-cock the beam and release at the ideal instant for every value — what this dimension could give you if you tuned around it.',
+                        },
+                      ]}
+                    />
 
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="label h-7 shrink-0 gap-1.5"
-                    disabled={sweepBusy || !sweepBest || sweepBlocked != null}
-                    onClick={() => sweepBest && patch({ [sweepKey]: sweepBest.value })}
-                    title="Set this parameter to the value that throws furthest"
-                  >
-                    <Target className="size-3" aria-hidden />
-                    Adopt best
-                  </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="label h-7 shrink-0 gap-1.5"
+                      disabled={sweepBusy || !sweepBest || sweepBlocked != null}
+                      onClick={() => sweepBest && patch({ [sweepKey]: sweepBest.value })}
+                      title="Set this parameter to the value that throws furthest"
+                    >
+                      <Target className="size-3" aria-hidden />
+                      Adopt best
+                    </Button>
+                  </div>
+                  {(sweepBlocked ?? sweepError) ? (
+                    <p className="body mx-auto max-w-prose px-2 py-10 text-center text-ink-2">
+                      {sweepBlocked ?? sweepError}
+                    </p>
+                  ) : (
+                    <SweepChart
+                      points={sweepPoints}
+                      paramKey={sweepKey}
+                      current={params[sweepKey]}
+                      units={units}
+                      loading={sweepBusy}
+                      mode={sweepMode}
+                      onPick={(v) => patch({ [sweepKey]: v })}
+                      onHover={previewHover}
+                    />
+                  )}
                 </div>
-                {(sweepBlocked ?? sweepError) ? (
-                  <p className="body mx-auto max-w-prose px-2 py-10 text-center text-ink-2">
-                    {sweepBlocked ?? sweepError}
-                  </p>
-                ) : (
-                  <SweepChart
-                    points={sweepPoints}
-                    paramKey={sweepKey}
-                    current={params[sweepKey]}
-                    units={units}
-                    loading={sweepBusy}
-                    mode={sweepMode}
-                    onPick={(v) => patch({ [sweepKey]: v })}
-                    onHover={previewHover}
-                  />
-                )}
-              </div>
-            )}
+              )}
 
-            {!sweepOpen && (
-              <button
-                onClick={() => setSweepOpen(true)}
-                aria-expanded={false}
-                className="rule-t label flex items-center justify-center gap-1.5 bg-sheet py-1.5 text-ink-3 hover:text-ink-2"
-              >
-                <ChevronUp className="size-3.5" aria-hidden />
-                What if
-              </button>
-            )}
+              {!sweepOpen && (
+                <button
+                  onClick={() => setSweepOpen(true)}
+                  aria-expanded={false}
+                  className="rule-t label flex items-center justify-center gap-1.5 bg-sheet py-1.5 text-ink-3 hover:text-ink-2"
+                >
+                  <ChevronUp className="size-3.5" aria-hidden />
+                  What if
+                </button>
+              )}
 
-            <Transport
-              t={t}
-              timeline={timeline}
-              playing={playing}
-              speed={speed}
-              onSeek={seek}
-              onPlay={play}
-              onPause={() => setPlaying(false)}
-              onReplay={replay}
-              onSpeed={setSpeed}
-              cameraMode={cameraMode}
-              onCameraMode={setCameraMode}
-              showDimensions={showDimensions}
-              onShowDimensions={toggleDimensions}
-              showAngles={showAngles}
-              onShowAngles={toggleAngles}
-              showGrid={showGrid}
-              onShowGrid={setShowGrid}
-              notes={notes}
-              onNotes={setNotes}
-              disabled={!result?.ok}
-            />
-          </main>
+              <Transport
+                t={t}
+                timeline={timeline}
+                playing={playing}
+                speed={speed}
+                onSeek={seek}
+                onPlay={play}
+                onPause={() => setPlaying(false)}
+                onReplay={replay}
+                onSpeed={setSpeed}
+                cameraMode={cameraMode}
+                onCameraMode={setCameraMode}
+                showDimensions={showDimensions}
+                onShowDimensions={toggleDimensions}
+                showAngles={showAngles}
+                onShowAngles={toggleAngles}
+                showGrid={showGrid}
+                onShowGrid={setShowGrid}
+                notes={notes}
+                onNotes={setNotes}
+                disabled={!result?.ok}
+              />
+            </main>
 
-          <aside
-            className={cn(
-              'rule-l w-[20rem] shrink-0 bg-sheet xl:block',
-              showResults
-                ? 'absolute inset-y-0 right-0 z-20 block shadow-2xl xl:relative xl:shadow-none'
-                : 'hidden',
-            )}
-          >
-            <ReadoutRail
-              result={result}
-              error={error ?? actionError}
-              params={params}
-              units={units}
-              saved={saved}
-              onRecall={(s) => {
-                setParams({ ...s.params })
-                setPresetId(null)
-              }}
-              onDrop={(id) => setSaved((prev) => prev.filter((s) => s.id !== id))}
-            />
-          </aside>
+            <aside
+              className={cn(
+                'rule-l w-[20rem] shrink-0 bg-sheet xl:block',
+                showResults
+                  ? 'absolute inset-y-0 right-0 z-20 block shadow-2xl xl:relative xl:shadow-none'
+                  : 'hidden',
+              )}
+            >
+              <ReadoutRail
+                result={result}
+                error={error ?? actionError}
+                params={params}
+                units={units}
+                saved={saved}
+                onRecall={(s) => {
+                  setParams({ ...s.params })
+                  setPresetId(null)
+                }}
+                onDrop={(id) => setSaved((prev) => prev.filter((s) => s.id !== id))}
+              />
+            </aside>
+          </div>
         </div>
-      </div>
       </PointAtContext>
     </NotesContext>
   )

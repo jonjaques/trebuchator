@@ -79,7 +79,9 @@ describe('the whole sheet', () => {
     const all = layout(sheet({ showDimensions: true }), measure)
     const lit = layout(sheet({ showDimensions: true, highlight: 'slingLength' }), measure)
     const faded = (ins: Instruction[]) =>
-      ins.filter((i) => i.op === 'path' && i.stroke?.color === palette.verdigris && i.stroke.alpha === 0.32)
+      ins.filter(
+        (i) => i.op === 'path' && i.stroke?.color === palette.verdigris && i.stroke.alpha === 0.32,
+      )
     expect(faded(all)).toHaveLength(0)
     expect(faded(lit).length).toBeGreaterThan(0)
   })
@@ -99,10 +101,7 @@ describe('the whole sheet', () => {
 
   it('only draws the protractors when they are asked for', () => {
     const off = layout(sheet({ t: result.timeline.releaseT / 2 }), measure).length
-    const on = layout(
-      sheet({ t: result.timeline.releaseT / 2, showAngles: true }),
-      measure,
-    ).length
+    const on = layout(sheet({ t: result.timeline.releaseT / 2, showAngles: true }), measure).length
     expect(on).toBeGreaterThan(off)
   })
 
@@ -119,7 +118,14 @@ describe('the whole sheet', () => {
   })
 
   it('draws a saved shot as one dashed ghost', () => {
-    const ghost = { trajectory: [{ x: 0, y: 1 }, { x: 5, y: 4 }, { x: 12, y: 0 }], label: 'earlier' }
+    const ghost = {
+      trajectory: [
+        { x: 0, y: 1 },
+        { x: 5, y: 4 },
+        { x: 12, y: 0 },
+      ],
+      label: 'earlier',
+    }
     const ins = layout(sheet({ ghosts: [ghost] }), measure)
     const dashedGhosts = ins.filter(
       (i) => i.op === 'path' && i.stroke?.color === palette.ink3 && i.stroke.dash?.[0] === 3,
@@ -129,8 +135,22 @@ describe('the whole sheet', () => {
 
   it('letters each ghost at its apex so saved shots can be told apart', () => {
     const ghosts = [
-      { trajectory: [{ x: 0, y: 1 }, { x: 5, y: 4 }, { x: 12, y: 0 }], label: 'earlier' },
-      { trajectory: [{ x: 0, y: 1 }, { x: 7, y: 6 }, { x: 16, y: 0 }], label: 'longer sling' },
+      {
+        trajectory: [
+          { x: 0, y: 1 },
+          { x: 5, y: 4 },
+          { x: 12, y: 0 },
+        ],
+        label: 'earlier',
+      },
+      {
+        trajectory: [
+          { x: 0, y: 1 },
+          { x: 7, y: 6 },
+          { x: 16, y: 0 },
+        ],
+        label: 'longer sling',
+      },
     ]
     const ins = layout(sheet({ ghosts }), measure)
     const labels = texts(ins).map((t) => t.text)
@@ -143,12 +163,15 @@ describe('the whole sheet', () => {
     if (!dropped.ok) throw new Error('the dropped-target shot should throw')
     const level = layout(sheet({ t: result.timeline.duration }), measure)
     const below = layout(
-      sheet({ params: { ...params, targetDrop: 20 }, result: dropped, t: dropped.timeline.duration }),
+      sheet({
+        params: { ...params, targetDrop: 20 },
+        result: dropped,
+        t: dropped.timeline.duration,
+      }),
       measure,
     )
     // The caption follows the dimension, which hangs below the landing plane.
-    const caption = (ins: Instruction[]) =>
-      texts(ins).find((t) => t.text === 'RANGE FROM PIVOT')!
+    const caption = (ins: Instruction[]) => texts(ins).find((t) => t.text === 'RANGE FROM PIVOT')!
     expect(caption(below).y).toBeGreaterThan(caption(level).y)
     // A second ground line appears: the shelf of target ground under the impact.
     const groundLines = (ins: Instruction[]) =>
@@ -240,7 +263,9 @@ describe('the boulder', () => {
     const landed = layout(sheet({ t: result.timeline.duration }), measure)
     const blazing = layout(sheet({ t: result.timeline.duration, blast: 0.2 }), measure)
     const fire = (ins: Instruction[]) =>
-      ins.filter((i) => i.op === 'circle' && i.fill?.color === palette.quench && i.fill.alpha != null)
+      ins.filter(
+        (i) => i.op === 'circle' && i.fill?.color === palette.quench && i.fill.alpha != null,
+      )
     // The crater is permanent; the fireball is on `Stage`'s wall clock, and is
     // absent under reduced motion, which is what a null blast means.
     expect(fire(landed)).toHaveLength(0)

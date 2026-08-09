@@ -1,5 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
-import { BookmarkPlus, Check, ChevronDown, Link2, Moon, PanelLeft, PanelRight, Save, Sun, Trash2, Wand2 } from 'lucide-react'
+import {
+  BookmarkPlus,
+  Check,
+  ChevronDown,
+  Link2,
+  Moon,
+  PanelLeft,
+  PanelRight,
+  Save,
+  Sun,
+  Trash2,
+  Wand2,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button.tsx'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover.tsx'
 import { SegmentedControl } from './SegmentedControl.tsx'
@@ -122,173 +134,175 @@ export function TopBar({
       <div className="rule-t flex h-12 flex-1 items-center gap-2 px-3 lg:h-auto lg:border-t-0 lg:px-0">
         <span className="mx-1 hidden h-6 w-px bg-rule lg:block" aria-hidden />
 
-      {/* Controlled so picking closes it. Uncontrolled, the menu stayed open
+        {/* Controlled so picking closes it. Uncontrolled, the menu stayed open
           over the sheet after a choice, hiding the machine it had just changed
           — the one thing the reader wanted to look at. */}
-      <Popover open={presetOpen} onOpenChange={setPresetOpen}>
-        <PopoverTrigger asChild>
-          <Button variant="outline" size="sm" className="label h-8 min-w-0 flex-1 gap-2">
-            <span className="truncate">{currentName}</span>
-            <ChevronDown className="size-3 shrink-0 text-ink-3" aria-hidden />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent align="start" className="w-[22rem] p-0">
-          <div className="thin-scroll max-h-[70vh] overflow-y-auto">
-            {machines.length > 0 && (
-              <div>
-                <div className="label rule-b bg-raised px-3 py-2 text-ink-3">Your machines</div>
-                {machines.map((m) => (
-                  <div key={m.id} className="rule-b group/row relative flex items-stretch">
+        <Popover open={presetOpen} onOpenChange={setPresetOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="label h-8 min-w-0 flex-1 gap-2">
+              <span className="truncate">{currentName}</span>
+              <ChevronDown className="size-3 shrink-0 text-ink-3" aria-hidden />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-[22rem] p-0">
+            <div className="thin-scroll max-h-[70vh] overflow-y-auto">
+              {machines.length > 0 && (
+                <div>
+                  <div className="label rule-b bg-raised px-3 py-2 text-ink-3">Your machines</div>
+                  {machines.map((m) => (
+                    <div key={m.id} className="rule-b group/row relative flex items-stretch">
+                      <button
+                        onClick={() => {
+                          onLoadMachine(m.id)
+                          setPresetOpen(false)
+                        }}
+                        className={cn(
+                          'flex-1 border-l border-l-transparent px-3 py-2.5 text-left transition-colors hover:border-l-verdigris hover:bg-ground',
+                          m.id === presetId && 'border-l-verdigris bg-verdigris/8',
+                        )}
+                      >
+                        <div className="label text-ink">{m.name}</div>
+                      </button>
+                      <button
+                        onClick={() => onDeleteMachine(m.id)}
+                        aria-label={`Delete ${m.name}`}
+                        title={`Delete ${m.name}`}
+                        className="tap-target relative px-3 text-ink-3 transition-colors hover:bg-ground hover:text-bad focus-visible:text-bad"
+                      >
+                        <Trash2 className="size-3.5" aria-hidden />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {eras.map((era) => (
+                <div key={era}>
+                  <div className="label rule-b bg-raised px-3 py-2 text-ink-3">
+                    {ERA_LABEL[era]}
+                  </div>
+                  {PRESETS.filter((p) => p.era === era).map((p) => (
                     <button
+                      key={p.id}
                       onClick={() => {
-                        onLoadMachine(m.id)
+                        onPreset(p.id)
                         setPresetOpen(false)
                       }}
                       className={cn(
-                        'flex-1 border-l border-l-transparent px-3 py-2.5 text-left transition-colors hover:border-l-verdigris hover:bg-ground',
-                        m.id === presetId && 'border-l-verdigris bg-verdigris/8',
-                      )}
-                    >
-                      <div className="label text-ink">{m.name}</div>
-                    </button>
-                    <button
-                      onClick={() => onDeleteMachine(m.id)}
-                      aria-label={`Delete ${m.name}`}
-                      title={`Delete ${m.name}`}
-                      className="tap-target relative px-3 text-ink-3 transition-colors hover:bg-ground hover:text-bad focus-visible:text-bad"
-                    >
-                      <Trash2 className="size-3.5" aria-hidden />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            {eras.map((era) => (
-              <div key={era}>
-                <div className="label rule-b bg-raised px-3 py-2 text-ink-3">
-                  {ERA_LABEL[era]}
-                </div>
-                {PRESETS.filter((p) => p.era === era).map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => {
-                      onPreset(p.id)
-                      setPresetOpen(false)
-                    }}
-                    className={cn(
-                      /* `hover:bg-raised` was not a weak hover, it was no hover:
+                        /* `hover:bg-raised` was not a weak hover, it was no hover:
                          `--popover` *is* `--raised`, so the rows were already
                          sitting on the colour they hovered to. `--ground` is the
                          one neutral that differs from the popover surface in
                          both themes, and the hairline that lights up beside the
                          row is what a draughtsman would use to point at it. */
-                      'rule-b block w-full border-l border-l-transparent px-3 py-2.5 text-left transition-colors hover:border-l-verdigris hover:bg-ground',
-                      p.id === presetId && 'border-l-verdigris bg-verdigris/8',
-                    )}
-                  >
-                    <div className="label pb-1 text-ink">{p.name}</div>
-                    <div className="body text-ink-2">{p.blurb}</div>
-                  </button>
-                ))}
-              </div>
-            ))}
-          </div>
-          {/* Saving lives with the list it saves into rather than as a fourth
+                        'rule-b block w-full border-l border-l-transparent px-3 py-2.5 text-left transition-colors hover:border-l-verdigris hover:bg-ground',
+                        p.id === presetId && 'border-l-verdigris bg-verdigris/8',
+                      )}
+                    >
+                      <div className="label pb-1 text-ink">{p.name}</div>
+                      <div className="body text-ink-2">{p.blurb}</div>
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+            {/* Saving lives with the list it saves into rather than as a fourth
               button on a bar that already wraps on a phone. */}
-          <SaveMachineRow
-            onSave={(name) => {
-              onSaveMachine(name)
-              setPresetOpen(false)
-            }}
-          />
-        </PopoverContent>
-      </Popover>
-
-      <Popover
-        open={optimizeOpen}
-        onOpenChange={(open) => {
-          setOptimizeOpen(open)
-          // A fresh open with no current frontier starts the search at once —
-          // an empty panel with a second "go" button is a step nobody needs.
-          if (open && pareto == null && !optimizing) onOptimize()
-          // Closing over a hovered point would otherwise strand its trajectory
-          // on the sheet with nothing left on screen to explain it.
-          if (!open) onPreviewPareto(null)
-        }}
-      >
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className="label h-8 min-w-0 flex-1 gap-1.5"
-            title="Search feasible builds for the frontier of range against frame load"
-          >
-            <Wand2 className="size-3.5" aria-hidden />
-            {optimizing ? 'Searching…' : 'Optimize'}
-          </Button>
-        </PopoverTrigger>
-        {/* 26rem is wider than a small phone, so it gives ground rather than
-            sitting flush against both edges with the chart's axis labels
-            touching the bezel. */}
-        <PopoverContent align="start" className="w-[min(26rem,calc(100vw-1.5rem))] p-0">
-          <div className="px-3 py-2.5">
-            <SegmentedControl
-              label="Optimize for"
-              variant="boxed"
-              className="grid-cols-3"
-              value={goal}
-              onChange={onGoal}
-              options={GOALS.map((g) => ({ value: g.goal, label: g.label, title: g.blurb }))}
-            />
-          </div>
-          <p className="body rule-t rule-b px-3 py-2 text-ink-2">
-            Sling, hanger, cocked angle and short arm searched. Every build is feasible
-            and none beats another on both counts — more of what you asked for is only
-            bought with a heavier-loaded frame. The pin comes bent to the angle each
-            build wants.
-          </p>
-          {optimizing ? (
-            <p className="body px-3 py-6 text-ink-2">Firing candidate machines…</p>
-          ) : pareto == null || pareto.length === 0 ? (
-            <p className="body px-3 py-6 text-ink-2">
-              No feasible builds found near this machine. Widen it — a longer sling or a
-              heavier counterweight gives the search somewhere to go.
-            </p>
-          ) : (
-            <ParetoChart
-              points={pareto}
-              goal={goal}
-              units={units}
-              onHover={onPreviewPareto}
-              onPick={(pt) => {
-                onApplyPareto(pt)
-                onPreviewPareto(null)
-                setOptimizeOpen(false)
+            <SaveMachineRow
+              onSave={(name) => {
+                onSaveMachine(name)
+                setPresetOpen(false)
               }}
             />
-          )}
-        </PopoverContent>
-      </Popover>
+          </PopoverContent>
+        </Popover>
 
-      <Button
-        variant="outline"
-        size="sm"
-        className="label h-8 min-w-0 flex-1 gap-1.5"
-        onClick={onSave}
-        disabled={!canSave}
-        title="Keep this shot on the sheet as a dashed ghost to compare against"
-      >
-        <BookmarkPlus className="size-3.5" aria-hidden />
-        Save shot
-      </Button>
+        <Popover
+          open={optimizeOpen}
+          onOpenChange={(open) => {
+            setOptimizeOpen(open)
+            // A fresh open with no current frontier starts the search at once —
+            // an empty panel with a second "go" button is a step nobody needs.
+            if (open && pareto == null && !optimizing) onOptimize()
+            // Closing over a hovered point would otherwise strand its trajectory
+            // on the sheet with nothing left on screen to explain it.
+            if (!open) onPreviewPareto(null)
+          }}
+        >
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="label h-8 min-w-0 flex-1 gap-1.5"
+              title="Search feasible builds for the frontier of range against frame load"
+            >
+              <Wand2 className="size-3.5" aria-hidden />
+              {optimizing ? 'Searching…' : 'Optimize'}
+            </Button>
+          </PopoverTrigger>
+          {/* 26rem is wider than a small phone, so it gives ground rather than
+            sitting flush against both edges with the chart's axis labels
+            touching the bezel. */}
+          <PopoverContent align="start" className="w-[min(26rem,calc(100vw-1.5rem))] p-0">
+            <div className="px-3 py-2.5">
+              <SegmentedControl
+                label="Optimize for"
+                variant="boxed"
+                className="grid-cols-3"
+                value={goal}
+                onChange={onGoal}
+                options={GOALS.map((g) => ({ value: g.goal, label: g.label, title: g.blurb }))}
+              />
+            </div>
+            <p className="body rule-t rule-b px-3 py-2 text-ink-2">
+              Sling, hanger, cocked angle and short arm searched. Every build is feasible and none
+              beats another on both counts — more of what you asked for is only bought with a
+              heavier-loaded frame. The pin comes bent to the angle each build wants.
+            </p>
+            {optimizing ? (
+              <p className="body px-3 py-6 text-ink-2">Firing candidate machines…</p>
+            ) : pareto == null || pareto.length === 0 ? (
+              <p className="body px-3 py-6 text-ink-2">
+                No feasible builds found near this machine. Widen it — a longer sling or a heavier
+                counterweight gives the search somewhere to go.
+              </p>
+            ) : (
+              <ParetoChart
+                points={pareto}
+                goal={goal}
+                units={units}
+                onHover={onPreviewPareto}
+                onPick={(pt) => {
+                  onApplyPareto(pt)
+                  onPreviewPareto(null)
+                  setOptimizeOpen(false)
+                }}
+              />
+            )}
+          </PopoverContent>
+        </Popover>
 
-      <ShareButton presetId={presetId} />
+        <Button
+          variant="outline"
+          size="sm"
+          className="label h-8 min-w-0 flex-1 gap-1.5"
+          onClick={onSave}
+          disabled={!canSave}
+          title="Keep this shot on the sheet as a dashed ghost to compare against"
+        >
+          <BookmarkPlus className="size-3.5" aria-hidden />
+          Save shot
+        </Button>
+
+        <ShareButton presetId={presetId} />
 
         <div className="ml-auto flex items-center gap-1.5">
           {/* The width is reserved rather than the text hidden: an always-present
               "Solving" is announced on every pass through the bar and never
               announced when it actually starts, which is backwards. */}
-          <span className="label hidden w-12 pr-1 text-right text-ink-3 sm:inline-block" aria-live="polite">
+          <span
+            className="label hidden w-12 pr-1 text-right text-ink-3 sm:inline-block"
+            aria-live="polite"
+          >
             {busy ? 'Solving' : ''}
           </span>
 
@@ -420,13 +434,7 @@ function SaveMachineRow({ onSave }: { onSave: (name: string) => void }) {
   )
 }
 
-function UnitToggle({
-  units,
-  onUnits,
-}: {
-  units: UnitSystem
-  onUnits: (u: UnitSystem) => void
-}) {
+function UnitToggle({ units, onUnits }: { units: UnitSystem; onUnits: (u: UnitSystem) => void }) {
   return (
     <SegmentedControl
       label="Units"
@@ -439,7 +447,6 @@ function UnitToggle({
     />
   )
 }
-
 
 function ThemeButton({ dark, onDark }: { dark: boolean; onDark: (v: boolean) => void }) {
   return (
@@ -501,8 +508,23 @@ function TrebuchetMark() {
         <path d="M4 21 L13 8 L22 21" />
         <path d="M2 21 H26" />
       </g>
-      <path d="M6 4 L21 15" stroke="var(--oak)" strokeWidth="2.4" strokeLinecap="round" fill="none" />
-      <rect x="18.5" y="16" width="5" height="5" fill="none" stroke="currentColor" strokeWidth="1.2" className="text-ink-2" />
+      <path
+        d="M6 4 L21 15"
+        stroke="var(--oak)"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        fill="none"
+      />
+      <rect
+        x="18.5"
+        y="16"
+        width="5"
+        height="5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        className="text-ink-2"
+      />
       <path d="M6 4 L3 11" stroke="var(--ink-3)" strokeWidth="1" fill="none" />
       <circle cx="3" cy="11" r="2" fill="var(--quench)" />
     </svg>

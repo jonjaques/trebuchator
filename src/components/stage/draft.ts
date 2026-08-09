@@ -130,7 +130,14 @@ export const sans = (size: number, weight = 500, tracking?: number): Font => ({
 
 /** A single straight run. The drawing is mostly these. */
 export function seg(x0: number, y0: number, x1: number, y1: number, stroke: Stroke): Instruction {
-  return { op: 'path', points: [[x0, y0], [x1, y1]], stroke }
+  return {
+    op: 'path',
+    points: [
+      [x0, y0],
+      [x1, y1],
+    ],
+    stroke,
+  }
 }
 
 /** Solid drafting arrowhead at (x, y), pointing along `ang`. */
@@ -267,8 +274,18 @@ export function dimension(
 
   const ah = Math.min(7, len / 3)
   const head: Fill = { color: colour, alpha }
-  out.push({ op: 'path', points: arrowHead(a[0], a[1], Math.atan2(-uy, -ux), ah), close: true, fill: head })
-  out.push({ op: 'path', points: arrowHead(b[0], b[1], Math.atan2(uy, ux), ah), close: true, fill: head })
+  out.push({
+    op: 'path',
+    points: arrowHead(a[0], a[1], Math.atan2(-uy, -ux), ah),
+    close: true,
+    fill: head,
+  })
+  out.push({
+    op: 'path',
+    points: arrowHead(b[0], b[1], Math.atan2(uy, ux), ah),
+    close: true,
+    fill: head,
+  })
 
   // A drawn figure sits *in* the line, which is why the line was broken above.
   out.push({
@@ -324,7 +341,16 @@ export function protractor(
     sector: true,
     fill: { color: colour, alpha: 0.06 },
   })
-  out.push({ op: 'arc', x: cx, y: cy, r: radius, from, to, ccw, stroke: { color: colour, width: 1 } })
+  out.push({
+    op: 'arc',
+    x: cx,
+    y: cy,
+    r: radius,
+    from,
+    to,
+    ccw,
+    stroke: { color: colour, width: 1 },
+  })
 
   if (opts.graduate) {
     const stepRad = (10 * Math.PI) / 180

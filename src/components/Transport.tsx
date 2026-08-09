@@ -229,7 +229,11 @@ export function Transport({
         >
           <Ruler className="size-3.5" aria-hidden />
         </IconToggle>
-        <IconToggle on={showAngles} onClick={() => onShowAngles(!showAngles)} label="Show angles (A)">
+        <IconToggle
+          on={showAngles}
+          onClick={() => onShowAngles(!showAngles)}
+          label="Show angles (A)"
+        >
           <DraftingCompass className="size-3.5" aria-hidden />
         </IconToggle>
         <IconToggle on={showGrid} onClick={() => onShowGrid(!showGrid)} label="Show grid (G)">

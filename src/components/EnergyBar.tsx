@@ -144,7 +144,10 @@ export function EnergyBar({ energy, units }: { energy: EnergyBudget; units: Unit
             >
               <span
                 aria-hidden
-                className={cn('h-2.5 w-2.5 shrink-0 rounded-[1px]', b.fill === null && 'border border-dashed border-rule')}
+                className={cn(
+                  'h-2.5 w-2.5 shrink-0 rounded-[1px]',
+                  b.fill === null && 'border border-dashed border-rule',
+                )}
                 style={b.fill ? { background: b.fill } : undefined}
               />
               <dt className="body flex-1 truncate text-ink-2">{b.label}</dt>

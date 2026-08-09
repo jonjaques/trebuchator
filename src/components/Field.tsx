@@ -81,7 +81,8 @@ export function Field({
   // a linear slider over that range moves in 150 kg steps and is useless at the
   // small end. Anything spanning more than two decades gets a log response, and
   // the slider then works the same at either scale.
-  const logScale = (scale ?? (dMin > 0 && dMax / dMin >= 100 ? 'log' : 'linear')) === 'log' && dMin > 0
+  const logScale =
+    (scale ?? (dMin > 0 && dMax / dMin >= 100 ? 'log' : 'linear')) === 'log' && dMin > 0
   const toPos = (v: number) =>
     logScale ? Math.log(v / dMin) / Math.log(dMax / dMin) : (v - dMin) / (dMax - dMin)
   const fromPos = (s: number) =>
@@ -128,11 +129,7 @@ export function Field({
       <div className="flex items-baseline justify-between gap-2 pb-1">
         {/* The tooltip is the fallback for a mouse when the notes are folded
             away, not the only copy of the text — see `lib/notes.ts`. */}
-        <label
-          htmlFor={id}
-          className="label truncate text-ink-2"
-          title={notes ? undefined : hint}
-        >
+        <label htmlFor={id} className="label truncate text-ink-2" title={notes ? undefined : hint}>
           {label}
         </label>
         {aside && <span className="tnum micro shrink-0 font-mono text-ink-3">{aside}</span>}

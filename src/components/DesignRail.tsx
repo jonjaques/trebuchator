@@ -101,7 +101,15 @@ function MaterialPick({
   )
 }
 
-export function DesignRail({ params, patch, units, onTunePin, tuning, materials, onMaterials }: Props) {
+export function DesignRail({
+  params,
+  patch,
+  units,
+  onTunePin,
+  tuning,
+  materials,
+  onMaterials,
+}: Props) {
   // Handbook values plus whatever this browser has added. Rebuilt per render
   // rather than memoised: three short array concatenations against a solver
   // call that dominates every frame these lists appear in.
@@ -172,7 +180,11 @@ export function DesignRail({ params, patch, units, onTunePin, tuning, materials,
             patch(
               v
                 ? { armUniform: true }
-                : { armUniform: false, armCgOffset: uniform.cg, armInertiaPivot: uniform.inertiaPivot },
+                : {
+                    armUniform: false,
+                    armCgOffset: uniform.cg,
+                    armInertiaPivot: uniform.inertiaPivot,
+                  },
             )
           }
         />
@@ -414,7 +426,10 @@ export function DesignRail({ params, patch, units, onTunePin, tuning, materials,
         />
       </Section>
 
-      <Section title="Losses" note="Bearing friction and the drag the shot feels before it is even released.">
+      <Section
+        title="Losses"
+        note="Bearing friction and the drag the shot feels before it is even released."
+      >
         <MaterialPick
           label="Bearing type"
           hint="Sets both friction coefficients to this bearing's."

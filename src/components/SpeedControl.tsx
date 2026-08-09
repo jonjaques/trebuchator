@@ -29,13 +29,7 @@ function fmt(speed: number): string {
   return `${speed >= 1 ? num(speed, speed % 1 === 0 ? 0 : 2) : num(speed, 2).replace(/0+$/, '').replace(/\.$/, '')}×`
 }
 
-export function SpeedControl({
-  speed,
-  onSpeed,
-}: {
-  speed: number
-  onSpeed: (s: number) => void
-}) {
+export function SpeedControl({ speed, onSpeed }: { speed: number; onSpeed: (s: number) => void }) {
   const [draft, setDraft] = useState('')
 
   const commit = () => {

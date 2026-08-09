@@ -1,6 +1,12 @@
 import { newId, readJson, writeJson } from '../store.ts'
 import { DEFAULT_PARAMS } from './presets.ts'
-import { BEARINGS, CW_FILLS, PROJECTILE_MATERIALS, type Bearing, type Material } from './materials.ts'
+import {
+  BEARINGS,
+  CW_FILLS,
+  PROJECTILE_MATERIALS,
+  type Bearing,
+  type Material,
+} from './materials.ts'
 import type { TrebuchetParams } from './types.ts'
 
 /**
@@ -113,14 +119,18 @@ export function saveMaterials(materials: CustomMaterial[]): void {
 export function fillsWith(custom: CustomMaterial[]): Material[] {
   return [
     ...CW_FILLS,
-    ...custom.flatMap((m) => (m.kind === 'fill' ? [{ id: m.id, name: m.name, density: m.density }] : [])),
+    ...custom.flatMap((m) =>
+      m.kind === 'fill' ? [{ id: m.id, name: m.name, density: m.density }] : [],
+    ),
   ]
 }
 
 export function shotMaterialsWith(custom: CustomMaterial[]): Material[] {
   return [
     ...PROJECTILE_MATERIALS,
-    ...custom.flatMap((m) => (m.kind === 'shot' ? [{ id: m.id, name: m.name, density: m.density }] : [])),
+    ...custom.flatMap((m) =>
+      m.kind === 'shot' ? [{ id: m.id, name: m.name, density: m.density }] : [],
+    ),
   ]
 }
 

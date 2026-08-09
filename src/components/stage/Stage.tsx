@@ -5,7 +5,13 @@ import type { UnitSystem } from '@/lib/format.ts'
 import { isDone, sampleTrajectory } from '@/lib/treb/timeline.ts'
 import { paint } from './paint.ts'
 import { BLAST_LIFE } from './blast.ts'
-import { isBoulderShot, SHEET_MARGIN, type DimensionKey, type Ghost, type Palette } from './sheet.ts'
+import {
+  isBoulderShot,
+  SHEET_MARGIN,
+  type DimensionKey,
+  type Ghost,
+  type Palette,
+} from './sheet.ts'
 import {
   approach,
   blendRect,
@@ -132,12 +138,7 @@ function machineRect(result: ShotResult, params: TrebuchetParams): Rect {
 }
 
 /** A square window of world height `span` centred on the shot, with lead room. */
-function windowAt(
-  result: FiredShot,
-  flightT: number,
-  span: number,
-  lead: number,
-): Rect {
+function windowAt(result: FiredShot, flightT: number, span: number, lead: number): Rect {
   const at = sampleTrajectory(result.trajectory, flightT)
   const cx = at.x + span * CHASE_LEAD * lead
   return { x0: cx - span / 2, y0: at.y - span / 2, x1: cx + span / 2, y1: at.y + span / 2 }

@@ -1,11 +1,5 @@
 import type { MachinePose, ShotResult, TrebuchetParams } from '@/lib/treb/types.ts'
-import {
-  frameIndexAt,
-  isDone,
-  isFlying,
-  sampleTrajectory,
-  strokeT,
-} from '@/lib/treb/timeline.ts'
+import { frameIndexAt, isDone, isFlying, sampleTrajectory, strokeT } from '@/lib/treb/timeline.ts'
 import { fromDisplay, toDisplay, unitSymbol, num, type UnitSystem } from '@/lib/format.ts'
 import { projector, type Camera, type Projector } from './camera.ts'
 import { crater, fireball, type BlastColours } from './blast.ts'
@@ -140,7 +134,8 @@ function boulderTurn(params: TrebuchetParams, result: ShotResult, t: number): nu
   if (!frames.length) return 0
   const r = Math.max(1e-6, params.projectileDiameter / 2)
   const rollT = result.ok ? Math.min(t, result.timeline.liftoffT) : 0
-  let turn = (frames[frameIndexAt(frames, rollT)].pose.projectile.x - frames[0].pose.projectile.x) / r
+  let turn =
+    (frames[frameIndexAt(frames, rollT)].pose.projectile.x - frames[0].pose.projectile.x) / r
   if (result.ok && t > result.timeline.releaseT) {
     // Geared right down from the release speed. Free rotation at the rate it
     // left the sling at would be about sixteen turns a second; a nine-tonne
@@ -299,7 +294,10 @@ function counterweightParts(
   const cy = p.y(cw.y)
   const cos = Math.cos(pose.psi)
   const sin = Math.sin(pose.psi)
-  const corner = (ox: number, oy: number): Point => [cx + ox * cos - oy * sin, cy + ox * sin + oy * cos]
+  const corner = (ox: number, oy: number): Point => [
+    cx + ox * cos - oy * sin,
+    cy + ox * sin + oy * cos,
+  ]
   const box: Point[] = [
     corner(-s / 2, -s / 2),
     corner(s / 2, -s / 2),
@@ -327,7 +325,14 @@ function pivotParts(p: Projector, pal: Palette, pose: MachinePose): Instruction[
   const y = p.y(pose.axle.y)
   const centre: Stroke = { color: pal.ink3, width: 1 }
   return [
-    { op: 'circle', x, y, r: 4.5, fill: { color: pal.sheet }, stroke: { color: pal.ink, width: 1.5 } },
+    {
+      op: 'circle',
+      x,
+      y,
+      r: 4.5,
+      fill: { color: pal.sheet },
+      stroke: { color: pal.ink, width: 1.5 },
+    },
     // Centre mark, drafting convention.
     seg(x - 9, y, x + 9, y, centre),
     seg(x, y - 9, x, y + 9, centre),
@@ -485,13 +490,55 @@ function dimensionParts(
   // Beam dimensions ride on the beam so they stay legible as it swings; the
   // pivot height is measured off the frame, where a builder would measure it.
   const runs: DimRun[] = [
-    { key: 'armLong', ax: p.x(pose.axle.x), ay: p.y(pose.axle.y), bx: p.x(pose.tip.x), by: p.y(pose.tip.y), off: -20, value: params.armLong },
-    { key: 'armShort', ax: p.x(pose.shortEnd.x), ay: p.y(pose.shortEnd.y), bx: p.x(pose.axle.x), by: p.y(pose.axle.y), off: -20, value: params.armShort },
+    {
+      key: 'armLong',
+      ax: p.x(pose.axle.x),
+      ay: p.y(pose.axle.y),
+      bx: p.x(pose.tip.x),
+      by: p.y(pose.tip.y),
+      off: -20,
+      value: params.armLong,
+    },
+    {
+      key: 'armShort',
+      ax: p.x(pose.shortEnd.x),
+      ay: p.y(pose.shortEnd.y),
+      bx: p.x(pose.axle.x),
+      by: p.y(pose.axle.y),
+      off: -20,
+      value: params.armShort,
+    },
     ...(params.cwHanger > 0.02
-      ? [{ key: 'cwHanger' as const, ax: p.x(pose.shortEnd.x), ay: p.y(pose.shortEnd.y), bx: p.x(pose.cw.x), by: p.y(pose.cw.y), off: 28, value: params.cwHanger }]
+      ? [
+          {
+            key: 'cwHanger' as const,
+            ax: p.x(pose.shortEnd.x),
+            ay: p.y(pose.shortEnd.y),
+            bx: p.x(pose.cw.x),
+            by: p.y(pose.cw.y),
+            off: 28,
+            value: params.cwHanger,
+          },
+        ]
       : []),
-    { key: 'slingLength', ax: p.x(pose.tip.x), ay: p.y(pose.tip.y), bx: p.x(pose.projectile.x), by: p.y(pose.projectile.y), off: 24, value: params.slingLength },
-    { key: 'pivotHeight', ax: p.x(0), ay: p.y(0), bx: p.x(0), by: p.y(params.pivotHeight), off: -Math.max(46, p.s(params.armLong * 0.55)), value: params.pivotHeight },
+    {
+      key: 'slingLength',
+      ax: p.x(pose.tip.x),
+      ay: p.y(pose.tip.y),
+      bx: p.x(pose.projectile.x),
+      by: p.y(pose.projectile.y),
+      off: 24,
+      value: params.slingLength,
+    },
+    {
+      key: 'pivotHeight',
+      ax: p.x(0),
+      ay: p.y(0),
+      bx: p.x(0),
+      by: p.y(params.pivotHeight),
+      off: -Math.max(46, p.s(params.armLong * 0.55)),
+      value: params.pivotHeight,
+    },
   ]
 
   // With the annotation layer off, pointing at a control brings up that one
@@ -549,7 +596,12 @@ export function layout(input: SheetInput, measure: MeasureText): Instruction[] {
     [0, groundY + band],
   ]
   for (const [a, b] of hatchLines(0, groundY, w, groundY + band, 9)) {
-    out.push({ op: 'path', points: [a, b], stroke: { color: pal.ink3, width: 1, alpha: 0.5 }, clip: bandClip })
+    out.push({
+      op: 'path',
+      points: [a, b],
+      stroke: { color: pal.ink3, width: 1, alpha: 0.5 },
+      clip: bandClip,
+    })
   }
 
   // Downrange ticks along the ground.
@@ -751,7 +803,12 @@ export function layout(input: SheetInput, measure: MeasureText): Instruction[] {
       [shelfX, targetY + band],
     ]
     for (const [a, b] of hatchLines(shelfX, targetY, w, targetY + band, 9)) {
-      out.push({ op: 'path', points: [a, b], stroke: { color: pal.ink3, width: 1, alpha: 0.5 }, clip: shelfClip })
+      out.push({
+        op: 'path',
+        points: [a, b],
+        stroke: { color: pal.ink3, width: 1, alpha: 0.5 },
+        clip: shelfClip,
+      })
     }
   }
 

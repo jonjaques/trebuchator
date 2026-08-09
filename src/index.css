@@ -1,8 +1,8 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
-@import "@fontsource-variable/instrument-sans";
-@import "@fontsource-variable/geist-mono";
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+@import '@fontsource-variable/instrument-sans';
+@import '@fontsource-variable/geist-mono';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -31,297 +31,299 @@
 --------------------------------------------------------------------------- */
 
 @theme inline {
-    --font-sans: 'Instrument Sans Variable', ui-sans-serif, system-ui, sans-serif;
-    --font-heading: var(--font-sans);
-    --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
+  --font-sans: 'Instrument Sans Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-sans);
+  --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
 
-    --color-ground: var(--ground);
-    --color-sheet: var(--sheet);
-    --color-raised: var(--raised);
-    --color-ink: var(--ink);
-    --color-ink-2: var(--ink-2);
-    --color-ink-3: var(--ink-3);
-    --color-rule: var(--rule);
-    --color-quench: var(--quench);
-    --color-verdigris: var(--verdigris);
-    --color-oak: var(--oak);
-    --color-iron: var(--iron);
-    --color-warn: var(--warn);
-    --color-bad: var(--bad);
-    --color-ramp-1: var(--ramp-1);
-    --color-ramp-2: var(--ramp-2);
-    --color-ramp-3: var(--ramp-3);
+  --color-ground: var(--ground);
+  --color-sheet: var(--sheet);
+  --color-raised: var(--raised);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-rule: var(--rule);
+  --color-quench: var(--quench);
+  --color-verdigris: var(--verdigris);
+  --color-oak: var(--oak);
+  --color-iron: var(--iron);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+  --color-ramp-1: var(--ramp-1);
+  --color-ramp-2: var(--ramp-2);
+  --color-ramp-3: var(--ramp-3);
 
-    --color-sidebar-ring: var(--sidebar-ring);
-    --color-sidebar-border: var(--sidebar-border);
-    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-    --color-sidebar-accent: var(--sidebar-accent);
-    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-    --color-sidebar-primary: var(--sidebar-primary);
-    --color-sidebar-foreground: var(--sidebar-foreground);
-    --color-sidebar: var(--sidebar);
-    --color-chart-5: var(--chart-5);
-    --color-chart-4: var(--chart-4);
-    --color-chart-3: var(--chart-3);
-    --color-chart-2: var(--chart-2);
-    --color-chart-1: var(--chart-1);
-    --color-ring: var(--ring);
-    --color-input: var(--input);
-    --color-border: var(--border);
-    --color-destructive: var(--destructive);
-    --color-accent-foreground: var(--accent-foreground);
-    --color-accent: var(--accent);
-    --color-muted-foreground: var(--muted-foreground);
-    --color-muted: var(--muted);
-    --color-secondary-foreground: var(--secondary-foreground);
-    --color-secondary: var(--secondary);
-    --color-primary-foreground: var(--primary-foreground);
-    --color-primary: var(--primary);
-    --color-popover-foreground: var(--popover-foreground);
-    --color-popover: var(--popover);
-    --color-card-foreground: var(--card-foreground);
-    --color-card: var(--card);
-    --color-foreground: var(--foreground);
-    --color-background: var(--background);
-    --radius-sm: 1px;
-    --radius-md: 2px;
-    --radius-lg: 2px;
-    --radius-xl: 3px;
-    --radius-2xl: 3px;
-    --radius-3xl: 4px;
-    --radius-4xl: 4px;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: 1px;
+  --radius-md: 2px;
+  --radius-lg: 2px;
+  --radius-xl: 3px;
+  --radius-2xl: 3px;
+  --radius-3xl: 4px;
+  --radius-4xl: 4px;
 }
 
 /* Light: a diazo whiteprint — warm vellum with dark ink. Not the blue
    blueprint, which is a different (and older) process and a tireder look. */
 :root {
-    --ground: #e9e3d5;
-    --sheet: #f4f0e6;
-    --raised: #fbf8f1;
-    --ink: #241f1a;
-    --ink-2: #5b5347;
-    --ink-3: #8b8171;
-    --rule: #c9c0ae;
-    --quench: #b8420c;
-    --verdigris: #0d7c70;
-    --oak: #8a6440;
-    --iron: #6e7378;
-    /* Canvas-only depiction, same standing as oak and iron: they draw a
+  --ground: #e9e3d5;
+  --sheet: #f4f0e6;
+  --raised: #fbf8f1;
+  --ink: #241f1a;
+  --ink-2: #5b5347;
+  --ink-3: #8b8171;
+  --rule: #c9c0ae;
+  --quench: #b8420c;
+  --verdigris: #0d7c70;
+  --oak: #8a6440;
+  --iron: #6e7378;
+  /* Canvas-only depiction, same standing as oak and iron: they draw a
        material and are banned from the interface, so they are deliberately
        absent from the @theme block above and have no Tailwind utility. The two
        hot tones a fireball needs that --quench cannot reach. Only the boulder
        easter egg uses them. */
-    --ember: #fff2c4;
-    --flame: #f0a615;
-    --warn: #8a6a00;
-    --bad: #a32a1e;
-    /* Sequential, light to dark: these encode magnitude of loss, not identity,
+  --ember: #fff2c4;
+  --flame: #f0a615;
+  --warn: #8a6a00;
+  --bad: #a32a1e;
+  /* Sequential, light to dark: these encode magnitude of loss, not identity,
        so they are a lightness ramp rather than three more hues. */
-    --ramp-1: #8c8474;
-    --ramp-2: #625a4d;
-    --ramp-3: #3a342b;
+  --ramp-1: #8c8474;
+  --ramp-2: #625a4d;
+  --ramp-3: #3a342b;
 
-    --radius: 2px;
-    --background: var(--ground);
-    --foreground: var(--ink);
-    --card: var(--sheet);
-    --card-foreground: var(--ink);
-    --popover: var(--raised);
-    --popover-foreground: var(--ink);
-    --primary: var(--ink);
-    --primary-foreground: var(--sheet);
-    --secondary: var(--raised);
-    --secondary-foreground: var(--ink);
-    --muted: var(--raised);
-    --muted-foreground: var(--ink-3);
-    --accent: var(--raised);
-    --accent-foreground: var(--ink);
-    --destructive: var(--bad);
-    --border: var(--rule);
-    --input: var(--rule);
-    --ring: var(--verdigris);
-    --chart-1: var(--quench);
-    --chart-2: var(--ramp-1);
-    --chart-3: var(--ramp-2);
-    --chart-4: var(--ramp-3);
-    --chart-5: var(--verdigris);
-    --sidebar: var(--sheet);
-    --sidebar-foreground: var(--ink);
-    --sidebar-primary: var(--ink);
-    --sidebar-primary-foreground: var(--sheet);
-    --sidebar-accent: var(--raised);
-    --sidebar-accent-foreground: var(--ink);
-    --sidebar-border: var(--rule);
-    --sidebar-ring: var(--verdigris);
+  --radius: 2px;
+  --background: var(--ground);
+  --foreground: var(--ink);
+  --card: var(--sheet);
+  --card-foreground: var(--ink);
+  --popover: var(--raised);
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: var(--sheet);
+  --secondary: var(--raised);
+  --secondary-foreground: var(--ink);
+  --muted: var(--raised);
+  --muted-foreground: var(--ink-3);
+  --accent: var(--raised);
+  --accent-foreground: var(--ink);
+  --destructive: var(--bad);
+  --border: var(--rule);
+  --input: var(--rule);
+  --ring: var(--verdigris);
+  --chart-1: var(--quench);
+  --chart-2: var(--ramp-1);
+  --chart-3: var(--ramp-2);
+  --chart-4: var(--ramp-3);
+  --chart-5: var(--verdigris);
+  --sidebar: var(--sheet);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--ink);
+  --sidebar-primary-foreground: var(--sheet);
+  --sidebar-accent: var(--raised);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--rule);
+  --sidebar-ring: var(--verdigris);
 }
 
 /* Dark: chalk on charred oak. Warm near-black, never neutral #0a0a0a —
    the whole machine is timber and hot iron and the ground should know it. */
 .dark {
-    --ground: #14110e;
-    --sheet: #1c1815;
-    --raised: #25201b;
-    --ink: #ede7da;
-    --ink-2: #a79c8b;
-    --ink-3: #7a7161;
-    --rule: #372f27;
-    --quench: #ff6b2c;
-    --verdigris: #3fd0bc;
-    --oak: #a97b4f;
-    --iron: #99a0a6;
-    --ember: #fff6dc;
-    --flame: #ffc247;
-    --warn: #d9b44a;
-    --bad: #f0705f;
-    --ramp-1: #cfc6b4;
-    --ramp-2: #9a9080;
-    --ramp-3: #6a6154;
+  --ground: #14110e;
+  --sheet: #1c1815;
+  --raised: #25201b;
+  --ink: #ede7da;
+  --ink-2: #a79c8b;
+  --ink-3: #7a7161;
+  --rule: #372f27;
+  --quench: #ff6b2c;
+  --verdigris: #3fd0bc;
+  --oak: #a97b4f;
+  --iron: #99a0a6;
+  --ember: #fff6dc;
+  --flame: #ffc247;
+  --warn: #d9b44a;
+  --bad: #f0705f;
+  --ramp-1: #cfc6b4;
+  --ramp-2: #9a9080;
+  --ramp-3: #6a6154;
 }
 
 @layer base {
-    * {
-        @apply border-border;
-        min-width: 0;
-    }
+  * {
+    @apply border-border;
+    min-width: 0;
+  }
 
-    html {
-        @apply font-sans;
-        background: var(--ground);
-        color-scheme: light;
-    }
+  html {
+    @apply font-sans;
+    background: var(--ground);
+    color-scheme: light;
+  }
 
-    html.dark {
-        color-scheme: dark;
-    }
+  html.dark {
+    color-scheme: dark;
+  }
 
-    body {
-        @apply bg-ground text-ink;
-        overscroll-behavior: none;
-    }
+  body {
+    @apply bg-ground text-ink;
+    overscroll-behavior: none;
+  }
 
-    :focus-visible {
-        outline: 2px solid var(--verdigris);
-        outline-offset: 1px;
-    }
+  :focus-visible {
+    outline: 2px solid var(--verdigris);
+    outline-offset: 1px;
+  }
 
-    /* Every number in this app is compared against another number, so figures
+  /* Every number in this app is compared against another number, so figures
        must never change width as they tick. */
-    .tnum {
-        font-variant-numeric: tabular-nums;
-        font-feature-settings: 'tnum' 1, 'zero' 1;
-    }
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings:
+      'tnum' 1,
+      'zero' 1;
+  }
 }
 
 @layer components {
-    /* Section heads only. Uppercase and tracked is structural here — it marks
+  /* Section heads only. Uppercase and tracked is structural here — it marks
        where one part of the sheet ends and the next begins — and there are
        about eight of them on screen, not eighty. */
-    .stencil {
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        font-weight: 500;
-        font-size: 0.6875rem;
-        line-height: 1.15;
-    }
+  .stencil {
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 500;
+    font-size: 0.6875rem;
+    line-height: 1.15;
+  }
 
-    /* Everything that names a thing: field labels, stat labels, captions,
+  /* Everything that names a thing: field labels, stat labels, captions,
        chips. Sentence case at 400, because these appear in their dozens and
        the reader is scanning them, not admiring them. */
-    .label {
-        font-weight: 400;
-        font-size: 0.71rem;
-        letter-spacing: 0.005em;
-        line-height: 1.25;
-    }
+  .label {
+    font-weight: 400;
+    font-size: 0.71rem;
+    letter-spacing: 0.005em;
+    line-height: 1.25;
+  }
 
-    /* Explanatory prose: section notes, field hints, warnings, error text. The
+  /* Explanatory prose: section notes, field hints, warnings, error text. The
        only role in the system that runs to a sentence, so the only one set
        loose enough to read as one. */
-    .body {
-        font-weight: 400;
-        font-size: 0.6875rem;
-        line-height: 1.375;
-    }
+  .body {
+    font-weight: 400;
+    font-size: 0.6875rem;
+    line-height: 1.375;
+  }
 
-    /* The one set of tracked capitals that is not `.stencil`. A wordmark is a
+  /* The one set of tracked capitals that is not `.stencil`. A wordmark is a
        mark rather than a section head, it is set once, and it is drawn wider
        than the sheet's lettering on purpose. */
-    .wordmark {
-        text-transform: uppercase;
-        font-weight: 600;
-        font-size: 0.9rem;
-        letter-spacing: 0.2em;
-        line-height: 1;
-        /* Tracking is applied after the last letter too, so the box runs ~3px
+  .wordmark {
+    text-transform: uppercase;
+    font-weight: 600;
+    font-size: 0.9rem;
+    letter-spacing: 0.2em;
+    line-height: 1;
+    /* Tracking is applied after the last letter too, so the box runs ~3px
            wider than the ink and everything after it sits that much too far
            right. Take the trailing sidebearing back. */
-        margin-inline-end: -0.2em;
-    }
+    margin-inline-end: -0.2em;
+  }
 
-    /* Meta text that must recede: units, hints, secondary counts. */
-    .micro {
-        font-weight: 400;
-        font-size: 0.65rem;
-        letter-spacing: 0.01em;
-        line-height: 1.2;
-    }
+  /* Meta text that must recede: units, hints, secondary counts. */
+  .micro {
+    font-weight: 400;
+    font-size: 0.65rem;
+    letter-spacing: 0.01em;
+    line-height: 1.2;
+  }
 
-    /* Hairline separators. Drawn at exactly one device pixel wherever the
+  /* Hairline separators. Drawn at exactly one device pixel wherever the
        screen can manage it, so the sheet keeps its drafted crispness. */
-    .rule-t {
-        border-top: 1px solid var(--rule);
-    }
+  .rule-t {
+    border-top: 1px solid var(--rule);
+  }
 
-    .rule-b {
-        border-bottom: 1px solid var(--rule);
-    }
+  .rule-b {
+    border-bottom: 1px solid var(--rule);
+  }
 
-    .rule-r {
-        border-right: 1px solid var(--rule);
-    }
+  .rule-r {
+    border-right: 1px solid var(--rule);
+  }
 
-    .rule-l {
-        border-left: 1px solid var(--rule);
-    }
+  .rule-l {
+    border-left: 1px solid var(--rule);
+  }
 }
 
 /* Panels scroll a lot on small screens; a heavy scrollbar would break the
    sheet illusion, so they get a thin one tinted to the rules. */
 @layer utilities {
-    .thin-scroll {
-        scrollbar-width: thin;
-        scrollbar-color: var(--rule) transparent;
-    }
+  .thin-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--rule) transparent;
+  }
 
-    .thin-scroll::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-    }
+  .thin-scroll::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
 
-    .thin-scroll::-webkit-scrollbar-thumb {
-        background: var(--rule);
-        border-radius: 0;
-    }
+  .thin-scroll::-webkit-scrollbar-thumb {
+    background: var(--rule);
+    border-radius: 0;
+  }
 
-    .thin-scroll::-webkit-scrollbar-track {
-        background: transparent;
-    }
+  .thin-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
 
-    /* A 28px control is the right size for this sheet and the wrong size for a
+  /* A 28px control is the right size for this sheet and the wrong size for a
        thumb. On a coarse pointer the hit area grows past the paint without
        moving anything, so the drawing keeps its scale and the finger gets a
        target. Vertical gets the full 8px — the rows it sits in are 44px tall.
        Horizontal gets 3px, half the 6px control gap, so neighbouring targets
        meet rather than overlap: an overlap hands the painted edge of one
        control to the one beside it, which is worse than a small target. */
-    @media (pointer: coarse) {
-        .tap-target::after {
-            content: '';
-            position: absolute;
-            inset-block: -8px;
-            inset-inline: -3px;
-        }
+  @media (pointer: coarse) {
+    .tap-target::after {
+      content: '';
+      position: absolute;
+      inset-block: -8px;
+      inset-inline: -3px;
     }
+  }
 }
 
 /* ---------------------------------------------------------------------------
@@ -345,16 +347,16 @@
    wholesale, so the popover keeps the one sanctioned shadow in the system.
 --------------------------------------------------------------------------- */
 [data-slot]:focus-visible {
-    outline: 2px solid var(--verdigris);
-    outline-offset: 1px;
-    --tw-ring-shadow: 0 0 #0000;
+  outline: 2px solid var(--verdigris);
+  outline-offset: 1px;
+  --tw-ring-shadow: 0 0 #0000;
 }
 
 @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-        animation-duration: 0.001ms !important;
-        transition-duration: 0.001ms !important;
-    }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
 }

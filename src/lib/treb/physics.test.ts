@@ -430,9 +430,9 @@ describe('plausibility', () => {
       geometryImpossibilities({ ...p, cwHanger: 2.6 }).some((w) => w.includes('below ground')),
     ).toBe(true)
     // A 1.2 m box on a 0.5 m hanger swallows its own hinge.
-    expect(
-      geometryImpossibilities({ ...p, cwSize: 1.2 }).some((w) => w.includes('swallow')),
-    ).toBe(true)
+    expect(geometryImpossibilities({ ...p, cwSize: 1.2 }).some((w) => w.includes('swallow'))).toBe(
+      true,
+    )
     expect(geometryImpossibilities(p)).toEqual([])
   })
 
@@ -460,7 +460,9 @@ describe('pareto frontier', () => {
       for (const b of front) {
         if (a === b) continue
         const dominates =
-          b.range >= a.range && b.axleLoad <= a.axleLoad && (b.range > a.range || b.axleLoad < a.axleLoad)
+          b.range >= a.range &&
+          b.axleLoad <= a.axleLoad &&
+          (b.range > a.range || b.axleLoad < a.axleLoad)
         expect(dominates).toBe(false)
       }
     }
@@ -505,7 +507,9 @@ describe('pareto frontier', () => {
       // Sorted lightest frame first, and along a frontier the goal is bought
       // with load — so both columns rise together whatever is being bought.
       for (let i = 1; i < front.length; i++) {
-        expect(goalValue(front[i], goal), goal).toBeGreaterThanOrEqual(goalValue(front[i - 1], goal))
+        expect(goalValue(front[i], goal), goal).toBeGreaterThanOrEqual(
+          goalValue(front[i - 1], goal),
+        )
       }
     }
   })

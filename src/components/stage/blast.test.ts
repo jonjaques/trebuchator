@@ -15,14 +15,16 @@ const at = (age: number, scale = 12) => fireball(400, 300, scale, 1.829, age, c)
 
 const circles = (ins: Instruction[], colour: string) =>
   ins.filter(
-    (i): i is Extract<Instruction, { op: 'circle' }> => i.op === 'circle' && i.fill?.color === colour,
+    (i): i is Extract<Instruction, { op: 'circle' }> =>
+      i.op === 'circle' && i.fill?.color === colour,
   )
 
 const paths = (ins: Instruction[], pick: (p: Extract<Instruction, { op: 'path' }>) => boolean) =>
   ins.filter((i): i is Extract<Instruction, { op: 'path' }> => i.op === 'path' && pick(i))
 
 /** The chunks of granite: closed rock-coloured polygons. */
-const chunks = (ins: Instruction[]) => paths(ins, (p) => p.close === true && p.fill?.color === '#ink2')
+const chunks = (ins: Instruction[]) =>
+  paths(ins, (p) => p.close === true && p.fill?.color === '#ink2')
 
 describe('the fireball', () => {
   it('is the same explosion every time it is replayed', () => {
@@ -88,7 +90,9 @@ describe('the crater', () => {
     // been easier and would have vanished on the dark sheet, where the ground
     // is already near-black.
     const ins = crater(400, 300, 12, 1.829, c)
-    expect(paths(ins, (p) => p.stroke?.color === '#ink3' && p.clip != null).length).toBeGreaterThan(3)
+    expect(paths(ins, (p) => p.stroke?.color === '#ink3' && p.clip != null).length).toBeGreaterThan(
+      3,
+    )
     expect(paths(ins, (p) => p.stroke?.color === '#ink3' && p.clip == null)).toHaveLength(7)
     // Nothing in the permanent record is drawn in a fire colour.
     expect(circles(ins, '#fire')).toHaveLength(0)

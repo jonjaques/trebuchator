@@ -29,8 +29,7 @@ export function detectUnitSystem(): UnitSystem {
     if (!tag) return 'imperial'
     const locale = new Intl.Locale(tag)
 
-    const measurement = (locale as Intl.Locale & { measurementSystem?: string })
-      .measurementSystem
+    const measurement = (locale as Intl.Locale & { measurementSystem?: string }).measurementSystem
     if (measurement) return measurement === 'metric' ? 'metric' : 'imperial'
 
     // `maximize` fills in an implied region, so plain "en" resolves to en-US.
@@ -112,12 +111,7 @@ export function num(value: number, digits?: number): string {
 }
 
 /** Convert then format, for read-only readouts. */
-export function show(
-  value: number,
-  dim: Dimension,
-  system: UnitSystem,
-  digits?: number,
-): string {
+export function show(value: number, dim: Dimension, system: UnitSystem, digits?: number): string {
   return num(toDisplay(value, dim, system), digits)
 }
 

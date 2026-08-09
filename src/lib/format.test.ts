@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  detectUnitSystem,
-  fromDisplay,
-  num,
-  scaled,
-  toDisplay,
-  unitSymbol,
-} from './format.ts'
+import { detectUnitSystem, fromDisplay, num, scaled, toDisplay, unitSymbol } from './format.ts'
 
 describe('unit conversion', () => {
   it('round-trips every dimension through both systems', () => {
@@ -14,10 +7,10 @@ describe('unit conversion', () => {
     for (const dim of dims) {
       for (const system of ['metric', 'imperial'] as const) {
         for (const v of [0.001, 1, 47.5, 12000]) {
-          expect(fromDisplay(toDisplay(v, dim, system), dim, system), `${dim}/${system}`).toBeCloseTo(
-            v,
-            9,
-          )
+          expect(
+            fromDisplay(toDisplay(v, dim, system), dim, system),
+            `${dim}/${system}`,
+          ).toBeCloseTo(v, 9)
         }
       }
     }

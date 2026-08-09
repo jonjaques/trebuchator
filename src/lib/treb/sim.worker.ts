@@ -1,6 +1,12 @@
 /// <reference lib="webworker" />
 import { simulateShot } from './simulate.ts'
-import { bestReleaseAngle, paretoSearch, sweepAt, sweepValues, type SweepPoint } from './optimize.ts'
+import {
+  bestReleaseAngle,
+  paretoSearch,
+  sweepAt,
+  sweepValues,
+  type SweepPoint,
+} from './optimize.ts'
 import type { SimRequest, SimResponse } from './simulator.ts'
 import type { ShotResult } from './types.ts'
 
@@ -45,10 +51,7 @@ function thin(result: ShotResult): ShotResult {
   const split = result.frames.findIndex((f) => f.phase === 'follow')
   const stroke = split < 0 ? result.frames : result.frames.slice(0, split)
   const follow = split < 0 ? [] : result.frames.slice(split)
-  const frames = [
-    ...thinSlice(stroke, MAX_STROKE_FRAMES),
-    ...thinSlice(follow, MAX_FOLLOW_FRAMES),
-  ]
+  const frames = [...thinSlice(stroke, MAX_STROKE_FRAMES), ...thinSlice(follow, MAX_FOLLOW_FRAMES)]
   return frames.length === result.frames.length ? result : { ...result, frames }
 }
 

@@ -1,4 +1,11 @@
-import { buildModel, evalPoint, evalPointVel, poseOf, slingArmAngle, type MachineModel } from './model.ts'
+import {
+  buildModel,
+  evalPoint,
+  evalPointVel,
+  poseOf,
+  slingArmAngle,
+  type MachineModel,
+} from './model.ts'
 import {
   bearingLoads,
   dynamics,
@@ -239,9 +246,12 @@ export function simulateShot(p: TrebuchetParams, opts: SimOptions = {}): ShotRes
   const available = uRef.cwBeamInitial - uRef.cwBeamFinal
 
   if (available <= 0)
-    return emptyResult([
-      'This machine has no energy to give: the counterweight cannot fall far enough to lift the beam.',
-    ], p)
+    return emptyResult(
+      [
+        'This machine has no energy to give: the counterweight cannot fall far enough to lift the beam.',
+      ],
+      p,
+    )
 
   // --- Stroke ---------------------------------------------------------------
   const samples: StrokeSample[] = []
@@ -288,7 +298,8 @@ export function simulateShot(p: TrebuchetParams, opts: SimOptions = {}): ShotRes
     }
 
     const pose = poseOf(model, state.q)
-    if (!constrained && pose.projectile.y < model.troughY - 1e-3) tipFouledAt = Math.min(tipFouledAt, t)
+    if (!constrained && pose.projectile.y < model.troughY - 1e-3)
+      tipFouledAt = Math.min(tipFouledAt, t)
     if (pose.cw.y - p.cwSize / 2 < 0) cwGroundedAt = Math.min(cwGroundedAt, t)
     if (!constrained && bl.slingTension < -1) slackSlingAt = Math.min(slackSlingAt, t)
 
@@ -320,20 +331,27 @@ export function simulateShot(p: TrebuchetParams, opts: SimOptions = {}): ShotRes
   }
 
   if (liftoffTime < 0) {
-    return emptyResult([
-      'The projectile never lifted off the trough. The counterweight is too light, or the sling is too long, for this beam.',
-    ], p)
+    return emptyResult(
+      [
+        'The projectile never lifted off the trough. The counterweight is too light, or the sling is too long, for this beam.',
+      ],
+      p,
+    )
   }
 
   const candidates = samples.filter((s) => s.phase === 'swing')
-  if (candidates.length === 0) return emptyResult(['The stroke ended before the shot left the ground.'], p)
+  if (candidates.length === 0)
+    return emptyResult(['The stroke ended before the shot left the ground.'], p)
 
   // --- Release --------------------------------------------------------------
   const release = pickRelease(model, p, candidates, warnings)
   if (!release) {
-    return emptyResult([
-      `The sling never reached a ${p.releaseAngle.toFixed(0)}° pin angle before the beam ran out of travel. Try a larger pin angle or a shorter sling.`,
-    ], p)
+    return emptyResult(
+      [
+        `The sling never reached a ${p.releaseAngle.toFixed(0)}° pin angle before the beam ran out of travel. Try a larger pin angle or a shorter sling.`,
+      ],
+      p,
+    )
   }
   const { sample: relSample, state: rel } = release
 
@@ -342,11 +360,14 @@ export function simulateShot(p: TrebuchetParams, opts: SimOptions = {}): ShotRes
   if (!flight.landed) {
     // Two ways not to land: an uphill target above the whole arc, or a
     // near-buoyant projectile still drifting when the integrator gave up.
-    return emptyResult([
-      p.targetDrop < 0
-        ? 'The target sits higher than the top of this trajectory, so the shot can never land on it. Bring "drop to target" back toward level, or throw faster.'
-        : 'The shot was still airborne after two minutes of flight. This projectile floats more than it flies — give it more mass or less drag.',
-    ], p)
+    return emptyResult(
+      [
+        p.targetDrop < 0
+          ? 'The target sits higher than the top of this trajectory, so the shot can never land on it. Bring "drop to target" back toward level, or throw faster.'
+          : 'The shot was still airborne after two minutes of flight. This projectile floats more than it flies — give it more mass or less drag.',
+      ],
+      p,
+    )
   }
   // Drag only ever lowers the arc, so if the real flight landed the vacuum one
   // does too — but guard it anyway rather than let a phantom range through.
@@ -427,21 +448,31 @@ export function simulateShot(p: TrebuchetParams, opts: SimOptions = {}): ShotRes
   // --- Warnings -------------------------------------------------------------
   const before = (when: number) => when <= relSample.t + 1e-9
   if (before(cwGroundedAt))
-    warnings.push('The counterweight box reaches the ground before release — raise the pivot or shorten the hanger.')
+    warnings.push(
+      'The counterweight box reaches the ground before release — raise the pivot or shorten the hanger.',
+    )
   if (before(tipFouledAt))
     warnings.push('The projectile dips below the trough after liftoff and would foul the ground.')
   if (before(slackSlingAt))
-    warnings.push('Sling tension goes negative: the sling goes slack mid-throw and the shot tumbles.')
+    warnings.push(
+      'Sling tension goes negative: the sling goes slack mid-throw and the shot tumbles.',
+    )
   if (before(stalledAt)) warnings.push('The beam stalled or reversed before the sling let go.')
   if (rel.angle < 15 || rel.angle > 70)
-    warnings.push(`Launch angle of ${rel.angle.toFixed(0)}° is well away from the ~42° that maximises range.`)
+    warnings.push(
+      `Launch angle of ${rel.angle.toFixed(0)}° is well away from the ~42° that maximises range.`,
+    )
   // An audit that misses in either direction is the same fault, so the check
   // is on the magnitude — a negative residual used to slip through unremarked.
   if (Math.abs(energy.residual) / available > 0.02)
-    warnings.push('Energy audit does not close — the integration step may be too coarse for this machine.')
+    warnings.push(
+      'Energy audit does not close — the integration step may be too coarse for this machine.',
+    )
   const ratio = p.cwMass / p.projectileMass
   if (ratio < 25)
-    warnings.push(`Counterweight is only ${ratio.toFixed(0)}× the shot. Historical engines ran 100× and up.`)
+    warnings.push(
+      `Counterweight is only ${ratio.toFixed(0)}× the shot. Historical engines ran 100× and up.`,
+    )
   warnings.push(...plausibilityWarnings(p))
 
   // Frames run to release only — the stroke integration deliberately overshot
@@ -578,10 +609,7 @@ function referencePotential(model: MachineModel, p: TrebuchetParams) {
   }
 }
 
-function stateAt(
-  model: MachineModel,
-  s: StrokeSample,
-): ReleaseState {
+function stateAt(model: MachineModel, s: StrokeSample): ReleaseState {
   const pose = poseOf(model, s.q)
   const v = evalPointVel(model.points.projectile, s.q, s.qd)
   const speed = Math.hypot(v.x, v.y)

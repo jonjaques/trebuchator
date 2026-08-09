@@ -20,11 +20,7 @@ export interface Simulator {
   /** The pin angle an ideal release would have used, or null if it never fired. */
   tunePin(params: TrebuchetParams): Promise<number | null>
   /** The goal-versus-axle-load frontier of feasible builds. See `paretoSearch`. */
-  pareto(
-    params: TrebuchetParams,
-    keys: TunableKey[],
-    goal: ParetoGoal,
-  ): Promise<ParetoPoint[]>
+  pareto(params: TrebuchetParams, keys: TunableKey[], goal: ParetoGoal): Promise<ParetoPoint[]>
   /**
    * Sweep one parameter, reporting partial results as they arrive. Returns a
    * cancel function; call it and no further updates are delivered.
@@ -46,8 +42,7 @@ export interface Simulator {
  * an error handler nobody passes.
  */
 export type SweepUpdate =
-  | { kind: 'points'; points: SweepPoint[]; done: boolean }
-  | { kind: 'error'; message: string }
+  { kind: 'points'; points: SweepPoint[]; done: boolean } | { kind: 'error'; message: string }
 
 /**
  * The operations, declared once.

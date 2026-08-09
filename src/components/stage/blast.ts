@@ -142,7 +142,12 @@ export function crater(
   // is the bowl alone — `paint` closes a clip path, which runs the last rim back
   // to the first along the ground line for free.
   for (const [a, b] of hatchLines(x - r, y, x + r, y + depth, 9)) {
-    out.push({ op: 'path', points: [a, b], stroke: { color: c.ink3, width: 1, alpha: 0.5 }, clip: bowl })
+    out.push({
+      op: 'path',
+      points: [a, b],
+      stroke: { color: c.ink3, width: 1, alpha: 0.5 },
+      clip: bowl,
+    })
   }
   out.push({ op: 'path', points: bowl, stroke: { color: c.ink2, width: 1.5 } })
 

@@ -321,7 +321,9 @@ function Readout({ label, value, lead }: { label: string; value: string; lead?: 
   return (
     <div className="leading-tight">
       <div className="micro text-ink-3">{label}</div>
-      <div className={lead ? 'tnum font-mono text-xs text-ink' : 'tnum font-mono text-xs text-ink-2'}>
+      <div
+        className={lead ? 'tnum font-mono text-xs text-ink' : 'tnum font-mono text-xs text-ink-2'}
+      >
         {value}
       </div>
     </div>

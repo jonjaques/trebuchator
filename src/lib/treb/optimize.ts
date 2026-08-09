@@ -1,4 +1,9 @@
-import { cockToGround, geometryImpossibilities, simulateShot, validateGeometry } from './simulate.ts'
+import {
+  cockToGround,
+  geometryImpossibilities,
+  simulateShot,
+  validateGeometry,
+} from './simulate.ts'
 import type { TrebuchetParams } from './types.ts'
 
 /**
@@ -415,7 +420,10 @@ export function paretoSearch(
   if (asBuilt && !kept.includes(asBuilt)) {
     let nearest = 0
     for (let i = 1; i < kept.length; i++) {
-      if (Math.abs(kept[i].axleLoad - asBuilt.axleLoad) < Math.abs(kept[nearest].axleLoad - asBuilt.axleLoad))
+      if (
+        Math.abs(kept[i].axleLoad - asBuilt.axleLoad) <
+        Math.abs(kept[nearest].axleLoad - asBuilt.axleLoad)
+      )
         nearest = i
     }
     kept[nearest] = asBuilt

@@ -1,6 +1,15 @@
 import { AlertTriangle, Ban, Trash2 } from 'lucide-react'
 import type { ShotResult, TrebuchetParams } from '@/lib/treb/types.ts'
-import { num, scaled, show, speedAside, toDisplay, unitSymbol, type Dimension, type UnitSystem } from '@/lib/format.ts'
+import {
+  num,
+  scaled,
+  show,
+  speedAside,
+  toDisplay,
+  unitSymbol,
+  type Dimension,
+  type UnitSystem,
+} from '@/lib/format.ts'
 import { EnergyBar } from './EnergyBar.tsx'
 import { Section } from './Field.tsx'
 import { Button } from '@/components/ui/button.tsx'
@@ -42,12 +51,11 @@ function Stat({
   const notes = useNotes()
   return (
     <div className="py-[3px]">
-      <div
-        className="flex items-baseline justify-between gap-2"
-        title={notes ? undefined : hint}
-      >
+      <div className="flex items-baseline justify-between gap-2" title={notes ? undefined : hint}>
         <span className="label shrink-0 text-ink-3">{label}</span>
-        <span className={cn('tnum shrink-0 font-mono text-xs', emphasis ? 'text-ink' : 'text-ink-2')}>
+        <span
+          className={cn('tnum shrink-0 font-mono text-xs', emphasis ? 'text-ink' : 'text-ink-2')}
+        >
           {value}
           {unit && <span className="micro pl-1 text-ink-3">{unit}</span>}
         </span>
@@ -74,8 +82,8 @@ export function ReadoutRail({ result, error, params, units, saved, onRecall, onD
             <h3 className="stencil pb-1.5 text-bad">The solver stopped</h3>
             <p className="body text-ink-2">{error}</p>
             <p className="body pt-1.5 text-ink-2">
-              That is a fault in the simulator rather than in your machine. Change any parameter
-              to fire again.
+              That is a fault in the simulator rather than in your machine. Change any parameter to
+              fire again.
             </p>
           </div>
         </div>
@@ -84,9 +92,7 @@ export function ReadoutRail({ result, error, params, units, saved, onRecall, onD
   }
 
   if (!result) {
-    return (
-      <div className="body p-4 text-ink-2">Setting out the machine…</div>
-    )
+    return <div className="body p-4 text-ink-2">Setting out the machine…</div>
   }
 
   if (!result.ok) {
@@ -136,11 +142,7 @@ export function ReadoutRail({ result, error, params, units, saved, onRecall, onD
           unit={lengthU}
           hint="Ground distance covered after the sling let go."
         />
-        <Stat
-          label="Apex"
-          value={show(result.apex, 'length', units, 1)}
-          unit={lengthU}
-        />
+        <Stat label="Apex" value={show(result.apex, 'length', units, 1)} unit={lengthU} />
         <Stat label="Time of flight" value={num(result.flightTime, 2)} unit="s" />
         {/* A strong tailwind can push the shot past its vacuum range, at which
             point the air is a gain, not a cost — the sign and the label both
@@ -183,11 +185,7 @@ export function ReadoutRail({ result, error, params, units, saved, onRecall, onD
           unit="s"
           hint="When the trough stopped carrying the shot and the sling took it."
         />
-        <Stat
-          label="Release height"
-          value={show(rel.y, 'length', units, 2)}
-          unit={lengthU}
-        />
+        <Stat label="Release height" value={show(rel.y, 'length', units, 2)} unit={lengthU} />
       </Section>
 
       <Section title="Efficiency">
@@ -195,9 +193,7 @@ export function ReadoutRail({ result, error, params, units, saved, onRecall, onD
           <span className="tnum font-mono text-2xl leading-none text-ink">
             {num(result.efficiency * 100, 1)}
           </span>
-          <span className="pb-0.5 font-mono text-xs text-ink-3">
-            % into the shot
-          </span>
+          <span className="pb-0.5 font-mono text-xs text-ink-3">% into the shot</span>
         </div>
         <EnergyBar energy={result.energy} units={units} />
       </Section>
