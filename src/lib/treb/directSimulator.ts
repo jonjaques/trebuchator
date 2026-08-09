@@ -1,5 +1,5 @@
 import { simulateShot } from './simulate.ts'
-import { autoTune, bestReleaseAngle, sweepAt, sweepValues } from './optimize.ts'
+import { bestReleaseAngle, paretoSearch, sweepAt, sweepValues } from './optimize.ts'
 import type { Simulator } from './simulator.ts'
 
 /**
@@ -23,8 +23,8 @@ export function directSimulator(): Simulator {
       return bestReleaseAngle(params)
     },
 
-    async autotune(params, keys) {
-      return autoTune(params, keys)
+    async pareto(params, keys) {
+      return paretoSearch(params, keys)
     },
 
     sweep(params, key, min, max, steps, mode, onUpdate) {

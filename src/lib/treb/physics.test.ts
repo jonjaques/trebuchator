@@ -1,15 +1,24 @@
 import { describe, expect, it } from 'vitest'
 import { buildModel, evalPoint, evalPointVel, poseOf } from './model.ts'
 import { kineticEnergies, makeScratch, rk4Step } from './solver.ts'
-import { cockToGround, flyBallistic, simulateShot, type SimOptions } from './simulate.ts'
+import {
+  cockToGround,
+  flyBallistic,
+  geometryImpossibilities,
+  plausibilityWarnings,
+  simulateShot,
+  type SimOptions,
+} from './simulate.ts'
 import { PRESETS, presetById } from './presets.ts'
 import {
   bestReleaseAngle,
+  paretoSearch,
   sweep,
   sweepAt,
   sweepConflict,
   sweepValues,
   SWEEP_DT,
+  type TunableKey,
 } from './optimize.ts'
 import type { FiredShot, TrebuchetParams } from './types.ts'
 
@@ -377,6 +386,102 @@ describe('design behaviour', () => {
       expect(timeline.liftoffT, preset.name).toBeGreaterThan(0)
       expect(timeline.releaseT, preset.name).toBeGreaterThanOrEqual(timeline.liftoffT)
       expect(timeline.duration, preset.name).toBeGreaterThan(timeline.releaseT)
+    }
+  })
+})
+
+describe('follow-through', () => {
+  it('keeps the machine moving after release, for the drawing', () => {
+    const r = fire(presetById('backyard')!.params)
+    const follow = r.frames.filter((f) => f.phase === 'follow')
+    expect(follow.length).toBeGreaterThan(10)
+    // It genuinely swings on rather than freezing at the release pose.
+    expect(follow.at(-1)!.t).toBeGreaterThan(r.timeline.releaseT + 0.5)
+    expect(Math.abs(follow.at(-1)!.pose.theta - follow[0].pose.theta)).toBeGreaterThan(0.05)
+    // And no stroke frame carries the shot past release — the overshoot the
+    // optimal-release search integrates must not leak into the drawing with
+    // the projectile still hanging on the sling.
+    for (const f of r.frames) {
+      if (f.phase !== 'follow') expect(f.t).toBeLessThanOrEqual(r.timeline.releaseT + 1e-9)
+    }
+  })
+
+  it('is skipped entirely for lightweight (sweep) shots', () => {
+    const r = simulateShot(presetById('backyard')!.params, { lightweight: true })
+    expect(r.ok).toBe(true)
+    expect(r.frames).toHaveLength(0)
+  })
+})
+
+describe('plausibility', () => {
+  it('warns about impossible inputs but never blocks them', () => {
+    // 60 kg in a 10 cm cube is 60 t/m³ — five times lead. Still simulates:
+    // cranking the sliders past reality is half the fun of the app.
+    const r = simulateShot({ ...presetById('backyard')!.params, cwSize: 0.1 })
+    expect(r.ok).toBe(true)
+    expect(r.warnings.some((w) => w.includes('denser than lead'))).toBe(true)
+  })
+
+  it('catches geometry that could never be set up', () => {
+    const p = presetById('backyard')!.params
+    // A 2.6 m hanger under a 2 m pivot rests the box underground.
+    expect(
+      geometryImpossibilities({ ...p, cwHanger: 2.6 }).some((w) => w.includes('below ground')),
+    ).toBe(true)
+    // A 1.2 m box on a 0.5 m hanger swallows its own hinge.
+    expect(
+      geometryImpossibilities({ ...p, cwSize: 1.2 }).some((w) => w.includes('swallow')),
+    ).toBe(true)
+    expect(geometryImpossibilities(p)).toEqual([])
+  })
+
+  it('calls a lighter-than-air projectile what it is', () => {
+    const p = { ...presetById('backyard')!.params, projectileMass: 0.01, projectileDiameter: 0.5 }
+    expect(plausibilityWarnings(p).some((w) => w.includes('balloon'))).toBe(true)
+  })
+
+  it('keeps every preset clear of impossibility warnings', () => {
+    for (const preset of PRESETS) {
+      expect(plausibilityWarnings(preset.params), preset.name).toEqual([])
+    }
+  })
+})
+
+describe('pareto frontier', () => {
+  const keys: TunableKey[] = ['slingLength', 'cwHanger', 'initialBeamAngle', 'armShort']
+
+  it('returns a feasible, mutually non-dominated frontier', () => {
+    const front = paretoSearch(presetById('backyard')!.params, keys, 60)
+    expect(front.length).toBeGreaterThan(0)
+    expect(front.length).toBeLessThanOrEqual(9)
+    for (const a of front) {
+      expect(geometryImpossibilities(a.params)).toEqual([])
+      for (const b of front) {
+        if (a === b) continue
+        const dominates =
+          b.range >= a.range && b.axleLoad <= a.axleLoad && (b.range > a.range || b.axleLoad < a.axleLoad)
+        expect(dominates).toBe(false)
+      }
+    }
+    // Sorted lightest frame first — and along a proper frontier, range can only
+    // be bought with load, so both columns rise together.
+    for (let i = 1; i < front.length; i++) {
+      expect(front[i].axleLoad).toBeGreaterThanOrEqual(front[i - 1].axleLoad)
+      expect(front[i].range).toBeGreaterThanOrEqual(front[i - 1].range)
+    }
+  })
+
+  it('gives the same frontier for the same machine', () => {
+    const p = presetById('backyard')!.params
+    expect(paretoSearch(p, keys, 40)).toEqual(paretoSearch(p, keys, 40))
+  })
+
+  it('returns buildable pin-release machines, not optimal-release fictions', () => {
+    const front = paretoSearch(presetById('backyard')!.params, keys, 40)
+    for (const pt of front) {
+      expect(pt.params.releaseMode).toBe('pin')
+      const built = simulateShot(pt.params, { lightweight: true, dt: SWEEP_DT })
+      expect(built.ok).toBe(true)
     }
   })
 })

@@ -13,17 +13,27 @@ import { PRESETS, presetById } from '@/lib/treb/presets.ts'
 import {
   sweepConflict,
   TUNABLES,
+  type ParetoPoint,
   type SweepMode,
   type SweepPoint,
   type TunableKey,
 } from '@/lib/treb/optimize.ts'
 import type { TrebuchetParams } from '@/lib/treb/types.ts'
 import { TIME_EPS } from '@/lib/treb/timeline.ts'
-import { detectUnitSystem, num, show, unitSymbol, type UnitSystem } from '@/lib/format.ts'
+import {
+  detectUnitSystem,
+  num,
+  show,
+  toDisplay,
+  unitSymbol,
+  type Dimension,
+  type UnitSystem,
+} from '@/lib/format.ts'
 import { NotesContext } from '@/lib/notes.ts'
 import { cn } from '@/lib/utils.ts'
 
-const AUTOTUNE_KEYS: TunableKey[] = ['slingLength', 'cwHanger', 'initialBeamAngle', 'armShort']
+/** The dimensions the Pareto search varies. Masses stay the builder's own. */
+const PARETO_KEYS: TunableKey[] = ['slingLength', 'cwHanger', 'initialBeamAngle', 'armShort']
 
 export default function App() {
   const client = useSimClient()
@@ -56,7 +66,7 @@ export default function App() {
   // it there.
   const [cursor, setCursor] = useState<number | null>(0)
   const [playing, setPlaying] = useState(true)
-  const [speed, setSpeed] = useState(0.15)
+  const [speed, setSpeed] = useState(1)
 
   const [cameraMode, setCameraMode] = useState<CameraMode>('auto')
   const [showDimensions, setShowDimensions] = useState(false)
@@ -67,6 +77,15 @@ export default function App() {
 
   const [saved, setSaved] = useState<SavedShot[]>([])
   const [tuning, setTuning] = useState(false)
+  const [pareto, setPareto] = useState<ParetoPoint[] | null>(null)
+  // What-if preview: the trajectory of the machine under the hovered point on
+  // the sweep chart. The ref guards against a preview landing after the mouse
+  // has already left, or after the hover moved on to another value.
+  const [preview, setPreview] = useState<{
+    value: number
+    trajectory: { x: number; y: number }[]
+  } | null>(null)
+  const previewValueRef = useRef<number | null>(null)
 
   const [sweepOpen, setSweepOpen] = useState(true)
   const [sweepKey, setSweepKey] = useState<TunableKey>('slingLength')
@@ -86,6 +105,11 @@ export default function App() {
   const patch = useCallback((next: Partial<TrebuchetParams>) => {
     setParams((prev) => ({ ...prev, ...next }))
     setPresetId(null)
+    // A different machine invalidates both derived artefacts: the frontier was
+    // searched around the old one, and a hovered preview belongs to its chart.
+    setPareto(null)
+    setPreview(null)
+    previewValueRef.current = null
   }, [])
 
   useEffect(() => {
@@ -168,6 +192,9 @@ export default function App() {
     if (!preset) return
     setParams({ ...preset.params })
     setPresetId(id)
+    setPareto(null)
+    setPreview(null)
+    previewValueRef.current = null
     posRef.current = 0
     setCursor(0)
     setPlaying(true)
@@ -221,22 +248,28 @@ export default function App() {
     }
   }, [client, params, patch])
 
-  const autoTune = useCallback(async () => {
+  const optimize = useCallback(async () => {
     setTuning(true)
     setActionError(null)
     try {
-      const tuned = await client.autotune(params, AUTOTUNE_KEYS)
-      setParams(tuned)
-      setPresetId(null)
-      posRef.current = 0
-      setCursor(0)
-      setPlaying(true)
+      setPareto(await client.pareto(params, PARETO_KEYS))
     } catch (err) {
       setActionError(err instanceof Error ? err.message : String(err))
     } finally {
       setTuning(false)
     }
   }, [client, params])
+
+  const applyPareto = useCallback((point: ParetoPoint) => {
+    setParams({ ...point.params })
+    setPresetId(null)
+    setPareto(null)
+    setPreview(null)
+    previewValueRef.current = null
+    posRef.current = 0
+    setCursor(0)
+    setPlaying(true)
+  }, [])
 
   const nextId = useRef(1)
   const saveShot = useCallback(() => {
@@ -274,6 +307,46 @@ export default function App() {
     }
     return best
   }, [sweepPoints])
+
+  // --- what-if preview -------------------------------------------------------
+  // Hovering the chart fires the hovered machine as a real (coalesced) shot and
+  // draws its trajectory on the sheet, so the curve and the drawing answer the
+  // same question at the same moment.
+  const previewHover = useCallback(
+    (value: number | null) => {
+      previewValueRef.current = value
+      if (value == null) {
+        setPreview(null)
+        return
+      }
+      client.requestPreview(
+        { ...params, [sweepKey]: value },
+        {
+          onResult: (r) => {
+            if (previewValueRef.current !== value) return
+            if (!r.ok) {
+              setPreview(null)
+              return
+            }
+            setPreview({ value, trajectory: r.trajectory.map((pt) => ({ x: pt.x, y: pt.y })) })
+          },
+          // A failed preview simply doesn't draw; the chart still shows its
+          // figure, and errors about the *real* machine have their own channel.
+          onError: () => {},
+        },
+      )
+    },
+    [client, params, sweepKey],
+  )
+
+  const previewGhost = useMemo(() => {
+    if (!preview) return null
+    const dim: Dimension = sweepSpec.unit === 'ratio' ? 'none' : sweepSpec.unit
+    return {
+      trajectory: preview.trajectory,
+      label: `${sweepSpec.label.toLowerCase()} ${num(toDisplay(preview.value, dim, units), 2)}${unitSymbol(dim, units)}`,
+    }
+  }, [preview, sweepSpec, units])
 
   // --- keyboard ------------------------------------------------------------
   useEffect(() => {
@@ -321,8 +394,10 @@ export default function App() {
           onDark={setDark}
           onSave={saveShot}
           canSave={result?.ok ?? false}
-          onAutoTune={autoTune}
-          tuning={tuning}
+          onOptimize={optimize}
+          optimizing={tuning}
+          pareto={pareto}
+          onApplyPareto={applyPareto}
           busy={busy}
           showDesign={showDesign}
           showResults={showResults}
@@ -379,6 +454,7 @@ export default function App() {
                 showAngles={showAngles}
                 showGrid={showGrid}
                 ghosts={ghosts}
+                preview={previewGhost}
                 mode={cameraMode}
                 onModeChange={setCameraMode}
               />
@@ -413,6 +489,9 @@ export default function App() {
                     of its own once the buttons wrapped — and a disclosure belongs
                     next to the name of the thing it discloses anyway, which is
                     where the collapsed state already puts it. */}
+                {/* The controls share the row's width — the select takes the
+                    slack — instead of clustering left and wrapping the last
+                    button onto its own lonely line. */}
                 <div className="flex flex-wrap items-center gap-2 pb-1">
                   <Button
                     size="icon"
@@ -420,21 +499,21 @@ export default function App() {
                     className="tap-target relative -ml-1 size-7 shrink-0 text-ink-3"
                     onClick={() => setSweepOpen(false)}
                     aria-expanded
-                    aria-label="Hide the sensitivity chart"
+                    aria-label="Hide the what-if panel"
                   >
                     <ChevronDown className="size-4" aria-hidden />
                   </Button>
-                  <span className="stencil shrink-0 text-ink">Sensitivity</span>
+                  <span className="stencil shrink-0 text-ink">What if</span>
                   {/* A native select for a 12-item list — the platform picker is
                       the right control on a phone — but with its own chrome off,
                       because a macOS select is rounder than anything else drawn
                       on this sheet. */}
-                  <div className="relative shrink-0">
+                  <div className="relative min-w-[9rem] flex-1">
                     <select
                       value={sweepKey}
                       onChange={(e) => setSweepKey(e.target.value as TunableKey)}
                       aria-label="Parameter to sweep"
-                      className="label appearance-none rounded-sm border border-rule bg-ground py-1 pl-2 pr-6 text-ink-2 focus-visible:border-verdigris"
+                      className="label w-full appearance-none rounded-sm border border-rule bg-ground py-1 pl-2 pr-6 text-ink-2 focus-visible:border-verdigris"
                     >
                       {TUNABLES.map((s) => (
                         <option key={s.key} value={s.key}>
@@ -496,6 +575,7 @@ export default function App() {
                     loading={sweepBusy}
                     mode={sweepMode}
                     onPick={(v) => patch({ [sweepKey]: v })}
+                    onHover={previewHover}
                   />
                 )}
               </div>
@@ -508,7 +588,7 @@ export default function App() {
                 className="rule-t label flex items-center justify-center gap-1.5 bg-sheet py-1.5 text-ink-3 hover:text-ink-2"
               >
                 <ChevronUp className="size-3.5" aria-hidden />
-                Sensitivity
+                What if
               </button>
             )}
 

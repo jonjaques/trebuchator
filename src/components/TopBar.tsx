@@ -1,9 +1,11 @@
+import { useState } from 'react'
 import { BookmarkPlus, Moon, PanelLeft, PanelRight, Sun, Wand2 } from 'lucide-react'
 import { Button } from '@/components/ui/button.tsx'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover.tsx'
 import { SegmentedControl } from './SegmentedControl.tsx'
 import { PRESETS } from '@/lib/treb/presets.ts'
-import type { UnitSystem } from '@/lib/format.ts'
+import type { ParetoPoint } from '@/lib/treb/optimize.ts'
+import { num, scaled, show, unitSymbol, type UnitSystem } from '@/lib/format.ts'
 import { cn } from '@/lib/utils.ts'
 
 interface Props {
@@ -17,8 +19,12 @@ interface Props {
   /** False while there is no fired shot to keep — the save button no-ops then,
    *  so it should look like it will. */
   canSave: boolean
-  onAutoTune: () => void
-  tuning: boolean
+  /** Kick off a Pareto frontier search around the current machine. */
+  onOptimize: () => void
+  optimizing: boolean
+  /** The frontier of the last search, or null when none is current. */
+  pareto: ParetoPoint[] | null
+  onApplyPareto: (point: ParetoPoint) => void
   busy: boolean
   showDesign: boolean
   showResults: boolean
@@ -41,8 +47,10 @@ export function TopBar({
   onDark,
   onSave,
   canSave,
-  onAutoTune,
-  tuning,
+  onOptimize,
+  optimizing,
+  pareto,
+  onApplyPareto,
   busy,
   showDesign,
   showResults,
@@ -51,6 +59,7 @@ export function TopBar({
 }: Props) {
   const current = PRESETS.find((p) => p.id === presetId)
   const eras = ['modern', 'historical', 'reference'] as const
+  const [optimizeOpen, setOptimizeOpen] = useState(false)
 
   return (
     /* Two rows below `lg`, one above. On a phone the wordmark, the preset name
@@ -85,12 +94,14 @@ export function TopBar({
         </div>
       </div>
 
-      <div className="rule-t flex h-12 items-center gap-2 px-3 lg:h-auto lg:border-t-0 lg:px-0">
+      {/* The action buttons share the row's slack equally instead of huddling
+          at the left with a dead gap before the settings cluster. */}
+      <div className="rule-t flex h-12 flex-1 items-center gap-2 px-3 lg:h-auto lg:border-t-0 lg:px-0">
         <span className="mx-1 hidden h-6 w-px bg-rule lg:block" aria-hidden />
 
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="outline" size="sm" className="label h-8 min-w-0 max-w-[13rem] shrink gap-2">
+          <Button variant="outline" size="sm" className="label h-8 min-w-0 flex-1 gap-2">
             <span className="truncate">{current?.name ?? 'Custom machine'}</span>
             <span aria-hidden className="text-ink-3">
               ▾
@@ -123,22 +134,83 @@ export function TopBar({
         </PopoverContent>
       </Popover>
 
-      <Button
-        variant="outline"
-        size="sm"
-        className="label h-8 shrink-0 gap-1.5"
-        onClick={onAutoTune}
-        disabled={tuning}
-        title="Search sling length, hanger, cocked angle and pin angle for the longest shot this machine can make"
+      <Popover
+        open={optimizeOpen}
+        onOpenChange={(open) => {
+          setOptimizeOpen(open)
+          // A fresh open with no current frontier starts the search at once —
+          // an empty panel with a second "go" button is a step nobody needs.
+          if (open && pareto == null && !optimizing) onOptimize()
+        }}
       >
-        <Wand2 className="size-3.5" aria-hidden />
-        {tuning ? 'Tuning…' : 'Auto-tune'}
-      </Button>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            className="label h-8 min-w-0 flex-1 gap-1.5"
+            title="Search feasible builds for the frontier of range against frame load"
+          >
+            <Wand2 className="size-3.5" aria-hidden />
+            {optimizing ? 'Searching…' : 'Optimize'}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-[24rem] p-0">
+          <div className="label rule-b bg-raised px-3 py-2 text-ink-3">
+            Pareto frontier — range against frame load
+          </div>
+          <p className="body rule-b px-3 py-2 text-ink-2">
+            Sling, hanger, cocked angle and short arm searched; every build below is
+            feasible and none beats another on both counts — more range costs a
+            heavier-loaded frame. The pin comes bent to the angle each build wants.
+            Pick the trade you would build.
+          </p>
+          {optimizing ? (
+            <p className="body px-3 py-4 text-ink-2">Firing candidate machines…</p>
+          ) : pareto == null || pareto.length === 0 ? (
+            <p className="body px-3 py-4 text-ink-2">
+              No feasible builds found near this machine.
+            </p>
+          ) : (
+            <div className="thin-scroll max-h-[45vh] overflow-y-auto">
+              <div className="label grid grid-cols-[1fr_1fr_auto] gap-x-3 px-3 py-1.5 text-ink-3">
+                <span>Range</span>
+                <span>Axle load</span>
+                <span>Shot’s share</span>
+              </div>
+              {pareto.map((pt, i) => {
+                const axle = scaled(pt.axleLoad, 'force', units)
+                return (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      onApplyPareto(pt)
+                      setOptimizeOpen(false)
+                    }}
+                    className="rule-t grid w-full grid-cols-[1fr_1fr_auto] items-baseline gap-x-3 px-3 py-2 text-left transition-colors hover:bg-raised"
+                  >
+                    <span className="tnum font-mono text-xs text-ink">
+                      {show(pt.range, 'length', units, 1)}
+                      <span className="micro pl-1 text-ink-3">{unitSymbol('length', units)}</span>
+                    </span>
+                    <span className="tnum font-mono text-xs text-ink-2">
+                      {axle.text}
+                      <span className="micro pl-1 text-ink-3">{axle.unit}</span>
+                    </span>
+                    <span className="tnum font-mono text-[11px] text-ink-3">
+                      {num(pt.efficiency * 100, 0)}%
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </PopoverContent>
+      </Popover>
 
       <Button
         variant="outline"
         size="sm"
-        className="label h-8 shrink-0 gap-1.5"
+        className="label h-8 min-w-0 flex-1 gap-1.5"
         onClick={onSave}
         disabled={!canSave}
         title="Keep this shot on the sheet as a dashed ghost to compare against"

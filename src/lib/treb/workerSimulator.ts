@@ -71,8 +71,8 @@ export function workerSimulator(): Simulator {
       return post('tunePin', [params]).result
     },
 
-    autotune(params, keys) {
-      return post('autotune', [params, keys]).result
+    pareto(params, keys) {
+      return post('pareto', [params, keys]).result
     },
 
     sweep(

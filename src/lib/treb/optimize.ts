@@ -1,4 +1,4 @@
-import { cockToGround, simulateShot } from './simulate.ts'
+import { cockToGround, geometryImpossibilities, simulateShot, validateGeometry } from './simulate.ts'
 import type { TrebuchetParams } from './types.ts'
 
 /**
@@ -229,106 +229,114 @@ export function bestReleaseAngle(p: TrebuchetParams): number | null {
   return r.ok ? r.release.gamma : null
 }
 
-export interface OptimizeResult {
-  key: TunableKey
-  value: number
+/**
+ * One build on the range-versus-axle-load frontier.
+ *
+ * `params` is buildable as returned: the release is a concrete pin at the
+ * angle the ideal release used, not `releaseMode: 'optimal'`.
+ */
+export interface ParetoPoint {
+  params: TrebuchetParams
+  /** Range at the frontier evaluation (SWEEP_DT, ideal release). */
   range: number
-  baseline: number
-  improvement: number
+  /** Peak main-axle load through the stroke — the frame this build demands. */
+  axleLoad: number
+  efficiency: number
 }
 
 /**
- * Maximise range over one parameter. Coarse grid to bracket the peak, then
- * golden-section inside the bracket — the grid guards against the range surface
- * having more than one hump, which it does for sling length in particular.
+ * Deterministic pseudo-random stream. The search must give the same frontier
+ * for the same machine — a button that returns different builds on every press
+ * reads as a slot machine — and the worker has no seed to thread from outside.
  */
-export function optimizeParam(
-  p: TrebuchetParams,
-  key: TunableKey,
-  bounds?: [number, number],
-  gridSteps = 18,
-): OptimizeResult {
-  const spec = TUNABLES.find((t) => t.key === key)
-  const [min, max] = bounds ?? spec?.range(p) ?? [p[key] * 0.5, p[key] * 1.5]
-  const baseline = simulateShot(p, FAST).range
-
-  const rangeAt = (v: number) => {
-    const r = simulateShot({ ...p, [key]: v }, FAST)
-    return r.ok ? r.range : -Infinity
+function lcg(seed: number): () => number {
+  let s = seed >>> 0
+  return () => {
+    s = (s * 1664525 + 1013904223) >>> 0
+    return s / 2 ** 32
   }
-
-  let bestV = p[key]
-  let bestR = baseline
-  const grid: number[] = []
-  for (let i = 0; i < gridSteps; i++) grid.push(min + ((max - min) * i) / (gridSteps - 1))
-  const scores = grid.map(rangeAt)
-  let bi = 0
-  for (let i = 1; i < scores.length; i++) if (scores[i] > scores[bi]) bi = i
-  if (scores[bi] > bestR) {
-    bestR = scores[bi]
-    bestV = grid[bi]
-  }
-
-  let lo = grid[Math.max(0, bi - 1)]
-  let hi = grid[Math.min(grid.length - 1, bi + 1)]
-  const phi = (Math.sqrt(5) - 1) / 2
-  let c = hi - phi * (hi - lo)
-  let d = lo + phi * (hi - lo)
-  let fc = rangeAt(c)
-  let fd = rangeAt(d)
-  for (let i = 0; i < 22 && hi - lo > 1e-4 * Math.max(1, Math.abs(hi)); i++) {
-    if (fc > fd) {
-      hi = d
-      d = c
-      fd = fc
-      c = hi - phi * (hi - lo)
-      fc = rangeAt(c)
-    } else {
-      lo = c
-      c = d
-      fc = fd
-      d = lo + phi * (hi - lo)
-      fd = rangeAt(d)
-    }
-  }
-  const mid = (lo + hi) / 2
-  const fm = rangeAt(mid)
-  if (fm > bestR) {
-    bestR = fm
-    bestV = mid
-  }
-
-  return { key, value: bestV, range: bestR, baseline, improvement: bestR - baseline }
-}
-
-export interface TuneProgress {
-  round: number
-  key: TunableKey
-  range: number
 }
 
 /**
- * Coordinate descent over several parameters, re-tuning the pin angle after
- * each move. Geometry changes shift the best release instant, so a pin angle
- * tuned before the change is stale — that re-tune is what keeps each step an
- * honest comparison rather than a handicap on the new geometry.
+ * Multi-objective search: the Pareto frontier of range against peak axle load.
+ *
+ * The coordinate-descent auto-tuner this replaces had two faults. It chased
+ * range alone, so it happily specified a machine whose extra metres cost a
+ * frame nobody would build — and it wandered into geometry that cannot exist
+ * (hangers that put the weight box underground at rest). Here every candidate
+ * is feasibility-checked before it is fired, both objectives are kept, and the
+ * result is the set of non-dominated builds: for each one, more range is only
+ * available by accepting a heavier-loaded frame. Which trade to take is the
+ * builder's call, not the optimizer's.
+ *
+ * Plain rejection sampling over the tunable ranges, not a genetic algorithm:
+ * with four dimensions and a ~10 ms evaluation, a few hundred samples cover
+ * the space better than machinery ten times this size.
+ *
+ * Candidates are scored with an ideal release so no one is handicapped by a
+ * stale pin, and the pin angle that release *used* is written back as a
+ * concrete `releaseAngle` — the returned params are buildable as-is.
  */
-export function autoTune(
+export function paretoSearch(
   p: TrebuchetParams,
   keys: TunableKey[],
-  rounds = 2,
-  onProgress?: (progress: TuneProgress) => void,
-): TrebuchetParams {
-  let current = { ...p }
-  for (let round = 0; round < rounds; round++) {
-    for (const key of keys) {
-      if (key === 'releaseAngle') continue
-      const res = optimizeParam(current, key)
-      if (res.improvement > 0) current = { ...current, [key]: res.value }
-      const pin = bestReleaseAngle(current)
-      if (pin != null) current = { ...current, releaseAngle: pin }
-      onProgress?.({ round, key, range: simulateShot(current, FAST).range })
+  samples = 160,
+): ParetoPoint[] {
+  const rand = lcg(0x7eb0c4e7)
+  const specs = keys
+    .map((key) => TUNABLES.find((t) => t.key === key))
+    .filter((s): s is TunableSpec => s != null)
+
+  const evaluate = (candidate: TrebuchetParams): ParetoPoint | null => {
+    if (validateGeometry(candidate).length > 0) return null
+    if (geometryImpossibilities(candidate).length > 0) return null
+    const r = simulateShot({ ...candidate, releaseMode: 'optimal' }, FAST)
+    if (!r.ok || r.range <= 0) return null
+    return {
+      params: { ...candidate, releaseMode: 'pin', releaseAngle: r.release.gamma },
+      range: r.range,
+      axleLoad: r.peaks.axleLoad,
+      efficiency: r.efficiency,
     }
   }
-  return current
+
+  // The current machine is candidate zero, so the frontier always says where
+  // the build in hand stands — dominated or already optimal.
+  const points: ParetoPoint[] = []
+  const current = evaluate(p)
+  if (current) points.push(current)
+
+  for (let i = 0; i < samples; i++) {
+    const candidate = { ...p }
+    for (const spec of specs) {
+      const [lo, hi] = spec.range(p)
+      candidate[spec.key] = lo + rand() * (hi - lo)
+    }
+    const pt = evaluate(candidate)
+    if (pt) points.push(pt)
+  }
+
+  // Non-dominated filter: keep a build only if nothing throws at least as far
+  // for at most that axle load (with one of the two strictly better).
+  const front = points.filter(
+    (a) =>
+      !points.some(
+        (b) =>
+          b !== a &&
+          b.range >= a.range &&
+          b.axleLoad <= a.axleLoad &&
+          (b.range > a.range || b.axleLoad < a.axleLoad),
+      ),
+  )
+  front.sort((a, b) => a.axleLoad - b.axleLoad)
+
+  // A dozen non-dominated builds read as a menu; forty read as noise. Keep the
+  // ends and an even spread of range between them.
+  const MAX_FRONT = 9
+  if (front.length <= MAX_FRONT) return front
+  const kept: ParetoPoint[] = []
+  for (let i = 0; i < MAX_FRONT; i++) {
+    kept.push(front[Math.round((i * (front.length - 1)) / (MAX_FRONT - 1))])
+  }
+  return kept
 }

@@ -19,20 +19,6 @@ import { num, toDisplay, unitSymbol, type Dimension, type UnitSystem } from '@/l
  * measurement on the drawing.
  */
 
-const DIM_OF: Partial<Record<TunableKey, Dimension>> = {
-  slingLength: 'length',
-  armLong: 'length',
-  armShort: 'length',
-  cwHanger: 'length',
-  pivotHeight: 'length',
-  cwMass: 'mass',
-  projectileMass: 'mass',
-  armMass: 'mass',
-  releaseAngle: 'angle',
-  initialBeamAngle: 'angle',
-  windSpeed: 'speed',
-}
-
 interface Props {
   points: SweepPoint[]
   paramKey: TunableKey
@@ -42,6 +28,8 @@ interface Props {
   mode: SweepMode
   height?: number
   onPick: (value: number) => void
+  /** The hovered value, or null on leave — the sheet previews that machine. */
+  onHover?: (value: number | null) => void
 }
 
 /**
@@ -105,13 +93,16 @@ export function SweepChart({
   mode,
   height = 150,
   onPick,
+  onHover,
 }: Props) {
   const [hover, setHover] = useState<number | null>(null)
   const [plotRef, W] = usePlotWidth()
   // The y-axis gutter has to hold a number; on a narrow sheet it gives ground.
   const PAD = { l: W < 420 ? 32 : 46, r: 14, t: 14, b: 26 }
   const spec = TUNABLES.find((t) => t.key === paramKey)
-  const dim = DIM_OF[paramKey] ?? 'none'
+  // The sweep spec already names its dimension; 'ratio' is the one value in
+  // that union with no display unit.
+  const dim: Dimension = spec == null || spec.unit === 'ratio' ? 'none' : spec.unit
   const xUnit = unitSymbol(dim, units)
   const yUnit = unitSymbol('length', units)
   const H = height
@@ -206,7 +197,10 @@ export function SweepChart({
         className="block cursor-crosshair select-none"
         role="img"
         aria-label={`Range against ${spec?.label ?? paramKey}. Currently ${fmtX(current)} giving ${num(dsp(atCurrent), 1)} ${yUnit}. Best is ${fmtX(best.value)} giving ${num(dsp(best.range), 1)} ${yUnit}.`}
-        onMouseLeave={() => setHover(null)}
+        onMouseLeave={() => {
+          setHover(null)
+          onHover?.(null)
+        }}
         onMouseMove={(e) => {
           const r = e.currentTarget.getBoundingClientRect()
           const vx = e.clientX - r.left
@@ -214,6 +208,7 @@ export function SweepChart({
           for (let i = 1; i < valid.length; i++)
             if (Math.abs(sx(valid[i].value) - vx) < Math.abs(sx(valid[bi].value) - vx)) bi = i
           setHover(bi)
+          onHover?.(valid[bi].value)
         }}
         onClick={() => hovered && onPick(hovered.value)}
       >

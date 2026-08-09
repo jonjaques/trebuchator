@@ -73,13 +73,16 @@ bun run test:watch
   a 13th-century siege engine, and Edward I's Warwolf.
 - **Find best pin** reports the spigot angle to bend, by running the swing once
   with an ideal-release solver and reading back the angle it chose.
-- **Auto-tune** searches sling length, hanger, cocked angle and short arm, re-tuning
-  the pin after every move.
-- **Sensitivity** sweeps any one parameter and plots range against it, with the
+- **Optimize** searches sling length, hanger, cocked angle and short arm and
+  returns the Pareto frontier of range against peak axle load — feasible builds
+  only, none better than another on both counts. Pick the trade you would
+  actually build; the pin comes bent to the angle each build wants.
+- **What if** sweeps any one parameter and plots range against it, with the
   range your machine gets now and the gain on offer spelled out. *As built*
   changes one number and nothing else; *best case* re-cocks and re-releases at
   every point, which is the honest way to ask what a dimension could give you.
-  Click the chart to adopt a value, or hit **Adopt best**.
+  Hovering the chart draws that machine's trajectory on the sheet; click to
+  adopt a value, or hit **Adopt best**.
 - **Angles** (`A`) puts protractors on the joints. The one at the beam tip shows
   the sling closing on your pin angle, which is the whole of tuning in one arc.
 - **Save shot** keeps a trajectory on the sheet as a dashed ghost to compare against.

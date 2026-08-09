@@ -118,6 +118,57 @@ export function validateGeometry(p: TrebuchetParams): string[] {
 }
 
 /**
+ * Impossibilities that are *warned about*, never blocked. The sliders run past
+ * what can be built on purpose — cranking them is half the fun — but the sheet
+ * should say when a machine has left the buildable world.
+ *
+ * Split in two because the Pareto optimizer needs the distinction: geometry
+ * impossibilities vary with the dimensions it searches over and disqualify a
+ * candidate, while material ones (a too-dense box) are properties of numbers it
+ * holds fixed — filtering on those would empty the frontier without offering
+ * the reader any candidate that fixes them.
+ */
+export function geometryImpossibilities(p: TrebuchetParams): string[] {
+  const out: string[] = []
+  const model = buildModel(p)
+  const q = new Float64Array(model.nq)
+  q[model.iTheta] = p.initialBeamAngle * RAD
+  const cw = evalPoint(model.points.cw, q)
+  if (cw.y - p.cwSize / 2 < -1e-9)
+    out.push(
+      'The weight box sits below ground level in the cocked pose — this machine could never be set. Raise the pivot, shorten the hanger, or shrink the box.',
+    )
+  if (p.type === 'hinged' && p.cwHanger > 0 && p.cwHanger < p.cwSize / 2)
+    out.push(
+      'The weight box is bigger than its hanger is long, so it would swallow its own hinge. Lengthen the hanger or shrink the box.',
+    )
+  return out
+}
+
+/** Density checks: the box and the shot have to be fillable with real matter. */
+export function materialImpossibilities(p: TrebuchetParams): string[] {
+  const out: string[] = []
+  const LEAD = 11340 // kg/m³ — the densest fill anyone actually pours
+  const boxDensity = p.cwMass / Math.max(p.cwSize ** 3, 1e-9)
+  if (boxDensity > LEAD)
+    out.push(
+      `Packing ${p.cwMass.toFixed(0)} kg into a ${p.cwSize.toFixed(2)} m box needs a fill of ${(boxDensity / 1000).toFixed(1)} t/m³ — denser than lead (11.3). Stone runs about 2.5.`,
+    )
+  const projDensity = p.projectileMass / Math.max((Math.PI / 6) * p.projectileDiameter ** 3, 1e-12)
+  if (projDensity > LEAD)
+    out.push(
+      `A ${(p.projectileDiameter * 100).toFixed(0)} cm shot of ${p.projectileMass.toFixed(1)} kg is denser than lead — no material gets you there.`,
+    )
+  if (projDensity < 1.3)
+    out.push('The projectile is lighter than the air it displaces — that is a balloon, not a shot.')
+  return out
+}
+
+export function plausibilityWarnings(p: TrebuchetParams): string[] {
+  return [...geometryImpossibilities(p), ...materialImpossibilities(p)]
+}
+
+/**
  * Simulate one shot end to end: the constrained ground drag, the free swing,
  * the release, and the ballistic flight.
  */
@@ -349,26 +400,84 @@ export function simulateShot(p: TrebuchetParams, opts: SimOptions = {}): ShotRes
   const ratio = p.cwMass / p.projectileMass
   if (ratio < 25)
     warnings.push(`Counterweight is only ${ratio.toFixed(0)}× the shot. Historical engines ran 100× and up.`)
+  warnings.push(...plausibilityWarnings(p))
 
+  // Frames run to release only — the stroke integration deliberately overshot
+  // to feed the optimal-release search, and those overshoot states still have
+  // the shot on the sling. What follows release on screen is the follow-through
+  // below, where the sling is empty.
   const frames: SimFrame[] = opts.lightweight
     ? []
-    : samples.map((s) => {
-        const pose = poseOf(model, s.q)
-        const v = evalPointVel(model.points.projectile, s.q, s.qd)
-        const speed = Math.hypot(v.x, v.y)
-        return {
-          t: s.t,
-          pose,
-          phase: s.phase,
-          gamma: s.gamma,
-          slingTension: s.loads.slingTension,
-          normalForce: Math.max(0, s.lambda),
-          axleLoad: s.loads.pivot,
-          beamMoment: 0,
-          projectileSpeed: speed,
-          keProjectile: 0.5 * p.projectileMass * speed * speed,
-        }
+    : samples
+        .filter((s) => s.t <= relSample.t + 1e-12)
+        .map((s) => {
+          const pose = poseOf(model, s.q)
+          const v = evalPointVel(model.points.projectile, s.q, s.qd)
+          const speed = Math.hypot(v.x, v.y)
+          return {
+            t: s.t,
+            pose,
+            phase: s.phase,
+            gamma: s.gamma,
+            slingTension: s.loads.slingTension,
+            normalForce: Math.max(0, s.lambda),
+            axleLoad: s.loads.pivot,
+            beamMoment: 0,
+            projectileSpeed: speed,
+            keProjectile: 0.5 * p.projectileMass * speed * speed,
+          }
+        })
+
+  // --- Follow-through -------------------------------------------------------
+  // The machine does not stop when the sling lets go: the arm whips over the
+  // top, the counterweight swings out, and that motion is half the drama of a
+  // real throw. Integrate onward with the shot's mass off the sling — the
+  // pouch keeps riding it — purely for the drawing: nothing here feeds a
+  // number, which is why a coarser step and no bearing feedback are fine, and
+  // why sweeps (lightweight) skip it entirely.
+  if (!opts.lightweight) {
+    // A massless sling (the lab preset) would make the sling row of the mass
+    // matrix singular, so the empty pouch keeps a token 20 g.
+    const pFollow: TrebuchetParams = {
+      ...p,
+      projectileMass: 0,
+      slingMass: Math.max(p.slingMass, 0.02),
+    }
+    const modelF = buildModel(pFollow)
+    const scratchF = makeScratch(modelF.nq, modelF.bodies.length)
+    const stF = { q: relSample.q.slice(), qd: relSample.qd.slice() }
+    const dtF = Math.max(dt, 1e-3)
+    // Runs as long as the flight, capped: a pumpkin's half-minute flight does
+    // not need half a minute of pendulum decay nobody will scrub through.
+    const followEnd = relSample.t + Math.min(flight.time, 8)
+    const sampleEveryF = Math.max(1, Math.round(1 / 120 / dtF))
+    let tF = relSample.t
+    let stepF = 0
+    while (tF < followEnd) {
+      rk4Step(modelF, pFollow, stF, dtF, scratchF, {
+        constrained: false,
+        loads: { pivot: 0, hinge: 0 },
       })
+      tF += dtF
+      stepF++
+      if (!Number.isFinite(stF.q[0])) break
+      if (stepF % sampleEveryF === 0) {
+        const pose = poseOf(modelF, stF.q)
+        frames.push({
+          t: tF,
+          pose,
+          phase: 'follow',
+          gamma: slingArmAngle(pose),
+          slingTension: 0,
+          normalForce: 0,
+          axleLoad: 0,
+          beamMoment: 0,
+          projectileSpeed: 0,
+          keProjectile: 0,
+        })
+      }
+    }
+  }
 
   const impactEnergy = 0.5 * p.projectileMass * flight.impactSpeed * flight.impactSpeed
 

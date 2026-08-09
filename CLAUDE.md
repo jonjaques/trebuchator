@@ -63,6 +63,22 @@ the other modelling error, and it keeps the right-hand side a pure function.
 maximises range. Its value is that `release.gamma` then *is* the pin angle to build, so
 `bestReleaseAngle()` is one simulation rather than a search.
 
+**Follow-through is cosmetic by construction.** After release the stroke is integrated
+a second time with the shot's mass off the sling (`phase: 'follow'` frames) so the
+drawing shows the arm whip over and the weight swing out. Coarser step, no bearing
+feedback, capped at 8 s, skipped for lightweight shots — nothing numerical may read a
+follow frame, and the whip on the sheet clamps at `releaseT` because the "projectile"
+point in those frames is the empty pouch.
+
+**The optimizer is a Pareto frontier, not a hill-climb.** `paretoSearch` samples the
+tunable ranges (deterministic LCG — the same machine must always yield the same
+frontier), rejects candidates that fail `validateGeometry` or
+`geometryImpossibilities`, and keeps the non-dominated set of range against peak axle
+load. The coordinate-descent auto-tuner it replaced chased range alone and walked into
+geometry that cannot exist. Material impossibilities (a box denser than lead) are
+deliberately *not* filtered: they do not vary with the searched keys, so filtering on
+them would empty the frontier without offering a candidate that fixes them.
+
 ### Validation — don't regress it
 
 `physics.test.ts` checks the solver against an instrumented machine from
@@ -86,7 +102,13 @@ parameter definitions this app's inputs mirror.
 [arXiv:2502.19442]: https://arxiv.org/abs/2502.19442
 [arXiv:2510.18789]: https://arxiv.org/abs/2510.18789
 
-## Reading the sensitivity chart
+## Reading the what-if chart
+
+The sweep panel is labelled **What if** in the UI; the code keeps the sweep
+vocabulary. Hovering the chart fires the hovered machine through a second
+latest-wins queue (`requestPreview`) and draws its trajectory on the sheet —
+a separate queue because sharing the main one would let hover bursts supersede a
+real parameter change.
 
 Sweeping one parameter with the pin angle held conflates "this dimension is
 better" with "the pin I happen to have bent suits this dimension" — lengthen the

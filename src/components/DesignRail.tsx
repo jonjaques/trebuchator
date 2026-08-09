@@ -1,11 +1,22 @@
+import { useId } from 'react'
 import { Field, Section, ToggleField } from './Field.tsx'
 import { SegmentedControl } from './SegmentedControl.tsx'
 import { Button } from '@/components/ui/button.tsx'
 import { beamProperties, uniformBeam } from '@/lib/treb/model.ts'
 import { cockToGround } from '@/lib/treb/simulate.ts'
+import {
+  BEARINGS,
+  bearingPatch,
+  boxSizeFor,
+  CW_FILLS,
+  PROJECTILE_MATERIALS,
+  projectileMassFor,
+} from '@/lib/treb/materials.ts'
 import type { MachineType, TrebuchetParams } from '@/lib/treb/types.ts'
 import { num, show, type UnitSystem } from '@/lib/format.ts'
-import { Crosshair, Wand2 } from 'lucide-react'
+import { useNotes } from '@/lib/notes.ts'
+import { cn } from '@/lib/utils.ts'
+import { ChevronDown, Crosshair, Wand2 } from 'lucide-react'
 
 interface Props {
   params: TrebuchetParams
@@ -32,6 +43,60 @@ const MACHINES: { id: MachineType; name: string; note: string }[] = [
     note: 'The axle rolls on rails while the weight drops straight down a channel, through twice the short arm.',
   },
 ]
+
+/**
+ * A one-shot picker that derives a parameter from real matter. Deliberately
+ * stateless — the machine is defined by its numbers, not by a remembered
+ * material, so picking is an action ("set the box for sand") and the control
+ * springs back to its prompt.
+ */
+function MaterialPick({
+  label,
+  hint,
+  options,
+  onPick,
+}: {
+  label: string
+  hint: string
+  options: { id: string; name: string }[]
+  onPick: (id: string) => void
+}) {
+  const id = useId()
+  const notes = useNotes()
+  const hintId = `${id}-hint`
+  return (
+    <div className="py-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <label htmlFor={id} className="label text-ink-2" title={notes ? undefined : hint}>
+          {label}
+        </label>
+        <div className="relative">
+          <select
+            id={id}
+            value=""
+            aria-describedby={hintId}
+            onChange={(e) => e.target.value && onPick(e.target.value)}
+            className="label appearance-none rounded-sm border border-rule bg-ground py-1 pl-2 pr-6 text-ink-2 focus-visible:border-verdigris"
+          >
+            <option value="">Set from…</option>
+            {options.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.name}
+              </option>
+            ))}
+          </select>
+          <ChevronDown
+            className="pointer-events-none absolute right-1.5 top-1/2 size-3 -translate-y-1/2 text-ink-3"
+            aria-hidden
+          />
+        </div>
+      </div>
+      <p id={hintId} className={cn('text-ink-2', notes ? 'body pt-1' : 'sr-only')}>
+        {hint}
+      </p>
+    </div>
+  )
+}
 
 export function DesignRail({ params, patch, units, onTunePin, tuning }: Props) {
   const beam = beamProperties(params)
@@ -164,6 +229,15 @@ export function DesignRail({ params, patch, units, onTunePin, tuning }: Props) {
           max={4}
           dim="length"
           units={units}
+        />
+        <MaterialPick
+          label="Fill material"
+          hint="Sizes the box to hold the current mass of this fill."
+          options={CW_FILLS}
+          onPick={(id) => {
+            const fill = CW_FILLS.find((f) => f.id === id)!
+            patch({ cwSize: boxSizeFor(params.cwMass, fill.density) })
+          }}
         />
         {params.type === 'hinged' && (
           <ToggleField
@@ -298,6 +372,15 @@ export function DesignRail({ params, patch, units, onTunePin, tuning }: Props) {
           dim="length"
           units={units}
         />
+        <MaterialPick
+          label="Material"
+          hint="Sets the mass from the current diameter and this material's density."
+          options={PROJECTILE_MATERIALS}
+          onPick={(id) => {
+            const mat = PROJECTILE_MATERIALS.find((m) => m.id === id)!
+            patch({ projectileMass: projectileMassFor(params.projectileDiameter, mat.density) })
+          }}
+        />
         <Field
           label="Drag coefficient"
           hint="0.47 smooth sphere · 0.55 rough stone or pumpkin · 0.8 something lumpy"
@@ -312,6 +395,12 @@ export function DesignRail({ params, patch, units, onTunePin, tuning }: Props) {
       </Section>
 
       <Section title="Losses" note="Bearing friction and the drag the shot feels before it is even released.">
+        <MaterialPick
+          label="Bearing type"
+          hint="Sets both friction coefficients to this bearing's."
+          options={BEARINGS}
+          onPick={(id) => patch(bearingPatch(BEARINGS.find((b) => b.id === id)!))}
+        />
         <Field
           label="Axle friction"
           value={params.pivotFriction}

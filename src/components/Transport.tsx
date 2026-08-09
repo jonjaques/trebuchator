@@ -5,14 +5,17 @@ import {
   Grid3x3,
   Info,
   Maximize2,
+  Minus,
   Pause,
   Play,
+  Plus,
   RotateCcw,
   Ruler,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button.tsx'
 import { DraftSlider } from './DraftSlider.tsx'
 import { SpeedControl } from './SpeedControl.tsx'
+import { SPEED_STOPS } from '@/lib/speeds.ts'
 import { cn } from '@/lib/utils.ts'
 import { num } from '@/lib/format.ts'
 import type { CameraMode } from './stage/Stage.tsx'
@@ -40,6 +43,33 @@ interface Props {
   notes: boolean
   onNotes: (v: boolean) => void
   disabled: boolean
+}
+
+/** Step to the neighbouring speed stop. A custom speed steps to the nearest. */
+function SpeedStep({
+  dir,
+  speed,
+  onSpeed,
+}: {
+  dir: -1 | 1
+  speed: number
+  onSpeed: (s: number) => void
+}) {
+  const next =
+    dir < 0
+      ? [...SPEED_STOPS].reverse().find((s) => s < speed - 1e-9)
+      : SPEED_STOPS.find((s) => s > speed + 1e-9)
+  return (
+    <button
+      onClick={() => next != null && onSpeed(next)}
+      disabled={next == null}
+      aria-label={dir < 0 ? 'Slower playback' : 'Faster playback'}
+      title={dir < 0 ? 'Slower' : 'Faster'}
+      className="tap-target relative flex size-7 shrink-0 items-center justify-center rounded-sm border border-rule text-ink-3 transition-colors hover:border-ink-3 hover:text-ink-2 disabled:opacity-40 disabled:hover:border-rule disabled:hover:text-ink-3"
+    >
+      {dir < 0 ? <Minus className="size-3" aria-hidden /> : <Plus className="size-3" aria-hidden />}
+    </button>
+  )
 }
 
 function IconToggle({
@@ -160,7 +190,11 @@ export function Transport({
 
       {/* Row 2 — how you are looking at it */}
       <div className="rule-t thin-scroll flex h-11 items-center gap-1.5 overflow-x-auto px-3 sm:h-auto sm:border-t-0 sm:px-0">
+        {/* One tap slower or faster without opening the picker; the popover
+            remains the way to a specific or custom speed. */}
+        <SpeedStep dir={-1} speed={speed} onSpeed={onSpeed} />
         <SpeedControl speed={speed} onSpeed={onSpeed} />
+        <SpeedStep dir={1} speed={speed} onSpeed={onSpeed} />
 
         <span className="mx-0.5 h-5 w-px shrink-0 bg-rule" aria-hidden />
 

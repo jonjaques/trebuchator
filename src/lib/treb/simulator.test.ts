@@ -31,7 +31,7 @@ function stubSimulator() {
       return new Promise((resolve, reject) => inFlight.push({ params: p, resolve, reject }))
     },
     tunePin: async () => null,
-    autotune: async (p) => p,
+    pareto: async () => [],
     sweep: () => () => {},
   }
   return { sim, inFlight }

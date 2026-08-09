@@ -197,7 +197,10 @@ export const PRESETS: Preset[] = [
       armInertiaPivot: 1.85,
       cwMass: 53.9,
       cwHanger: 0.515,
-      cwSize: 0.16,
+      // 53.9 kg of steel discs; drawn as the cube that mass of steel fills
+      // (7850 kg/m³ → 0.19 m). Inertia comes from the measured cwInertiaCg, so
+      // this only sets the drawing and the ground-clearance check.
+      cwSize: 0.19,
       cwInertiaAuto: false,
       cwInertiaCg: 0,
       slingLength: 0.87,

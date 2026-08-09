@@ -53,11 +53,13 @@ describe('cursor arithmetic', () => {
     expect(clampT(tl, 99)).toBe(2.6)
   })
 
-  it('freezes the machine at release', () => {
-    // Frames stop at release, so anything looking the machine up during the
-    // flight has to ask for the last pose rather than run off the end.
+  it('follows the machine through the whole shot', () => {
+    // The machine keeps swinging after release — its follow-through is
+    // integrated and drawn — so the machine clock is the clamped cursor, not
+    // one frozen at release.
     expect(strokeT(tl, 0.3)).toBe(0.3)
     expect(strokeT(tl, 0.6)).toBe(0.6)
-    expect(strokeT(tl, 2.5)).toBe(0.6)
+    expect(strokeT(tl, 2.5)).toBe(2.5)
+    expect(strokeT(tl, 99)).toBe(2.6)
   })
 })

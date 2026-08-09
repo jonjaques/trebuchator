@@ -1,4 +1,5 @@
 import { useId, useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 import { DraftSlider } from './DraftSlider.tsx'
 import { Switch } from '@/components/ui/switch.tsx'
 import { useNotes } from '@/lib/notes.ts'
@@ -191,6 +192,14 @@ export function ToggleField({
   )
 }
 
+/**
+ * A titled run of fields or readings, collapsible from its header.
+ *
+ * Native `details`/`summary` rather than state: the browser gives the toggle,
+ * the keyboard contract and the announcement for free, and eleven sections of
+ * open/closed is not state the app needs to own. Open by default — collapsing
+ * is for the reader who knows what they no longer need.
+ */
 export function Section({
   title,
   children,
@@ -201,13 +210,21 @@ export function Section({
   note?: string
 }) {
   return (
-    <section className="rule-b px-3 py-3 last:border-b-0">
-      <h3 className="stencil text-ink flex items-baseline gap-2 pb-1">
-        <span className="h-px w-3 shrink-0 bg-verdigris" aria-hidden />
-        {title}
-      </h3>
-      {note && <p className="body pb-1.5 text-ink-2">{note}</p>}
-      {children}
-    </section>
+    <details open className="group/sec rule-b px-3 py-3 last:border-b-0">
+      <summary className="flex cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
+        <h3 className="stencil text-ink flex flex-1 items-baseline gap-2">
+          <span className="h-px w-3 shrink-0 bg-verdigris" aria-hidden />
+          {title}
+        </h3>
+        <ChevronDown
+          className="size-3 shrink-0 text-ink-3 transition-transform group-open/sec:rotate-180"
+          aria-hidden
+        />
+      </summary>
+      <div className="pt-1">
+        {note && <p className="body pb-1.5 text-ink-2">{note}</p>}
+        {children}
+      </div>
+    </details>
   )
 }

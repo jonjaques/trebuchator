@@ -57,8 +57,9 @@ structural loads or the closing energy audit without doing the same modelling.
 - Presets span the real range of machines people build: a weekend build, a competition
   floating arm, a pumpkin hurler, a 13th-century siege engine, and Edward I's Warwolf.
 - Comparison is part of the work, not a feature bolted on: saved shots stay on the sheet
-  as ghosts, and a sensitivity sweep answers "what would this dimension give me" in two
-  explicitly named readings — as built, and best case.
+  as lettered ghosts, and the what-if sweep answers "what would this dimension give me"
+  in two explicitly named readings — as built, and best case — with the hovered
+  machine's trajectory previewed live on the sheet.
 
 ## Capabilities and Constraints
 
@@ -71,9 +72,13 @@ structural loads or the closing energy audit without doing the same modelling.
   someone arriving from there recognises every field without relearning the domain.
 
 **Capabilities as shipped:** three machine types; pin or ideal release; "Find best pin"
-(one simulation, not a search); Auto-tune by coordinate descent with the pin re-tuned
-after every move; single-parameter sensitivity sweeps; saved shots; playback with a
-scrubber and variable speed; dimension, angle and grid overlays; metric and imperial.
+(one simulation, not a search); a Pareto-frontier optimizer over range and peak axle
+load, feasibility-filtered so it never proposes a machine that cannot exist;
+single-parameter what-if sweeps with live trajectory preview; material pickers that
+derive parameters from real densities and bearing frictions; plausibility warnings for
+inputs beyond the buildable world; saved shots; playback with a scrubber, variable
+speed and the arm's full follow-through; dimension, angle and grid overlays; metric
+and imperial.
 
 **Terminology** the product and its users share: machine, shot, stroke, sweep, sheet,
 pin angle (spigot), sling, pouch, hanger, counterweight, trough, cocked angle, liftoff,

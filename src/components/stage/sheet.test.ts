@@ -61,6 +61,19 @@ describe('grid spacing', () => {
       expect(px, `scale ${scale}`).toBeLessThan(225 + 1e-9)
     }
   })
+
+  it('steps in round display units, so imperial ticks never letter as 7 ft', () => {
+    const ft = 3.280839895
+    for (const scale of [0.5, 3, 40, 250]) {
+      const step = gridStep(scale, ft)
+      const mantissa = step / Math.pow(10, Math.floor(Math.log10(step)))
+      expect([1, 2, 5], `scale ${scale}`).toContain(Math.round(mantissa * 10) / 10)
+      // The legibility band still holds after converting back to metres.
+      const px = (step / ft) * scale
+      expect(px, `scale ${scale}`).toBeGreaterThanOrEqual(90 - 1e-9)
+      expect(px, `scale ${scale}`).toBeLessThan(225 + 1e-9)
+    }
+  })
 })
 
 describe('angle arithmetic', () => {

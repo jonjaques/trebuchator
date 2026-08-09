@@ -62,10 +62,12 @@ export function clampT(tl: ShotTimeline, t: number): number {
 }
 
 /**
- * The instant to look the *machine* up at. Frames stop at release — the beam
- * carries on swinging in reality, but the solver has no reason to integrate it
- * and the drawing freezes the machine there deliberately.
+ * The instant to look the *machine* up at. The solver integrates the machine
+ * past release (with the shot's mass off the sling) so the arm's follow-through
+ * animates, so this is simply the clamped cursor. Frames may still end before
+ * `duration` — the follow-through is capped — and a lookup then holds the last
+ * pose, which `frameIndexAt` already does.
  */
 export function strokeT(tl: ShotTimeline, t: number): number {
-  return Math.min(t, tl.releaseT)
+  return clampT(tl, t)
 }

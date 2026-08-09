@@ -1,6 +1,6 @@
 import type { MachinePose, ShotResult, TrebuchetParams } from '@/lib/treb/types.ts'
 import { isDone, isFlying, strokeT } from '@/lib/treb/timeline.ts'
-import { toDisplay, unitSymbol, num, type UnitSystem } from '@/lib/format.ts'
+import { fromDisplay, toDisplay, unitSymbol, num, type UnitSystem } from '@/lib/format.ts'
 import { projector, type Camera, type Projector } from './camera.ts'
 
 /**
@@ -124,6 +124,8 @@ export interface SheetInput {
   showAngles: boolean
   showGrid: boolean
   ghosts: Ghost[]
+  /** Live what-if trajectory from hovering the sweep chart, in the accent. */
+  preview?: Ghost | null
   units: UnitSystem
 }
 
@@ -191,14 +193,17 @@ export function hatchLines(
 }
 
 /**
- * 1 / 2 / 5 x 10^n spacing, never finer than 90 px on screen.
+ * 1 / 2 / 5 x 10^n spacing, never finer than 90 px on screen — computed and
+ * returned in *display* units, which is the whole point: a grid stepped in
+ * tidy metres letters itself as "7 ft, 13 ft" the moment the sheet reads in
+ * feet. `unitScale` is display units per metre (1 for metric, ~3.28 for feet);
+ * the caller converts the returned step back to metres to place the lines.
  *
- * The upper bound is 2.5x that rather than anything tidier: a target landing
- * just above 2 in its decade has to round up to 5. (The comment here used to
- * claim 46-150 px, which no scale actually produces.)
+ * The upper bound is 2.5x the 90 px target rather than anything tidier: a
+ * target landing just above 2 in its decade has to round up to 5.
  */
-export function gridStep(scale: number): number {
-  const target = 90 / scale
+export function gridStep(scale: number, unitScale = 1): number {
+  const target = (90 / scale) * unitScale
   const mag = Math.pow(10, Math.floor(Math.log10(target)))
   for (const m of [1, 2, 5, 10]) if (mag * m >= target) return mag * m
   return mag * 10
@@ -778,7 +783,8 @@ export function layout(input: SheetInput, measure: MeasureText): Instruction[] {
   out.push({ op: 'rect', x: 0, y: 0, w, h, fill: { color: pal.sheet } })
 
   const groundY = p.y(0)
-  const step = gridStep(cam.scale)
+  const stepDisplay = gridStep(cam.scale, toDisplay(1, 'length', units))
+  const step = fromDisplay(stepDisplay, 'length', units)
 
   // --- grid ---------------------------------------------------------------
   if (input.showGrid) {
@@ -818,7 +824,9 @@ export function layout(input: SheetInput, measure: MeasureText): Instruction[] {
       op: 'text',
       x: gx,
       y: groundY + 16,
-      text: `${num(toDisplay(i * step, 'length', units), 0)}${u}`,
+      // Lettered from the display-unit step directly, so the figures are the
+      // round numbers the step was chosen to produce.
+      text: `${num(i * stepDisplay, 0)}${u}`,
       font: mono(10),
       fill: { color: pal.ink3 },
       align: 'center',
@@ -846,6 +854,31 @@ export function layout(input: SheetInput, measure: MeasureText): Instruction[] {
       text: ghost.label,
       font: sans(10, 400),
       fill: { color: pal.ink3, alpha: 0.85 },
+      align: 'center',
+    })
+  }
+
+  // --- what-if preview ------------------------------------------------------
+  // The trajectory the hovered point on the sweep chart would fly. In the
+  // projectile's own accent — it *is* a projectile path, just a conditional one
+  // — and dashed harder than the saved ghosts so live speculation cannot be
+  // mistaken for a shot that was kept.
+  if (input.preview && input.preview.trajectory.length > 1) {
+    const pv = input.preview
+    out.push({
+      op: 'path',
+      points: pv.trajectory.map((pt): Point => [p.x(pt.x), p.y(pt.y)]),
+      stroke: { color: pal.quench, width: 1.5, alpha: 0.55, dash: [6, 4] },
+    })
+    let apex = pv.trajectory[0]
+    for (const pt of pv.trajectory) if (pt.y > apex.y) apex = pt
+    out.push({
+      op: 'text',
+      x: p.x(apex.x),
+      y: p.y(apex.y) - 6,
+      text: pv.label,
+      font: sans(10, 400),
+      fill: { color: pal.quench, alpha: 0.9 },
       align: 'center',
     })
   }
@@ -895,11 +928,14 @@ export function layout(input: SheetInput, measure: MeasureText): Instruction[] {
   }
 
   // The shot's path *inside* the machine — the whip. Short, and the single
-  // clearest illustration of why a sling beats a bare arm.
+  // clearest illustration of why a sling beats a bare arm. Clamped at release
+  // explicitly: frames continue into the follow-through, where the "projectile"
+  // point is the empty pouch, whose wanderings are not part of the shot.
   if (frames.length > 1) {
+    const whipEnd = Math.min(t, timeline.releaseT)
     const whip: Point[] = [[p.x(frames[0].pose.projectile.x), p.y(frames[0].pose.projectile.y)]]
     for (const f of frames) {
-      if (f.t > strokeT(timeline, t)) break
+      if (f.t > whipEnd) break
       whip.push([p.x(f.pose.projectile.x), p.y(f.pose.projectile.y)])
     }
     out.push({ op: 'path', points: whip, stroke: { color: pal.quench, width: 1.5, alpha: 0.35 } })

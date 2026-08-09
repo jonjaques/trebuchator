@@ -13,10 +13,21 @@ import type { ShotResult, TrebuchetParams } from './treb/types.ts'
 export interface SimClient extends Simulator {
   /** Latest-wins shot request. See `coalesceShots`. */
   requestShot: ReturnType<typeof coalesceShots>['request']
+  /**
+   * A second, independent latest-wins queue for what-if previews. On the main
+   * queue a burst of chart hovers would supersede a real parameter change and
+   * the shot on the sheet would simply never arrive; two queues let each drop
+   * only its own stale work.
+   */
+  requestPreview: ReturnType<typeof coalesceShots>['request']
 }
 
 export function makeClient(simulator: Simulator): SimClient {
-  return { ...simulator, requestShot: coalesceShots(simulator).request }
+  return {
+    ...simulator,
+    requestShot: coalesceShots(simulator).request,
+    requestPreview: coalesceShots(simulator).request,
+  }
 }
 
 /**

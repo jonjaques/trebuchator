@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 import { simulateShot } from './simulate.ts'
-import { autoTune, bestReleaseAngle, sweepAt, sweepValues, type SweepPoint } from './optimize.ts'
+import { bestReleaseAngle, paretoSearch, sweepAt, sweepValues, type SweepPoint } from './optimize.ts'
 import type { SimRequest, SimResponse } from './simulator.ts'
 import type { ShotResult } from './types.ts'
 
@@ -18,19 +18,38 @@ import type { ShotResult } from './types.ts'
  */
 
 /**
- * Frames are only ever used to draw and to scrub, so ~360 of them is plenty for
- * a stroke under two seconds. The solver still integrates and picks its release
- * at full resolution — this thins the payload, not the physics.
+ * Frames are only ever used to draw and to scrub, so a few hundred of them is
+ * plenty. The solver still integrates and picks its release at full resolution
+ * — this thins the payload, not the physics.
+ *
+ * Stroke and follow-through are thinned separately because they are sampled at
+ * wildly different densities: the half-second stroke carries thousands of
+ * samples, the follow-through runs at ~120 Hz for seconds. One uniform stride
+ * across both would either starve the stroke of its whip detail or chop the
+ * follow-through down to a slideshow.
  */
-const MAX_FRAMES = 360
+const MAX_STROKE_FRAMES = 360
+const MAX_FOLLOW_FRAMES = 240
+
+function thinSlice<T>(slice: T[], max: number): T[] {
+  if (slice.length <= max) return slice
+  const stride = Math.ceil(slice.length / max)
+  const out = slice.filter((_, i) => i % stride === 0)
+  const last = slice[slice.length - 1]
+  if (out[out.length - 1] !== last) out.push(last)
+  return out
+}
 
 function thin(result: ShotResult): ShotResult {
-  if (!result.ok || result.frames.length <= MAX_FRAMES) return result
-  const stride = Math.ceil(result.frames.length / MAX_FRAMES)
-  const frames = result.frames.filter((_, i) => i % stride === 0)
-  const last = result.frames[result.frames.length - 1]
-  if (frames[frames.length - 1] !== last) frames.push(last)
-  return { ...result, frames }
+  if (!result.ok) return result
+  const split = result.frames.findIndex((f) => f.phase === 'follow')
+  const stroke = split < 0 ? result.frames : result.frames.slice(0, split)
+  const follow = split < 0 ? [] : result.frames.slice(split)
+  const frames = [
+    ...thinSlice(stroke, MAX_STROKE_FRAMES),
+    ...thinSlice(follow, MAX_FOLLOW_FRAMES),
+  ]
+  return frames.length === result.frames.length ? result : { ...result, frames }
 }
 
 self.onmessage = (event: MessageEvent<SimRequest>) => {
@@ -46,8 +65,8 @@ self.onmessage = (event: MessageEvent<SimRequest>) => {
         post({ id: req.id, kind: 'tunePin', result: bestReleaseAngle(...req.args), done: true })
         break
 
-      case 'autotune':
-        post({ id: req.id, kind: 'autotune', result: autoTune(...req.args), done: true })
+      case 'pareto':
+        post({ id: req.id, kind: 'pareto', result: paretoSearch(...req.args), done: true })
         break
 
       case 'sweep': {

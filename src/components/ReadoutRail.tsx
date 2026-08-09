@@ -47,7 +47,6 @@ function Stat({
         title={notes ? undefined : hint}
       >
         <span className="label shrink-0 text-ink-3">{label}</span>
-        <span className="h-px flex-1 translate-y-[-2px] bg-rule/60" aria-hidden />
         <span className={cn('tnum shrink-0 font-mono text-xs', emphasis ? 'text-ink' : 'text-ink-2')}>
           {value}
           {unit && <span className="micro pl-1 text-ink-3">{unit}</span>}

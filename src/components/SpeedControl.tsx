@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover.tsx'
 import { SegmentedControl } from './SegmentedControl.tsx'
 import { num } from '@/lib/format.ts'
+import { SPEED_STOPS } from '@/lib/speeds.ts'
 
 /**
  * Playback speed.
@@ -13,7 +14,7 @@ import { num } from '@/lib/format.ts'
  * watching one particular thing is not on anyone's list.
  */
 
-const STOPS = [0.05, 0.1, 0.25, 0.5, 1, 2, 3]
+const STOPS = SPEED_STOPS
 
 /**
  * The chip that is lit, or `NaN` when the box holds a speed no chip covers.

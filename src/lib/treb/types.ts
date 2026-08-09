@@ -152,8 +152,12 @@ export interface MachinePose {
 export interface SimFrame {
   t: number
   pose: MachinePose
-  /** 'ground' while the shot is still being dragged along the trough. */
-  phase: 'ground' | 'swing'
+  /**
+   * 'ground' while the shot is dragged along the trough, 'swing' from liftoff
+   * to release, 'follow' after — the arm swinging through with an empty pouch,
+   * integrated purely so the drawing shows the follow-through.
+   */
+  phase: 'ground' | 'swing' | 'follow'
   /** Angle between the long arm and the sling, degrees. Drives pin release. */
   gamma: number
   /** Tension in the sling, newtons. Negative means the sling has gone slack. */

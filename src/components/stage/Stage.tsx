@@ -24,6 +24,8 @@ interface StageProps {
   showAngles: boolean
   showGrid: boolean
   ghosts: Ghost[]
+  /** Live what-if trajectory from the sweep chart, or null. */
+  preview: Ghost | null
   mode: CameraMode
   onModeChange: (mode: CameraMode) => void
 }
@@ -44,7 +46,11 @@ function readPalette(el: HTMLElement): Palette {
   }
 }
 
-/** Bounding box of everything the machine sweeps through, plus its frame. */
+/**
+ * Bounding box of everything the machine sweeps through, plus its frame. All
+ * frames, follow-through included — the arm whipping over the top after
+ * release is part of what "frame the machine" has to hold.
+ */
 function machineRect(result: FiredShot, params: TrebuchetParams): Rect {
   const reach = params.armLong + params.slingLength
   let r: Rect = {
@@ -53,9 +59,7 @@ function machineRect(result: FiredShot, params: TrebuchetParams): Rect {
     x1: params.pivotHeight * 0.55,
     y1: params.pivotHeight + params.armShort + params.cwHanger,
   }
-  const upto = result.timeline.releaseT
   for (const f of result.frames) {
-    if (f.t > upto) break
     for (const pt of [f.pose.tip, f.pose.cw, f.pose.projectile, f.pose.shortEnd]) {
       r = unionRect(r, { x0: pt.x, y0: pt.y, x1: pt.x, y1: pt.y })
     }
@@ -84,6 +88,7 @@ export function Stage({
   showAngles,
   showGrid,
   ghosts,
+  preview,
   mode,
   onModeChange,
 }: StageProps) {
@@ -208,6 +213,7 @@ export function Stage({
       showAngles,
       showGrid,
       ghosts,
+      preview,
       units,
     })
 
@@ -226,6 +232,7 @@ export function Stage({
     showAngles,
     showGrid,
     ghosts,
+    preview,
     units,
     fontsReady,
     tick,
