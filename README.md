@@ -63,7 +63,7 @@ and the optimal launch angle is exactly 45° in vacuum and lower with drag. Both
 are asserted in the test suite.
 
 ```bash
-bun run test        # 47 tests: physics validation, conservation, ballistics, UI
+bun run test        # 97 tests: physics, conservation, ballistics, the drawing, UI
 bun run test:watch
 ```
 

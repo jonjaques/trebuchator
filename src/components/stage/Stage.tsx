@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { ShotResult, TrebuchetParams } from '@/lib/treb/types.ts'
+import type { FiredShot, ShotResult, TrebuchetParams } from '@/lib/treb/types.ts'
 import type { UnitSystem } from '@/lib/format.ts'
-import { paint, type Ghost, type Palette } from './paint.ts'
+import { paint } from './paint.ts'
+import { SHEET_MARGIN, type Ghost, type Palette } from './sheet.ts'
 import {
   approach,
   fitRect,
@@ -32,7 +33,6 @@ function readPalette(el: HTMLElement): Palette {
   const get = (name: string) => cs.getPropertyValue(`--${name}`).trim() || '#888'
   return {
     sheet: get('sheet'),
-    ground: get('ground'),
     ink: get('ink'),
     ink2: get('ink-2'),
     ink3: get('ink-3'),
@@ -41,12 +41,11 @@ function readPalette(el: HTMLElement): Palette {
     verdigris: get('verdigris'),
     oak: get('oak'),
     iron: get('iron'),
-    warn: get('warn'),
   }
 }
 
 /** Bounding box of everything the machine sweeps through, plus its frame. */
-function machineRect(result: ShotResult, params: TrebuchetParams): Rect {
+function machineRect(result: FiredShot, params: TrebuchetParams): Rect {
   const reach = params.armLong + params.slingLength
   let r: Rect = {
     x0: -params.pivotHeight * 0.55,
@@ -54,7 +53,7 @@ function machineRect(result: ShotResult, params: TrebuchetParams): Rect {
     x1: params.pivotHeight * 0.55,
     y1: params.pivotHeight + params.armShort + params.cwHanger,
   }
-  const upto = result.release?.t ?? Infinity
+  const upto = result.timeline.releaseT
   for (const f of result.frames) {
     if (f.t > upto) break
     for (const pt of [f.pose.tip, f.pose.cw, f.pose.projectile, f.pose.shortEnd]) {
@@ -64,7 +63,7 @@ function machineRect(result: ShotResult, params: TrebuchetParams): Rect {
   return padRect(r, Math.max(0.4, reach * 0.12))
 }
 
-function fieldRect(result: ShotResult, params: TrebuchetParams): Rect {
+function fieldRect(result: FiredShot, params: TrebuchetParams): Rect {
   return padRect(
     {
       x0: Math.min(-params.pivotHeight, -params.armLong),
@@ -167,7 +166,7 @@ export function Stage({
     else if (mode === 'auto') {
       // Follow the shot: hold on the machine through the stroke, then open out
       // just far enough to keep the shot and its trail on the sheet.
-      const releaseT = result.release?.t ?? 0
+      const releaseT = result.timeline.releaseT
       if (t <= releaseT) target = rects.machine
       else {
         let flown: Rect = rects.machine
@@ -180,7 +179,8 @@ export function Stage({
       }
     } else target = rects.machine
 
-    const fitted = fitRect(target, size.w, size.h, 56)
+    // The inset comes from the module that draws the furniture it has to clear.
+    const fitted = fitRect(target, size.w, size.h, SHEET_MARGIN)
     let settled = true
     if (mode === 'free' && camRef.current) {
       // Leave the camera exactly where the user put it.
@@ -193,8 +193,7 @@ export function Stage({
       settled = false
     }
 
-    paint({
-      ctx,
+    paint(ctx, {
       w: size.w,
       h: size.h,
       cam: camRef.current,

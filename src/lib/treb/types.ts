@@ -5,6 +5,8 @@
  * mixed-unit core is how you end up throwing a 300 kg stone 4 furlongs.
  */
 
+import type { ShotTimeline } from './timeline.ts'
+
 /**
  * The three counterweight topologies we solve. They differ *only* in
  * kinematics — the same Lagrangian assembler runs all of them.
@@ -219,12 +221,10 @@ export interface TrajectoryPoint {
   vy: number
 }
 
-export interface ShotResult {
-  ok: boolean
+interface ShotOutcome {
   warnings: string[]
   errors: string[]
   frames: SimFrame[]
-  release: ReleaseState | null
   trajectory: TrajectoryPoint[]
   /** Ground distance from the machine datum to the impact point, metres. */
   range: number
@@ -242,6 +242,20 @@ export interface ShotResult {
   vacuumRange: number
   energy: EnergyBudget
   peaks: PeakLoads
-  /** Wall-clock duration of the mechanical stroke, seconds. */
-  strokeTime: number
 }
+
+/**
+ * A shot that fired, or the reasons it could not.
+ *
+ * Discriminated on `ok` so the "release is present iff the shot succeeded"
+ * invariant is carried by the type rather than by prose and a `!` at every call
+ * site. Failed shots keep the zeroed measurements so a panel can render one
+ * without branching on every field, but they have no release and no timeline —
+ * there is no instant at which nothing happened.
+ */
+export type ShotResult =
+  | (ShotOutcome & { ok: true; release: ReleaseState; timeline: ShotTimeline })
+  | (ShotOutcome & { ok: false; release: null; timeline: null })
+
+/** A shot that fired. Narrow with `result.ok` rather than reaching for this. */
+export type FiredShot = Extract<ShotResult, { ok: true }>

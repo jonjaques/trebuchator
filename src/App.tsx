@@ -9,8 +9,15 @@ import { Stage, type CameraMode } from '@/components/stage/Stage.tsx'
 import { Button } from '@/components/ui/button.tsx'
 import { useShot, useSimClient } from '@/lib/useSimulation.ts'
 import { PRESETS, presetById } from '@/lib/treb/presets.ts'
-import { TUNABLES, type SweepMode, type SweepPoint, type TunableKey } from '@/lib/treb/optimize.ts'
+import {
+  sweepConflict,
+  TUNABLES,
+  type SweepMode,
+  type SweepPoint,
+  type TunableKey,
+} from '@/lib/treb/optimize.ts'
 import type { TrebuchetParams } from '@/lib/treb/types.ts'
+import { TIME_EPS } from '@/lib/treb/timeline.ts'
 import { detectUnitSystem, num, type UnitSystem } from '@/lib/format.ts'
 import { cn } from '@/lib/utils.ts'
 
@@ -58,10 +65,14 @@ export default function App() {
   const [sweepMode, setSweepMode] = useState<SweepMode>('asBuilt')
   const [sweepPoints, setSweepPoints] = useState<SweepPoint[]>([])
   const [sweepBusy, setSweepBusy] = useState(false)
+  const [sweepError, setSweepError] = useState<string | null>(null)
+  // A solver failure during a button-driven action. Shot failures arrive on
+  // their own channel; these have no other way back to the reader.
+  const [actionError, setActionError] = useState<string | null>(null)
 
-  const { result, busy } = useShot(client, params)
-  const duration = result?.ok && result.release ? result.release.t + result.flightTime : 0
-  const releaseT = result?.release?.t ?? 0
+  const { result, busy, error } = useShot(client, params)
+  const timeline = result?.ok ? result.timeline : null
+  const duration = timeline?.duration ?? 0
   const t = cursor ?? duration
 
   const patch = useCallback((next: Partial<TrebuchetParams>) => {
@@ -111,7 +122,7 @@ export default function App() {
 
   const play = useCallback(() => {
     // Playing from the finished shot means firing again, not sitting on the end.
-    const from = cursor == null || cursor >= duration - 1e-9 ? 0 : cursor
+    const from = cursor == null || cursor >= duration - TIME_EPS ? 0 : cursor
     posRef.current = from
     setCursor(from)
     setPlaying(true)
@@ -153,40 +164,65 @@ export default function App() {
   // --- sweep ---------------------------------------------------------------
   const sweepSpec = TUNABLES.find((s) => s.key === sweepKey)!
   const [sweepMin, sweepMax] = sweepSpec.range(params)
+  // Some parameter/mode pairs have no honest reading — asking the solver for
+  // one gets a flat line the reader cannot interpret. Say so instead.
+  const sweepBlocked = sweepConflict(sweepKey, sweepMode)
 
   useEffect(() => {
-    if (!sweepOpen) return
+    if (!sweepOpen || sweepBlocked) return
     // Let a drag settle before spending half a second of worker time on a
     // sweep that is about to be superseded.
+    let cancel: (() => void) | null = null
     const timer = setTimeout(() => {
       setSweepBusy(true)
       setSweepPoints([])
-      client.sweep(params, sweepKey, sweepMin, sweepMax, 40, sweepMode, (pts, done) => {
-        setSweepPoints(pts)
-        if (done) setSweepBusy(false)
+      setSweepError(null)
+      cancel = client.sweep(params, sweepKey, sweepMin, sweepMax, 40, sweepMode, (update) => {
+        if (update.kind === 'error') {
+          setSweepError(update.message)
+          setSweepBusy(false)
+          return
+        }
+        setSweepPoints(update.points)
+        if (update.done) setSweepBusy(false)
       })
     }, 220)
-    return () => clearTimeout(timer)
-  }, [client, params, sweepKey, sweepMin, sweepMax, sweepMode, sweepOpen])
+    return () => {
+      clearTimeout(timer)
+      // Without this a superseded sweep keeps streaming into state for the rest
+      // of its half-second, overwriting the one that replaced it.
+      cancel?.()
+    }
+  }, [client, params, sweepKey, sweepMin, sweepMax, sweepMode, sweepOpen, sweepBlocked])
 
   // --- actions -------------------------------------------------------------
   const tunePin = useCallback(async () => {
     setTuning(true)
-    const angle = await client.tunePin(params)
-    setTuning(false)
-    if (angle != null) patch({ releaseAngle: angle, releaseMode: 'pin' })
+    setActionError(null)
+    try {
+      const angle = await client.tunePin(params)
+      if (angle != null) patch({ releaseAngle: angle, releaseMode: 'pin' })
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setTuning(false)
+    }
   }, [client, params, patch])
 
   const autoTune = useCallback(async () => {
     setTuning(true)
-    const tuned = await client.autotune(params, AUTOTUNE_KEYS)
-    setTuning(false)
-    if (tuned) {
+    setActionError(null)
+    try {
+      const tuned = await client.autotune(params, AUTOTUNE_KEYS)
       setParams(tuned)
       setPresetId(null)
       posRef.current = 0
       setCursor(0)
       setPlaying(true)
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setTuning(false)
     }
   }, [client, params])
 
@@ -387,7 +423,7 @@ export default function App() {
                   size="sm"
                   variant="outline"
                   className="label h-7 shrink-0 gap-1.5"
-                  disabled={sweepBusy || !sweepBest}
+                  disabled={sweepBusy || !sweepBest || sweepBlocked != null}
                   onClick={() => sweepBest && patch({ [sweepKey]: sweepBest.value })}
                   title="Set this parameter to the value that throws furthest"
                 >
@@ -405,15 +441,21 @@ export default function App() {
                   <ChevronDown className="size-4" aria-hidden />
                 </Button>
               </div>
-              <SweepChart
-                points={sweepPoints}
-                paramKey={sweepKey}
-                current={params[sweepKey]}
-                units={units}
-                loading={sweepBusy}
-                mode={sweepMode}
-                onPick={(v) => patch({ [sweepKey]: v })}
-              />
+              {(sweepBlocked ?? sweepError) ? (
+                <p className="label mx-auto max-w-prose px-2 py-10 text-center leading-relaxed text-ink-3">
+                  {sweepBlocked ?? sweepError}
+                </p>
+              ) : (
+                <SweepChart
+                  points={sweepPoints}
+                  paramKey={sweepKey}
+                  current={params[sweepKey]}
+                  units={units}
+                  loading={sweepBusy}
+                  mode={sweepMode}
+                  onPick={(v) => patch({ [sweepKey]: v })}
+                />
+              )}
             </div>
           )}
 
@@ -429,8 +471,7 @@ export default function App() {
 
           <Transport
             t={t}
-            duration={duration}
-            releaseT={releaseT}
+            timeline={timeline}
             playing={playing}
             speed={speed}
             onSeek={seek}
@@ -460,6 +501,7 @@ export default function App() {
         >
           <ReadoutRail
             result={result}
+            error={error ?? actionError}
             params={params}
             units={units}
             saved={saved}

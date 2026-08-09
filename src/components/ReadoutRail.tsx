@@ -16,6 +16,8 @@ export interface SavedShot {
 
 interface Props {
   result: ShotResult | null
+  /** The solver itself failed — distinct from a machine that will not throw. */
+  error?: string | null
   params: TrebuchetParams
   units: UnitSystem
   saved: SavedShot[]
@@ -58,7 +60,25 @@ function si(value: number, dim: Dimension, units: UnitSystem) {
   return { value: s.text, unit: s.unit }
 }
 
-export function ReadoutRail({ result, params, units, saved, onRecall, onDrop }: Props) {
+export function ReadoutRail({ result, error, params, units, saved, onRecall, onDrop }: Props) {
+  if (error) {
+    return (
+      <div className="thin-scroll h-full overflow-y-auto p-3">
+        <div className="flex items-start gap-2 rounded-sm border border-bad/40 bg-bad/5 p-3">
+          <Ban className="mt-px size-4 shrink-0 text-bad" aria-hidden />
+          <div>
+            <h3 className="stencil pb-1.5 text-bad">The solver stopped</h3>
+            <p className="text-[11px] leading-snug text-ink-2">{error}</p>
+            <p className="pt-1.5 text-[11px] leading-snug text-ink-3">
+              That is a fault in the simulator rather than in your machine. Change any parameter
+              to fire again.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (!result) {
     return (
       <div className="p-4 text-[11px] text-ink-3">Setting out the machine…</div>
@@ -83,7 +103,7 @@ export function ReadoutRail({ result, params, units, saved, onRecall, onDrop }: 
     )
   }
 
-  const rel = result.release!
+  const rel = result.release
   const lengthU = unitSymbol('length', units)
   const impact = si(result.impactEnergy, 'energy', units)
   const tension = si(result.peaks.slingTension, 'force', units)
@@ -146,7 +166,13 @@ export function ReadoutRail({ result, params, units, saved, onRecall, onDrop }: 
           unit="°"
           hint="Beam angle from vertical. 180° is the long arm straight up."
         />
-        <Stat label="Stroke time" value={num(result.strokeTime, 3)} unit="s" />
+        <Stat label="Stroke time" value={num(result.timeline.releaseT, 3)} unit="s" />
+        <Stat
+          label="Liftoff"
+          value={num(result.timeline.liftoffT, 3)}
+          unit="s"
+          hint="When the trough stopped carrying the shot and the sling took it."
+        />
         <Stat
           label="Release height"
           value={show(rel.y, 'length', units, 2)}

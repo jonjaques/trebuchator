@@ -56,6 +56,7 @@ function emptyResult(errors: string[]): ShotResult {
     errors,
     frames: [],
     release: null,
+    timeline: null,
     trajectory: [],
     range: 0,
     carry: 0,
@@ -87,7 +88,6 @@ function emptyResult(errors: string[]): ShotResult {
       beamMomentAt: 0,
       cwAcceleration: 0,
     },
-    strokeTime: 0,
   }
 }
 
@@ -365,6 +365,11 @@ export function simulateShot(p: TrebuchetParams, opts: SimOptions = {}): ShotRes
     errors: [],
     frames,
     release: rel,
+    timeline: {
+      liftoffT: liftoffTime,
+      releaseT: relSample.t,
+      duration: relSample.t + flight.time,
+    },
     trajectory: opts.lightweight ? [] : flight.trajectory,
     range: flight.range,
     carry: flight.range - rel.x,
@@ -377,7 +382,6 @@ export function simulateShot(p: TrebuchetParams, opts: SimOptions = {}): ShotRes
     vacuumRange: vac.range,
     energy,
     peaks,
-    strokeTime: relSample.t,
   }
 }
 

@@ -1,12 +1,29 @@
 import { describe, expect, it } from 'vitest'
 import { buildModel, evalPoint, evalPointVel, poseOf } from './model.ts'
 import { kineticEnergies, makeScratch, rk4Step } from './solver.ts'
-import { cockToGround, flyBallistic, simulateShot } from './simulate.ts'
+import { cockToGround, flyBallistic, simulateShot, type SimOptions } from './simulate.ts'
 import { PRESETS, presetById } from './presets.ts'
-import { bestReleaseAngle, sweep } from './optimize.ts'
-import type { TrebuchetParams } from './types.ts'
+import {
+  bestReleaseAngle,
+  sweep,
+  sweepAt,
+  sweepConflict,
+  sweepValues,
+  SWEEP_DT,
+} from './optimize.ts'
+import type { FiredShot, TrebuchetParams } from './types.ts'
 
 const lab = () => structuredClone(presetById('lab')!.params)
+
+/**
+ * Fire a shot that is expected to work, narrowed so `release` and `timeline`
+ * are present. Tests that are *about* failure call `simulateShot` directly.
+ */
+function fire(p: TrebuchetParams, opts?: SimOptions): FiredShot {
+  const r = simulateShot(p, opts)
+  if (!r.ok) throw new Error(`expected a valid shot: ${r.errors.join(' ')}`)
+  return r
+}
 
 /**
  * Reference machine: the instrumented trebuchet in Bernaola, Fernández and
@@ -44,8 +61,8 @@ describe('validation against the published laboratory trebuchet', () => {
   it('reproduces the published release times for both projectile masses', () => {
     // Release timing is the sharpest test of the equations of motion: it
     // depends on the whole three-body swing, not just the energy budget.
-    expect(simulateShot(lab()).strokeTime).toBeCloseTo(0.593, 1)
-    expect(simulateShot({ ...lab(), projectileMass: 0.0685 }).strokeTime).toBeCloseTo(0.533, 1)
+    expect(fire(lab()).timeline.releaseT).toBeCloseTo(0.593, 1)
+    expect(fire({ ...lab(), projectileMass: 0.0685 }).timeline.releaseT).toBeCloseTo(0.533, 1)
   })
 
   it('shows the light shot flying further but wasting far more of the machine', () => {
@@ -61,8 +78,8 @@ describe('validation against the published laboratory trebuchet', () => {
     // A mirrored arm convention still produces a perfectly valid stroke; it
     // just throws the other way, and every range comes out negative.
     for (const preset of PRESETS) {
-      const r = simulateShot(preset.params)
-      expect(r.release!.vx, preset.name).toBeGreaterThan(0)
+      const r = fire(preset.params)
+      expect(r.release.vx, preset.name).toBeGreaterThan(0)
       expect(r.range, preset.name).toBeGreaterThan(0)
     }
   })
@@ -241,8 +258,9 @@ describe('design behaviour', () => {
       const r = simulateShot(preset.params)
       expect(r.errors, `${preset.name}: ${r.errors.join(' ')}`).toEqual([])
       expect(r.ok, preset.name).toBe(true)
+      if (!r.ok) continue
       expect(r.range, preset.name).toBeGreaterThan(0)
-      expect(r.release!.speed, preset.name).toBeGreaterThan(0)
+      expect(r.release.speed, preset.name).toBeGreaterThan(0)
     }
   })
 
@@ -323,10 +341,13 @@ describe('design behaviour', () => {
 
   it('never releases before the shot has left the trough', () => {
     for (const preset of PRESETS) {
-      const r = simulateShot(preset.params)
-      const liftoff = r.frames.find((f) => f.phase === 'swing')
-      expect(liftoff, preset.name).toBeDefined()
-      expect(r.release!.t, preset.name).toBeGreaterThanOrEqual(liftoff!.t - 1e-9)
+      // Both instants come off the same reported timeline, so this compares the
+      // numbers the app actually draws rather than reverse-engineering liftoff
+      // from the first swing frame — which the frame thinning can drop.
+      const { timeline } = fire(preset.params)
+      expect(timeline.liftoffT, preset.name).toBeGreaterThan(0)
+      expect(timeline.releaseT, preset.name).toBeGreaterThanOrEqual(timeline.liftoffT)
+      expect(timeline.duration, preset.name).toBeGreaterThan(timeline.releaseT)
     }
   })
 })
@@ -351,8 +372,8 @@ describe('release tuning', () => {
     const p = presetById('backyard')!.params
     const ideal = simulateShot({ ...p, releaseMode: 'optimal' })
     const angle = bestReleaseAngle(p)
-    expect(angle).not.toBeNull()
-    const built = simulateShot({ ...p, releaseMode: 'pin', releaseAngle: angle! })
+    if (angle == null) throw new Error('the backyard preset should have an ideal release')
+    const built = simulateShot({ ...p, releaseMode: 'pin', releaseAngle: angle })
     expect(built.range).toBeGreaterThan(ideal.range * 0.97)
   })
 })
@@ -376,5 +397,56 @@ describe('sweeps', () => {
       if (bestCase[i].range > asBuilt[i].range * 1.02) improved++
     }
     expect(improved, 'holding a stale pin should cost range somewhere').toBeGreaterThan(0)
+  })
+
+  it('still sweeps the cocked angle in best-case mode', () => {
+    // Best case re-cocks the beam, which would otherwise overwrite the very
+    // number being swept and draw a flat line for a machine that is in fact
+    // sensitive to it.
+    const p = presetById('backyard')!.params
+    const points = sweep(p, 'initialBeamAngle', 20, 60, 6, 'bestCase')
+    const ranges = points.map((pt) => pt.range).filter(Number.isFinite)
+    expect(ranges.length).toBeGreaterThan(3)
+    expect(Math.max(...ranges) - Math.min(...ranges)).toBeGreaterThan(0.5)
+  })
+
+  it('refuses the one pair it cannot read honestly', () => {
+    const p = presetById('backyard')!.params
+    // Releasing ideally is exactly what a pin angle is trying to achieve, so
+    // sweeping the pin under best case leaves nothing for the pin to do.
+    expect(sweepConflict('releaseAngle', 'bestCase')).toBeTruthy()
+    expect(sweepConflict('releaseAngle', 'asBuilt')).toBeNull()
+    expect(sweepConflict('slingLength', 'bestCase')).toBeNull()
+    expect(() => sweep(p, 'releaseAngle', 20, 90, 4, 'bestCase')).toThrow()
+    expect(sweep(p, 'releaseAngle', 20, 90, 4, 'asBuilt')).toHaveLength(4)
+  })
+
+  it('gives the same grid whether it is fired whole or in chunks', () => {
+    // The worker streams a sweep in slices of this grid. It used to re-derive
+    // each slice's bounds, and a slice of one divided by zero.
+    expect(sweepValues(2, 10, 1)).toEqual([2])
+    expect(sweepValues(2, 10, 0)).toEqual([])
+    const whole = sweepValues(0.5, 2.5, 41)
+    expect(whole).toHaveLength(41)
+    expect(whole[0]).toBe(0.5)
+    expect(whole[40]).toBe(2.5)
+
+    const chunked: number[] = []
+    for (let i = 0; i < whole.length; i += 5) chunked.push(...whole.slice(i, i + 5))
+    expect(chunked).toEqual(whole)
+
+    const p = presetById('backyard')!.params
+    const tail = sweepAt(p, 'slingLength', whole.slice(40), 'asBuilt')
+    expect(tail).toHaveLength(1)
+    expect(Number.isNaN(tail[0].value)).toBe(false)
+  })
+
+  it('says which step size each point was fired at', () => {
+    const p = presetById('backyard')!.params
+    const points = sweep(p, 'slingLength', 1, 2, 3)
+    expect(points.every((pt) => pt.dt === SWEEP_DT)).toBe(true)
+    // The sweep is deliberately coarser than the shot on the sheet, so a value
+    // adopted off the curve re-solves to a slightly different range.
+    expect(SWEEP_DT).toBeGreaterThan(0)
   })
 })

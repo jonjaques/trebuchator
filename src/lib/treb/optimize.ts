@@ -103,27 +103,29 @@ export const TUNABLES: TunableSpec[] = [
 
 export interface SweepPoint {
   value: number
+  /** Range at this value, or NaN where the machine would not throw at all. */
   range: number
-  efficiency: number
-  releaseSpeed: number
-  apex: number
-  ok: boolean
-  warned: boolean
+  /** The integration step this point was fired at. See `SWEEP_DT`. */
+  dt: number
 }
 
-const FAST = { lightweight: true, dt: 4e-4 } as const
+/**
+ * Sweeps are fired coarser than the shot on the sheet.
+ *
+ * Forty points at the readout's own step size doubles a wait that is already
+ * over half a second, and a sweep is answering "which way is uphill", not "how
+ * far exactly". The cost is real though: adopt a value off this curve and the
+ * panel re-solves it at `simulateShot`'s finer default, so the two numbers
+ * disagree in the last figure. Every point therefore carries the step it was
+ * fired at rather than leaving a caller to assume they match.
+ */
+export const SWEEP_DT = 4e-4
+
+const FAST = { lightweight: true, dt: SWEEP_DT } as const
 
 function evaluate(p: TrebuchetParams, value: number): SweepPoint {
   const r = simulateShot(p, FAST)
-  return {
-    value,
-    range: r.ok ? r.range : NaN,
-    efficiency: r.ok ? r.efficiency : NaN,
-    releaseSpeed: r.release?.speed ?? NaN,
-    apex: r.ok ? r.apex : NaN,
-    ok: r.ok,
-    warned: r.warnings.length > 0,
-  }
+  return { value, range: r.ok ? r.range : NaN, dt: SWEEP_DT }
 }
 
 /**
@@ -142,16 +144,65 @@ function evaluate(p: TrebuchetParams, value: number): SweepPoint {
  */
 export type SweepMode = 'asBuilt' | 'bestCase'
 
-function stage(p: TrebuchetParams, mode: SweepMode): TrebuchetParams {
+/**
+ * Set a machine up for one swept value.
+ *
+ * The two things `bestCase` does — re-cock, release ideally — both collide with
+ * parameters a reader is entitled to sweep, and quietly losing that collision
+ * is worse than either fixing it or refusing. Re-cocking would overwrite a
+ * swept *cocked angle*, so the swept value wins and only the release is
+ * idealised. Releasing ideally makes a swept *pin angle* inert, which has no
+ * honest reading at all, so that pair is refused by `sweepConflict` rather than
+ * plotted as a flat line the reader has no way to interpret.
+ */
+function stage(p: TrebuchetParams, mode: SweepMode, key: TunableKey): TrebuchetParams {
   if (mode === 'asBuilt') return p
   return {
     ...p,
     releaseMode: 'optimal',
-    initialBeamAngle: cockToGround(p),
+    initialBeamAngle: key === 'initialBeamAngle' ? p.initialBeamAngle : cockToGround(p),
   }
 }
 
-/** Sweep one parameter and report range, efficiency and release speed at each step. */
+/**
+ * Why `mode` cannot sweep `key`, phrased for the reader, or null when it can.
+ * Ask before requesting a sweep; `sweepAt` refuses the same pairs.
+ */
+export function sweepConflict(key: TunableKey, mode: SweepMode): string | null {
+  if (mode === 'bestCase' && key === 'releaseAngle')
+    return 'Best case already releases at the ideal instant, which is the very thing a pin angle is trying to hit — so there is nothing left for the pin to change. Switch to as built to see how your machine responds to it.'
+  return null
+}
+
+/**
+ * The values a sweep will fire, as data.
+ *
+ * Exported because the worker streams a sweep in chunks and used to re-derive
+ * each chunk's bounds by repeating this interpolation. A chunk of one then
+ * divided by `steps - 1 === 0` and produced NaN — latent only because the app
+ * happened to ask for a step count that divides by the chunk size.
+ */
+export function sweepValues(min: number, max: number, steps: number): number[] {
+  if (steps <= 0) return []
+  if (steps === 1) return [min]
+  const out: number[] = []
+  for (let i = 0; i < steps; i++) out.push(min + ((max - min) * i) / (steps - 1))
+  return out
+}
+
+/** Fire an explicit list of values. The streaming path calls this per chunk. */
+export function sweepAt(
+  p: TrebuchetParams,
+  key: TunableKey,
+  values: number[],
+  mode: SweepMode = 'asBuilt',
+): SweepPoint[] {
+  const conflict = sweepConflict(key, mode)
+  if (conflict) throw new Error(conflict)
+  return values.map((value) => evaluate(stage({ ...p, [key]: value }, mode, key), value))
+}
+
+/** Sweep one parameter across `steps` evenly spaced values and report range. */
 export function sweep(
   p: TrebuchetParams,
   key: TunableKey,
@@ -160,12 +211,7 @@ export function sweep(
   steps = 40,
   mode: SweepMode = 'asBuilt',
 ): SweepPoint[] {
-  const out: SweepPoint[] = []
-  for (let i = 0; i < steps; i++) {
-    const value = min + ((max - min) * i) / (steps - 1)
-    out.push(evaluate(stage({ ...p, [key]: value }, mode), value))
-  }
-  return out
+  return sweepAt(p, key, sweepValues(min, max, steps), mode)
 }
 
 /**
@@ -174,10 +220,13 @@ export function sweep(
  * Cheap and exact: run the swing once with the release solver in `optimal`
  * mode, and read back the sling-to-arm angle it chose. That angle *is* the
  * spigot to bend, so there is nothing to search over.
+ *
+ * Deliberately not `FAST`: this is one shot rather than forty, and the answer
+ * is a number someone bends metal to, so it is fired at the full step.
  */
 export function bestReleaseAngle(p: TrebuchetParams): number | null {
   const r = simulateShot({ ...p, releaseMode: 'optimal' }, { lightweight: true })
-  return r.ok && r.release ? r.release.gamma : null
+  return r.ok ? r.release.gamma : null
 }
 
 export interface OptimizeResult {

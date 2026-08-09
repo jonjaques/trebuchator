@@ -15,11 +15,12 @@ import { SpeedControl } from './SpeedControl.tsx'
 import { cn } from '@/lib/utils.ts'
 import { num } from '@/lib/format.ts'
 import type { CameraMode } from './stage/Stage.tsx'
+import { isFlying, type ShotTimeline } from '@/lib/treb/timeline.ts'
 
 interface Props {
   t: number
-  duration: number
-  releaseT: number
+  /** Null while the machine will not throw; the transport is disabled then. */
+  timeline: ShotTimeline | null
   playing: boolean
   speed: number
   onSeek: (t: number) => void
@@ -76,8 +77,7 @@ function IconToggle({
  */
 export function Transport({
   t,
-  duration,
-  releaseT,
+  timeline,
   playing,
   speed,
   onSeek,
@@ -95,7 +95,8 @@ export function Transport({
   onShowGrid,
   disabled,
 }: Props) {
-  const phase = t < releaseT ? 'Stroke' : 'Flight'
+  const duration = timeline?.duration ?? 0
+  const flying = timeline != null && isFlying(timeline, t)
 
   return (
     <div className="rule-t flex flex-col bg-ground sm:h-12 sm:flex-row sm:items-center sm:gap-3 sm:px-3">
@@ -132,11 +133,11 @@ export function Transport({
         <DraftSlider
           className="min-w-12 flex-1"
           label="Shot timeline"
-          valueText={`${num(t, 3)} seconds, ${t < releaseT ? 'stroke' : 'flight'}`}
+          valueText={`${num(t, 3)} seconds, ${flying ? 'flight' : 'stroke'}`}
           value={[Math.min(t, duration)]}
           min={0}
           max={Math.max(duration, 0.001)}
-          step={duration / 600}
+          step={Math.max(duration, 0.001) / 600}
           disabled={disabled}
           onValueChange={([v]) => onSeek(v)}
         />
@@ -146,9 +147,9 @@ export function Transport({
           <span className="text-ink-3">/{num(duration, 2)}s</span>
         </div>
         <span
-          className={cn('label w-11 shrink-0 text-right', t < releaseT ? 'text-ink-3' : 'text-quench')}
+          className={cn('label w-11 shrink-0 text-right', flying ? 'text-quench' : 'text-ink-3')}
         >
-          {phase}
+          {flying ? 'Flight' : 'Stroke'}
         </span>
       </div>
 

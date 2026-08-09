@@ -48,6 +48,15 @@ trough by a holonomic constraint solved as a KKT system, and the multiplier *is*
 normal force. Liftoff is where it passes through zero. Don't reintroduce a tuned
 criterion.
 
+**The shot owns its clock, and `ok` narrows.** `ShotResult` is discriminated on `ok`,
+so a successful shot carries a non-null `release` and a `timeline` and a failed one
+carries neither — the invariant is in the type rather than in a `!` at every call site.
+`timeline.ts` owns `{liftoffT, releaseT, duration}` plus `phaseAt`, `isFlying`, `isDone`
+and `strokeT`, and with them the single `TIME_EPS`. Ask it rather than recomputing
+`release.t + flightTime`: that sum was previously rebuilt at five call sites with three
+different epsilons, and the drawing and the transport could disagree about whether a
+shot had landed.
+
 Coulomb friction lags the bearing loads by one step on purpose (the loads depend on the
 accelerations which depend on the friction). At the step sizes used this is far below
 the other modelling error, and it keeps the right-hand side a pure function.
@@ -85,6 +94,21 @@ reason that has nothing to do with the arm. That is why `SweepMode` exists:
 `asBuilt` changes one number and nothing else, `bestCase` re-cocks the beam and
 releases ideally at every point. Both are legitimate; conflating them is not.
 
+`bestCase` cannot honour every key, and the two failures are handled differently.
+Re-cocking would overwrite a swept **cocked angle**, so `stage()` leaves the swept
+value alone in that one case. Releasing ideally makes a swept **pin angle** inert,
+which has no honest reading at all, so `sweepConflict()` refuses that pair and the app
+prints the reason where the chart would go. Both used to draw a flat line the reader
+had no way to interpret.
+
+Sweeps run at `SWEEP_DT` (4e-4), coarser than `simulateShot`'s own default, because
+forty points at the finer step doubles a wait already over half a second. Every
+`SweepPoint` therefore carries the `dt` it was fired at — adopt a value off the curve
+and the panel re-solves it slightly differently, and that should be visible rather than
+assumed. The grid comes from `sweepValues()`; the worker chunks *that array* rather
+than re-deriving the interpolation, which is what used to divide by zero on a chunk of
+one.
+
 The chart's y-axis starts at zero deliberately. Sensitivity curves are about
 relative differences and a truncated axis turns a 2% spread into a cliff.
 
@@ -94,6 +118,29 @@ phone the axis labels came out squashed to a third of their width. The observer
 goes on a plain wrapper via a **callback ref** — the component swaps which
 element carries the ref between its placeholder and its plot, and a mount-only
 effect goes on observing the detached node forever.
+
+## The drawing
+
+**`sheet.ts` decides what is drawn; `paint.ts` puts it on a canvas.** `layout()` returns
+plain `Instruction` objects in screen pixels and `paint()` walks them. The split exists
+because every rule worth arguing about — when a dimension is too short to letter
+(`MIN_DIMENSION`), when a protractor's figure goes inside its arc
+(`LABEL_INSIDE_RADIUS`), what a grid step rounds to — used to sit in a private function
+behind a single `void` export whose only entry point was a `CanvasRenderingContext2D`.
+jsdom has no canvas, so none of it could be reached from a test at all. Add drawing
+rules to `sheet.ts` and assert on the instructions; add *canvas* concerns to `paint.ts`.
+
+Two things stay on the canvas side deliberately. Clipping is a `clip` polygon on an
+instruction rather than trimmed geometry — working out where a hatch line crosses a
+rotated weight box is what a canvas is for, and the rule worth testing is the spacing
+and the angle. Text measurement is an injected `MeasureText`, an internal seam: the
+adapter passes `ctx.measureText`, a test passes an estimator, and only the dimension
+figure needs it.
+
+`SHEET_MARGIN` is exported from `sheet.ts` and used by `Stage.tsx` for its camera inset.
+It has to clear the sheet's own furniture — the range dimension 40 px below the ground
+line, its caption 22 below that, the 12 px hatch band — and framing used to pick that
+number independently of the module that draws the thing it must clear.
 
 ## Testing
 
@@ -110,10 +157,31 @@ effect before it can assert anything.
 
 **The solver runs in a Web Worker** (`sim.worker.ts`). A full shot is 20–45 ms and a
 40-point sweep is over half a second — far too long to sit between a slider's mousemove
-events. `SimClient` in `useSimulation.ts` coalesces shot requests so a drag never builds
-a backlog, and streams sweeps in chunks so the chart draws itself left to right. The
-worker is a module singleton, because StrictMode's mount/unmount/remount would otherwise
-either tear down or leak one per mount.
+events. The worker is a module singleton, because StrictMode's mount/unmount/remount
+would otherwise either tear down or leak one per mount.
+
+**Nothing above `simulator.ts` knows the worker exists.** `Simulator` is the interface —
+`shot`, `tunePin`, `autotune`, `sweep` — with two adapters: `workerSimulator.ts` for the
+browser and `directSimulator.ts` for tests, which is what makes the seam real rather
+than hypothetical. Do not import the direct one from the app; it pulls the solver core
+into whatever bundle it lands in, and the worker chunk exists precisely to keep it out.
+
+Both wire shapes are *derived* from the `SimOps` table in `simulator.ts`, so an
+operation is one entry rather than parallel edits to a request union, a response union
+and a client method. That drift is how an `optimize` operation came to exist on the wire
+for months with no caller.
+
+`coalesceShots()` is policy over the interface, not part of it: a drag fires faster than
+the solver runs, so only the newest request survives and a superseded answer is dropped.
+It is tested against a stub that settles when the test says so — the point of putting it
+above the seam rather than inside the worker client.
+
+**Errors have somewhere to go.** A worker throw rejects the promise; `useShot` surfaces
+it, `ReadoutRail` renders it as "the solver stopped" (distinct from a machine that will
+not throw), and sweeps report it through their own `SweepUpdate`. The old client turned
+every failure into `null`, dropped it, and left `busy` true for the rest of the session.
+`Simulator.sweep` returns a cancel function and callers must call it — an uncancelled
+superseded sweep keeps streaming into state that has already moved on.
 
 **`react-hooks/set-state-in-effect` is enforced** by the React Compiler's lint rules and
 is not suppressed anywhere. Derived state is derived: `busy` compares the held result's
