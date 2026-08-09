@@ -78,7 +78,7 @@ export function EnergyBar({ energy, units }: { energy: EnergyBudget; units: Unit
   return (
     <div>
       <div className="flex items-baseline justify-between pb-2">
-        <span className="stencil-sm text-ink-3">Available this stroke</span>
+        <span className="label text-ink-3">Available this stroke</span>
         <span className="tnum font-mono text-xs text-ink">
           {available.text}
           <span className="pl-1 text-ink-3">{available.unit}</span>

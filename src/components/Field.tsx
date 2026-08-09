@@ -101,7 +101,7 @@ export function Field({
   return (
     <div className={cn('group py-1.5', disabled && 'opacity-40')}>
       <div className="flex items-baseline justify-between gap-2 pb-1">
-        <label htmlFor={id} className="stencil-sm text-ink-2 truncate" title={hint}>
+        <label htmlFor={id} className="label text-ink-2 truncate" title={hint}>
           {label}
         </label>
         {aside && <span className="tnum font-mono text-[10px] text-ink-3 shrink-0">{aside}</span>}
@@ -156,7 +156,7 @@ export function ToggleField({
   const id = useId()
   return (
     <div className="flex items-center justify-between gap-3 py-2">
-      <label htmlFor={id} className="stencil-sm text-ink-2" title={hint}>
+      <label htmlFor={id} className="label text-ink-2" title={hint}>
         {label}
       </label>
       <Switch id={id} checked={checked} onCheckedChange={onChange} />

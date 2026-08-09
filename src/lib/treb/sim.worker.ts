@@ -1,6 +1,13 @@
 /// <reference lib="webworker" />
 import { simulateShot } from './simulate.ts'
-import { autoTune, bestReleaseAngle, optimizeParam, sweep, type TunableKey } from './optimize.ts'
+import {
+  autoTune,
+  bestReleaseAngle,
+  optimizeParam,
+  sweep,
+  type SweepMode,
+  type TunableKey,
+} from './optimize.ts'
 import type { ShotResult, TrebuchetParams } from './types.ts'
 
 /**
@@ -22,6 +29,7 @@ export type SimRequest =
       min: number
       max: number
       steps: number
+      mode: SweepMode
     }
   | { id: number; kind: 'tunePin'; params: TrebuchetParams }
   | { id: number; kind: 'optimize'; params: TrebuchetParams; key: TunableKey }
@@ -69,7 +77,7 @@ self.onmessage = (event: MessageEvent<SimRequest>) => {
           const n = Math.min(chunk, req.steps - i)
           const lo = req.min + ((req.max - req.min) * i) / (req.steps - 1)
           const hi = req.min + ((req.max - req.min) * (i + n - 1)) / (req.steps - 1)
-          const part = sweep(req.params, req.key, lo, hi, n)
+          const part = sweep(req.params, req.key, lo, hi, n, req.mode)
           all.push(...part)
           post({ id: req.id, kind: 'sweep', points: all.slice(), done: i + n >= req.steps })
         }

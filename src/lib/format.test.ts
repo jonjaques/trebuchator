@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { fromDisplay, num, scaled, toDisplay, unitSymbol } from './format.ts'
+import {
+  detectUnitSystem,
+  fromDisplay,
+  num,
+  scaled,
+  toDisplay,
+  unitSymbol,
+} from './format.ts'
 
 describe('unit conversion', () => {
   it('round-trips every dimension through both systems', () => {
@@ -55,5 +62,41 @@ describe('number formatting', () => {
     expect(scaled(412000, 'force', 'metric')).toEqual({ text: '412.00', unit: 'kN' })
     expect(scaled(1.5e6, 'energy', 'metric').unit).toBe('MJ')
     expect(scaled(250, 'force', 'metric').unit).toBe('N')
+  })
+})
+
+describe('unit system detection', () => {
+  it('falls back to feet and pounds when the locale says nothing useful', () => {
+    // The user's stated preference: detect where we can, otherwise ft·lb.
+    const original = Object.getOwnPropertyDescriptor(globalThis, 'navigator')
+    Object.defineProperty(globalThis, 'navigator', {
+      value: undefined,
+      configurable: true,
+    })
+    expect(detectUnitSystem()).toBe('imperial')
+    if (original) Object.defineProperty(globalThis, 'navigator', original)
+    else delete (globalThis as { navigator?: unknown }).navigator
+  })
+
+  it('reads the region out of a language tag', () => {
+    const original = Object.getOwnPropertyDescriptor(globalThis, 'navigator')
+    const set = (language: string) =>
+      Object.defineProperty(globalThis, 'navigator', {
+        value: { language },
+        configurable: true,
+      })
+
+    set('en-US')
+    expect(detectUnitSystem()).toBe('imperial')
+    set('fr-FR')
+    expect(detectUnitSystem()).toBe('metric')
+    set('de')
+    expect(detectUnitSystem()).toBe('metric')
+    // The UK builds in millimetres whatever its road signs do.
+    set('en-GB')
+    expect(detectUnitSystem()).toBe('metric')
+
+    if (original) Object.defineProperty(globalThis, 'navigator', original)
+    else delete (globalThis as { navigator?: unknown }).navigator
   })
 })

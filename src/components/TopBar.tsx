@@ -48,31 +48,45 @@ export function TopBar({
   const eras = ['modern', 'historical', 'reference'] as const
 
   return (
-    <header className="rule-b flex h-12 shrink-0 items-center gap-2 bg-ground px-3">
-      <div className="flex items-center gap-2.5">
+    /* Two rows below `md`, one above. On a phone the wordmark, the preset name
+       and four icon buttons cannot share a row without the first two colliding
+       — which is exactly what they did. */
+    <header className="rule-b flex shrink-0 flex-col bg-ground md:h-12 md:flex-row md:items-center md:gap-2 md:px-3">
+      <div className="flex h-12 items-center gap-2.5 px-3 md:h-auto md:px-0">
         <TrebuchetMark />
         <div className="leading-none">
           <h1
             className="font-[600] text-ink"
             style={{
-              fontFamily: "'IBM Plex Sans Condensed', sans-serif",
+              fontFamily: "'Instrument Sans Variable', sans-serif",
               letterSpacing: '0.2em',
               fontSize: '0.9rem',
             }}
           >
             TREBUCHATOR
           </h1>
-          <p className="stencil-sm hidden pt-1 text-ink-3 md:block">
+          <p className="label hidden pt-1 text-ink-3 sm:block">
             Counterweight siege engine calculator
           </p>
         </div>
+        <div className="ml-auto flex items-center gap-1.5 md:hidden">
+          <UnitToggle units={units} onUnits={onUnits} />
+          <ThemeButton dark={dark} onDark={onDark} />
+          <PanelButtons
+            showDesign={showDesign}
+            showResults={showResults}
+            onToggleDesign={onToggleDesign}
+            onToggleResults={onToggleResults}
+          />
+        </div>
       </div>
 
-      <span className="mx-1 hidden h-6 w-px bg-rule sm:block" aria-hidden />
+      <div className="rule-t flex h-12 items-center gap-2 px-3 md:h-auto md:border-t-0 md:px-0">
+        <span className="mx-1 hidden h-6 w-px bg-rule md:block" aria-hidden />
 
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="outline" size="sm" className="stencil-sm h-8 max-w-[15rem] gap-2">
+          <Button variant="outline" size="sm" className="label h-8 min-w-0 max-w-[13rem] shrink gap-2">
             <span className="truncate">{current?.name ?? 'Custom machine'}</span>
             <span aria-hidden className="text-ink-3">
               ▾
@@ -83,7 +97,7 @@ export function TopBar({
           <div className="thin-scroll max-h-[70vh] overflow-y-auto">
             {eras.map((era) => (
               <div key={era}>
-                <div className="stencil-sm rule-b bg-raised px-3 py-2 text-ink-3">
+                <div className="label rule-b bg-raised px-3 py-2 text-ink-3">
                   {ERA_LABEL[era]}
                 </div>
                 {PRESETS.filter((p) => p.era === era).map((p) => (
@@ -108,7 +122,7 @@ export function TopBar({
       <Button
         variant="outline"
         size="sm"
-        className="stencil-sm hidden h-8 gap-1.5 lg:inline-flex"
+        className="label h-8 shrink-0 gap-1.5"
         onClick={onAutoTune}
         disabled={tuning}
         title="Search sling length, hanger, cocked angle and pin angle for the longest shot this machine can make"
@@ -120,7 +134,7 @@ export function TopBar({
       <Button
         variant="outline"
         size="sm"
-        className="stencil-sm hidden h-8 gap-1.5 md:inline-flex"
+        className="label h-8 shrink-0 gap-1.5"
         onClick={onSave}
         title="Keep this shot on the sheet as a dashed ghost to compare against"
       >
@@ -128,67 +142,113 @@ export function TopBar({
         Save shot
       </Button>
 
-      <div className="ml-auto flex items-center gap-1.5">
-        <span
-          className={cn(
-            'stencil-sm pr-1 text-ink-3 transition-opacity',
-            busy ? 'opacity-100' : 'opacity-0',
-          )}
-          aria-live="polite"
-        >
-          Solving
-        </span>
+        <div className="ml-auto flex items-center gap-1.5">
+          <span
+            className={cn(
+              'label hidden pr-1 text-ink-3 transition-opacity sm:inline',
+              busy ? 'opacity-100' : 'opacity-0',
+            )}
+            aria-live="polite"
+          >
+            Solving
+          </span>
 
-        <div role="radiogroup" aria-label="Units" className="flex overflow-hidden rounded-sm border border-rule">
-          {(['metric', 'imperial'] as const).map((u) => (
-            <button
-              key={u}
-              role="radio"
-              aria-checked={units === u}
-              onClick={() => onUnits(u)}
-              className={cn(
-                'stencil-sm px-2 py-1.5 transition-colors',
-                units === u ? 'bg-verdigris/12 text-verdigris' : 'text-ink-3 hover:text-ink-2',
-              )}
-            >
-              {u === 'metric' ? 'm · kg' : 'ft · lb'}
-            </button>
-          ))}
+          <div className="hidden items-center gap-1.5 md:flex">
+            <UnitToggle units={units} onUnits={onUnits} />
+            <ThemeButton dark={dark} onDark={onDark} />
+            <PanelButtons
+              showDesign={showDesign}
+              showResults={showResults}
+              onToggleDesign={onToggleDesign}
+              onToggleResults={onToggleResults}
+            />
+          </div>
         </div>
-
-        <Button
-          size="icon"
-          variant="outline"
-          className="size-8"
-          onClick={() => onDark(!dark)}
-          aria-label={dark ? 'Switch to the light sheet' : 'Switch to the dark sheet'}
-          title={dark ? 'Light sheet' : 'Dark sheet'}
-        >
-          {dark ? <Sun className="size-3.5" aria-hidden /> : <Moon className="size-3.5" aria-hidden />}
-        </Button>
-
-        <Button
-          size="icon"
-          variant="outline"
-          className="size-8 xl:hidden"
-          onClick={onToggleDesign}
-          aria-pressed={showDesign}
-          aria-label="Toggle the design panel"
-        >
-          <PanelLeft className="size-3.5" aria-hidden />
-        </Button>
-        <Button
-          size="icon"
-          variant="outline"
-          className="size-8 xl:hidden"
-          onClick={onToggleResults}
-          aria-pressed={showResults}
-          aria-label="Toggle the results panel"
-        >
-          <PanelRight className="size-3.5" aria-hidden />
-        </Button>
       </div>
     </header>
+  )
+}
+
+function UnitToggle({
+  units,
+  onUnits,
+}: {
+  units: UnitSystem
+  onUnits: (u: UnitSystem) => void
+}) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Units"
+      className="flex shrink-0 overflow-hidden rounded-sm border border-rule"
+    >
+      {(['metric', 'imperial'] as const).map((u) => (
+        <button
+          key={u}
+          role="radio"
+          aria-checked={units === u}
+          onClick={() => onUnits(u)}
+          className={cn(
+            'label px-2 py-1.5 transition-colors',
+            units === u ? 'bg-verdigris/12 text-verdigris' : 'text-ink-3 hover:text-ink-2',
+          )}
+        >
+          {u === 'metric' ? 'm · kg' : 'ft · lb'}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function ThemeButton({ dark, onDark }: { dark: boolean; onDark: (v: boolean) => void }) {
+  return (
+    <Button
+      size="icon"
+      variant="outline"
+      className="size-8 shrink-0"
+      onClick={() => onDark(!dark)}
+      aria-label={dark ? 'Switch to the light sheet' : 'Switch to the dark sheet'}
+      title={dark ? 'Light sheet' : 'Dark sheet'}
+    >
+      {dark ? <Sun className="size-3.5" aria-hidden /> : <Moon className="size-3.5" aria-hidden />}
+    </Button>
+  )
+}
+
+function PanelButtons({
+  showDesign,
+  showResults,
+  onToggleDesign,
+  onToggleResults,
+}: {
+  showDesign: boolean
+  showResults: boolean
+  onToggleDesign: () => void
+  onToggleResults: () => void
+}) {
+  return (
+    <>
+      <Button
+        size="icon"
+        variant="outline"
+        className="size-8 shrink-0 xl:hidden"
+        onClick={onToggleDesign}
+        aria-pressed={showDesign}
+        aria-label="Toggle the design panel"
+      >
+        <PanelLeft className="size-3.5" aria-hidden />
+      </Button>
+      <Button
+        size="icon"
+        variant="outline"
+        className="size-8 shrink-0 xl:hidden"
+        onClick={onToggleResults}
+        aria-pressed={showResults}
+        aria-label="Toggle the results panel"
+      >
+        <PanelRight className="size-3.5" aria-hidden />
+      </Button>
+    </>
   )
 }
 

@@ -76,6 +76,25 @@ definitions this app's inputs mirror.
 [arXiv:2502.19442]: https://arxiv.org/abs/2502.19442
 [arXiv:2510.18789]: https://arxiv.org/abs/2510.18789
 
+## Reading the sensitivity chart
+
+Sweeping one parameter with the pin angle held conflates "this dimension is
+better" with "the pin I happen to have bent suits this dimension" — lengthen the
+arm and the stale pin fires at the wrong moment, so the curve falls off for a
+reason that has nothing to do with the arm. That is why `SweepMode` exists:
+`asBuilt` changes one number and nothing else, `bestCase` re-cocks the beam and
+releases ideally at every point. Both are legitimate; conflating them is not.
+
+The chart's y-axis starts at zero deliberately. Sensitivity curves are about
+relative differences and a truncated axis turns a 2% spread into a cliff.
+
+`SweepChart` measures its own width rather than stretching a viewBox:
+`preserveAspectRatio="none"` scales the text along with the coordinates, and on a
+phone the axis labels came out squashed to a third of their width. The observer
+goes on a plain wrapper via a **callback ref** — the component swaps which
+element carries the ref between its placeholder and its plot, and a mount-only
+effect goes on observing the detached node forever.
+
 ## Testing
 
 **Vitest**, configured in `vitest.config.ts` — deliberately separate from
@@ -165,6 +184,13 @@ light palette otherwise. `App.tsx` owns that toggle and persists it to
 of `getComputedStyle(document.documentElement)` and re-reads it under a `MutationObserver`
 on the root class, so the drawing follows the theme instead of caching a stale palette.
 Add a colour to `:root` *and* `.dark` or the drawing will silently use `#888` for it.
+
+**Type is Instrument Sans against Geist Mono**, and the contrast that carries the
+design is sans-for-names against mono-for-numbers. It does not need help from
+letterforms: an earlier pass set every label in condensed uppercase at 500 with
+0.16em tracking and read as a wall rather than as a drawing. Uppercase and
+tracked survives only on `.stencil` (section heads, doing structural work);
+`.label` is sentence case at 400 and carries everything else.
 
 **Two accents, one job each, and never anything else:** `--quench` is the projectile and
 its trajectory, `--verdigris` is measurement — dimension lines and annotations. The pair

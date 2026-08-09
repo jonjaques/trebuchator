@@ -63,7 +63,7 @@ and the optimal launch angle is exactly 45° in vacuum and lower with drag. Both
 are asserted in the test suite.
 
 ```bash
-bun run test        # 42 tests: physics validation, conservation, ballistics, UI
+bun run test        # 47 tests: physics validation, conservation, ballistics, UI
 bun run test:watch
 ```
 
@@ -75,11 +75,18 @@ bun run test:watch
   with an ideal-release solver and reading back the angle it chose.
 - **Auto-tune** searches sling length, hanger, cocked angle and short arm, re-tuning
   the pin after every move.
-- **Sensitivity** sweeps any one parameter and plots range against it. Click the
-  chart to adopt a value.
+- **Sensitivity** sweeps any one parameter and plots range against it, with the
+  range your machine gets now and the gain on offer spelled out. *As built*
+  changes one number and nothing else; *best case* re-cocks and re-releases at
+  every point, which is the honest way to ask what a dimension could give you.
+  Click the chart to adopt a value, or hit **Adopt best**.
+- **Angles** (`A`) puts protractors on the joints. The one at the beam tip shows
+  the sling closing on your pin angle, which is the whole of tuning in one arc.
 - **Save shot** keeps a trajectory on the sheet as a dashed ghost to compare against.
-- Keys: `space` play/pause, `R` fire again, `D` dimensions, `G` grid. Drag and
-  scroll the sheet to pan and zoom.
+- Keys: `space` play/pause, `R` fire again, `D` dimensions, `A` angles, `G` grid.
+  Drag and scroll the sheet to pan and zoom.
+- Units follow your locale on first run (`Intl`, falling back to feet and
+  pounds) and remember whatever you pick after that.
 
 Sources for the historical figures and the design rules are listed in `CLAUDE.md`.
 

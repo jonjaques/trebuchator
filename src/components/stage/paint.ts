@@ -44,13 +44,14 @@ export interface PaintInput {
   /** Playback cursor, seconds from the start of the stroke. */
   t: number
   showDimensions: boolean
+  showAngles: boolean
   showGrid: boolean
   ghosts: Ghost[]
   units: UnitSystem
 }
 
-const COND = "'IBM Plex Sans Condensed', sans-serif"
-const MONO = "'IBM Plex Mono', monospace"
+const SANS = "'Instrument Sans Variable', sans-serif"
+const MONO = "'Geist Mono Variable', monospace"
 
 // --- primitives --------------------------------------------------------------
 
@@ -165,6 +166,118 @@ function dimension(
   ctx.restore()
 }
 
+/**
+ * A protractor: a graduated arc centred on a joint, with the swept sector
+ * filled and a radial pointer on the live angle.
+ *
+ * Angles are what a trebuchet is actually made of — the beam sweep, the sling
+ * lagging behind the arm, the weight box trailing its hanger — and none of them
+ * are legible from a linear dimension. Drawn in the measurement accent, in the
+ * same idiom as the dimension lines.
+ *
+ * Canvas angles run clockwise from +x with y down, so world angles measured
+ * from vertical are converted at the two call sites rather than here.
+ */
+function protractor(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  radius: number,
+  from: number,
+  to: number,
+  label: string,
+  colour: string,
+  opts: { graduate?: boolean; pointerAt?: number; ghostAt?: number; ghostLabel?: string } = {},
+) {
+  if (radius < 16) return
+  const span = to - from
+  ctx.save()
+  ctx.strokeStyle = colour
+  ctx.fillStyle = colour
+  ctx.lineWidth = 1
+
+  // Swept sector, very faint. It sits under the beam, so anything heavier
+  // reads as a coloured block over the machine rather than as an annotation.
+  ctx.globalAlpha = 0.06
+  ctx.beginPath()
+  ctx.moveTo(cx, cy)
+  ctx.arc(cx, cy, radius, from, to, span < 0)
+  ctx.closePath()
+  ctx.fill()
+  ctx.globalAlpha = 1
+
+  ctx.beginPath()
+  ctx.arc(cx, cy, radius, from, to, span < 0)
+  ctx.stroke()
+
+  if (opts.graduate) {
+    const stepRad = (10 * Math.PI) / 180
+    const dir = Math.sign(span) || 1
+    for (let i = 0; i * stepRad <= Math.abs(span); i++) {
+      const a = from + dir * i * stepRad
+      const major = i % 3 === 0
+      const len = major ? 7 : 3.5
+      ctx.globalAlpha = major ? 0.9 : 0.45
+      line(
+        ctx,
+        cx + Math.cos(a) * radius,
+        cy + Math.sin(a) * radius,
+        cx + Math.cos(a) * (radius + len),
+        cy + Math.sin(a) * (radius + len),
+      )
+    }
+    ctx.globalAlpha = 1
+  }
+
+  // A dashed radial for a target the live angle is closing on — the pin angle
+  // at the beam tip, which is the single most useful thing to watch while tuning.
+  if (opts.ghostAt != null) {
+    ctx.save()
+    ctx.setLineDash([4, 3])
+    ctx.globalAlpha = 0.75
+    line(
+      ctx,
+      cx,
+      cy,
+      cx + Math.cos(opts.ghostAt) * (radius + 12),
+      cy + Math.sin(opts.ghostAt) * (radius + 12),
+    )
+    if (opts.ghostLabel) {
+      ctx.setLineDash([])
+      ctx.font = `400 10px ${SANS}`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(
+        opts.ghostLabel,
+        cx + Math.cos(opts.ghostAt) * (radius + 26),
+        cy + Math.sin(opts.ghostAt) * (radius + 26),
+      )
+    }
+    ctx.restore()
+  }
+
+  if (opts.pointerAt != null) {
+    ctx.lineWidth = 1.5
+    line(
+      ctx,
+      cx,
+      cy,
+      cx + Math.cos(opts.pointerAt) * (radius + 8),
+      cy + Math.sin(opts.pointerAt) * (radius + 8),
+    )
+  }
+
+  const mid = from + span / 2
+  ctx.font = `500 11px ${MONO}`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  // Big arcs have room for the figure inside them; small ones do not, and on a
+  // short hanger the label would land inside the weight box.
+  const lr = radius > 44 ? radius * 0.62 : radius + 15
+  ctx.fillText(label, cx + Math.cos(mid) * lr, cy + Math.sin(mid) * lr)
+  ctx.restore()
+}
+
 /** Section hatching at 45°, clipped to the current path. */
 function hatch(
   ctx: CanvasRenderingContext2D,
@@ -210,6 +323,10 @@ function drawFrame(
   const H = params.pivotHeight
   ctx.save()
   ctx.lineJoin = 'round'
+  // The frame is scenery and the beam is the figure, so the frame recedes.
+  // Drawn in the same timber at reduced opacity rather than a second brown,
+  // which keeps the palette closed and still separates the moving part.
+  ctx.globalAlpha = 0.62
 
   if (params.type === 'floating') {
     // Rails the axle rolls on, and the channel the weight drops through. The
@@ -545,6 +662,7 @@ export function paint(input: PaintInput) {
     }
 
     if (input.showDimensions) drawDimensions(ctx, p, params, pal, pose, units)
+    if (input.showAngles) drawAngles(ctx, p, params, pal, pose)
   }
 
   // --- shot in flight -----------------------------------------------------
@@ -589,7 +707,7 @@ export function paint(input: PaintInput) {
   })
 
   ctx.save()
-  ctx.font = `500 9px ${COND}`
+  ctx.font = `500 9px ${SANS}`
   ctx.fillStyle = pal.ink3
   ctx.textAlign = 'center'
   ctx.letterSpacing = '0.14em'
@@ -601,7 +719,7 @@ function drawMachineAtRest(input: PaintInput) {
   const { ctx, palette: pal } = input
   ctx.save()
   ctx.fillStyle = pal.ink3
-  ctx.font = `500 12px ${COND}`
+  ctx.font = `500 12px ${SANS}`
   ctx.textAlign = 'center'
   ctx.letterSpacing = '0.16em'
   ctx.fillText('NO VALID SHOT', input.w / 2, input.h / 2)
@@ -630,6 +748,96 @@ function sampleTrajectory(traj: ShotResult['trajectory'], t: number) {
     }
   }
   return traj[traj.length - 1]
+}
+
+/** Shortest signed rotation from a to b, in (-pi, pi]. */
+function delta(a: number, b: number): number {
+  let d = (b - a) % (Math.PI * 2)
+  if (d > Math.PI) d -= Math.PI * 2
+  if (d <= -Math.PI) d += Math.PI * 2
+  return d
+}
+
+/**
+ * Angle instrumentation at the joints.
+ *
+ * Screen space has y running down, so a world beam angle theta (measured from
+ * straight down, growing as the machine fires) maps to a canvas angle of
+ * simply pi/2 + theta. Every other angle here is taken from the projected
+ * points directly, which is immune to the sign conventions in the model.
+ */
+function drawAngles(
+  ctx: CanvasRenderingContext2D,
+  p: Projector,
+  params: TrebuchetParams,
+  pal: Palette,
+  pose: MachinePose,
+) {
+  const deg = (rad: number) => `${num((rad * 180) / Math.PI, 1)}°`
+
+  const axleS = { x: p.x(pose.axle.x), y: p.y(pose.axle.y) }
+  const tipS = { x: p.x(pose.tip.x), y: p.y(pose.tip.y) }
+  const projS = { x: p.x(pose.projectile.x), y: p.y(pose.projectile.y) }
+  const shortS = { x: p.x(pose.shortEnd.x), y: p.y(pose.shortEnd.y) }
+  const cwS = { x: p.x(pose.cw.x), y: p.y(pose.cw.y) }
+
+  // --- beam sweep, at the main axle ---------------------------------------
+  const theta0 = (params.initialBeamAngle * Math.PI) / 180
+  const armFrom = Math.PI / 2 + theta0
+  const armNow = Math.PI / 2 + pose.theta
+  protractor(
+    ctx,
+    axleS.x,
+    axleS.y,
+    Math.min(130, Math.max(24, p.s(params.armLong * 0.4))),
+    armFrom,
+    armNow,
+    deg(pose.theta),
+    pal.verdigris,
+    { graduate: true, pointerAt: armNow },
+  )
+
+  // --- sling against the arm, at the beam tip ------------------------------
+  // This is the pin angle as it actually happens. The dashed radial is the
+  // spigot you have bent; watching the sling close on it is the whole of tuning.
+  const armOut = Math.atan2(tipS.y - axleS.y, tipS.x - axleS.x)
+  const slingDir = Math.atan2(projS.y - tipS.y, projS.x - tipS.x)
+  const gamma = delta(armOut, slingDir)
+  if (Math.abs(gamma) > 0.06) {
+    const side = Math.sign(gamma)
+    const pin = (params.releaseAngle * Math.PI) / 180
+    protractor(
+      ctx,
+      tipS.x,
+      tipS.y,
+      Math.min(72, Math.max(20, p.s(params.slingLength * 0.3))),
+      armOut,
+      slingDir,
+      deg(Math.abs(gamma)),
+      pal.verdigris,
+      params.releaseMode === 'pin'
+        ? { ghostAt: armOut + side * pin, ghostLabel: `pin ${num(params.releaseAngle, 0)}°` }
+        : {},
+    )
+  }
+
+  // --- hanger, at the short-arm end ----------------------------------------
+  if (params.type === 'hinged' && params.cwHanger > 0.02) {
+    const down = Math.PI / 2
+    const hanger = Math.atan2(cwS.y - shortS.y, cwS.x - shortS.x)
+    if (Math.abs(delta(down, hanger)) > 0.09) {
+      protractor(
+        ctx,
+        shortS.x,
+        shortS.y,
+        Math.min(56, Math.max(18, p.s(params.cwHanger * 0.55))),
+        down,
+        hanger,
+        deg(Math.abs(delta(down, hanger))),
+        pal.verdigris,
+      )
+    }
+  }
 }
 
 function drawDimensions(

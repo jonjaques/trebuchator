@@ -1,4 +1,4 @@
-import { simulateShot } from './simulate.ts'
+import { cockToGround, simulateShot } from './simulate.ts'
 import type { TrebuchetParams } from './types.ts'
 
 /**
@@ -127,21 +127,43 @@ function evaluate(p: TrebuchetParams, value: number): SweepPoint {
 }
 
 /**
- * Sweep one parameter and report range, efficiency and release speed at each
- * step. Cocking is *not* re-derived as geometry changes, so the curve shows the
- * effect of the one parameter rather than of a silently re-tuned machine.
+ * How a swept point is set up before it is fired.
+ *
+ * `asBuilt` changes literally one number and leaves the rest of the machine
+ * alone. `bestCase` re-cocks the beam so the tip still rests on the trough and
+ * releases at the ideal instant.
+ *
+ * The distinction matters more than it looks. With the pin held, a curve
+ * conflates "this dimension is better" with "the pin I happen to have bent
+ * suits this dimension" — lengthen the arm and the old pin fires at the wrong
+ * moment, so the curve falls off for a reason that has nothing to do with the
+ * arm. `bestCase` answers the design question: what is the most this dimension
+ * could give me if I set the machine up properly around it?
  */
+export type SweepMode = 'asBuilt' | 'bestCase'
+
+function stage(p: TrebuchetParams, mode: SweepMode): TrebuchetParams {
+  if (mode === 'asBuilt') return p
+  return {
+    ...p,
+    releaseMode: 'optimal',
+    initialBeamAngle: cockToGround(p),
+  }
+}
+
+/** Sweep one parameter and report range, efficiency and release speed at each step. */
 export function sweep(
   p: TrebuchetParams,
   key: TunableKey,
   min: number,
   max: number,
   steps = 40,
+  mode: SweepMode = 'asBuilt',
 ): SweepPoint[] {
   const out: SweepPoint[] = []
   for (let i = 0; i < steps; i++) {
     const value = min + ((max - min) * i) / (steps - 1)
-    out.push(evaluate({ ...p, [key]: value }, value))
+    out.push(evaluate(stage({ ...p, [key]: value }, mode), value))
   }
   return out
 }

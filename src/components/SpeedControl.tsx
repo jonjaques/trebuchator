@@ -1,0 +1,92 @@
+import { useState } from 'react'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover.tsx'
+import { cn } from '@/lib/utils.ts'
+import { num } from '@/lib/format.ts'
+
+/**
+ * Playback speed.
+ *
+ * The interesting range spans three orders of magnitude: the stroke of a
+ * backyard machine is under a second and wants 0.05x to be readable, while a
+ * siege engine's four-second flight wants 3x to get past. Chips cover the
+ * useful stops and the box takes anything else, because the right speed for
+ * watching one particular thing is not on anyone's list.
+ */
+
+const STOPS = [0.05, 0.1, 0.25, 0.5, 1, 2, 3]
+
+function fmt(speed: number): string {
+  return `${speed >= 1 ? num(speed, speed % 1 === 0 ? 0 : 2) : num(speed, 2).replace(/0+$/, '').replace(/\.$/, '')}×`
+}
+
+export function SpeedControl({
+  speed,
+  onSpeed,
+}: {
+  speed: number
+  onSpeed: (s: number) => void
+}) {
+  const [draft, setDraft] = useState('')
+
+  const commit = () => {
+    const parsed = Number.parseFloat(draft)
+    if (Number.isFinite(parsed) && parsed > 0) onSpeed(Math.min(20, Math.max(0.01, parsed)))
+    setDraft('')
+  }
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          className="tnum flex h-7 shrink-0 items-center gap-1 rounded-sm border border-rule px-2 font-mono text-[11px] text-ink-2 transition-colors hover:border-ink-3 hover:text-ink"
+          title="Playback speed"
+          aria-label={`Playback speed, currently ${fmt(speed)}`}
+        >
+          {fmt(speed)}
+          <span aria-hidden className="text-ink-3">
+            ▾
+          </span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-52 p-2">
+        <div className="label pb-2 text-ink-3">Playback speed</div>
+        <div role="radiogroup" aria-label="Playback speed" className="grid grid-cols-4 gap-1">
+          {STOPS.map((s) => (
+            <button
+              key={s}
+              role="radio"
+              aria-checked={Math.abs(speed - s) < 1e-9}
+              onClick={() => onSpeed(s)}
+              className={cn(
+                'tnum rounded-sm border py-1.5 font-mono text-[11px] transition-colors',
+                Math.abs(speed - s) < 1e-9
+                  ? 'border-verdigris bg-verdigris/10 text-verdigris'
+                  : 'border-rule text-ink-3 hover:border-ink-3 hover:text-ink-2',
+              )}
+            >
+              {fmt(s)}
+            </button>
+          ))}
+        </div>
+        <label className="mt-2 flex items-center gap-2 rounded-sm border border-rule bg-ground px-2 py-1.5 focus-within:border-verdigris">
+          <span className="label shrink-0 text-ink-3">Custom</span>
+          <input
+            type="text"
+            inputMode="decimal"
+            placeholder={fmt(speed)}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commit()
+              if (e.key === 'Escape') setDraft('')
+            }}
+            className="tnum w-full min-w-0 bg-transparent text-right font-mono text-[11px] text-ink outline-none"
+          />
+          <span className="font-mono text-[10px] text-ink-3">×</span>
+        </label>
+        <p className="micro pt-2 text-ink-3">1× is real time. The stroke is the fast part.</p>
+      </PopoverContent>
+    </Popover>
+  )
+}

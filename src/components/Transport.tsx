@@ -1,6 +1,17 @@
-import { Crosshair, Frame, Grid3x3, Maximize2, Pause, Play, RotateCcw, Ruler } from 'lucide-react'
+import {
+  Crosshair,
+  DraftingCompass,
+  Frame,
+  Grid3x3,
+  Maximize2,
+  Pause,
+  Play,
+  RotateCcw,
+  Ruler,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button.tsx'
 import { DraftSlider } from './DraftSlider.tsx'
+import { SpeedControl } from './SpeedControl.tsx'
 import { cn } from '@/lib/utils.ts'
 import { num } from '@/lib/format.ts'
 import type { CameraMode } from './stage/Stage.tsx'
@@ -20,12 +31,12 @@ interface Props {
   onCameraMode: (m: CameraMode) => void
   showDimensions: boolean
   onShowDimensions: (v: boolean) => void
+  showAngles: boolean
+  onShowAngles: (v: boolean) => void
   showGrid: boolean
   onShowGrid: (v: boolean) => void
   disabled: boolean
 }
-
-const SPEEDS = [0.05, 0.15, 0.5, 1]
 
 function IconToggle({
   on,
@@ -45,7 +56,7 @@ function IconToggle({
       title={label}
       aria-label={label}
       className={cn(
-        'flex size-7 items-center justify-center rounded-sm border transition-colors',
+        'flex size-7 shrink-0 items-center justify-center rounded-sm border transition-colors',
         on
           ? 'border-verdigris bg-verdigris/10 text-verdigris'
           : 'border-rule text-ink-3 hover:border-ink-3 hover:text-ink-2',
@@ -56,6 +67,13 @@ function IconToggle({
   )
 }
 
+/**
+ * Transport and view controls.
+ *
+ * Two rows below `sm`, one above it. On a phone-width single row the scrubber
+ * collapsed to nothing, the clock overlapped the phase label, and every toggle
+ * sat well under the minimum touch target.
+ */
 export function Transport({
   t,
   duration,
@@ -71,40 +89,48 @@ export function Transport({
   onCameraMode,
   showDimensions,
   onShowDimensions,
+  showAngles,
+  onShowAngles,
   showGrid,
   onShowGrid,
   disabled,
 }: Props) {
   const phase = t < releaseT ? 'Stroke' : 'Flight'
-  return (
-    <div className="rule-t flex h-12 items-center gap-3 bg-ground px-3">
-      <div className="flex items-center gap-1">
-        <Button
-          size="icon"
-          variant="outline"
-          className="size-8"
-          disabled={disabled}
-          onClick={onReplay}
-          aria-label="Fire again from the start"
-          title="Fire again"
-        >
-          <RotateCcw className="size-3.5" aria-hidden />
-        </Button>
-        <Button
-          size="icon"
-          className="size-8"
-          disabled={disabled}
-          onClick={playing ? onPause : onPlay}
-          aria-label={playing ? 'Pause' : 'Play the shot'}
-          title={playing ? 'Pause' : 'Play'}
-        >
-          {playing ? <Pause className="size-3.5" aria-hidden /> : <Play className="size-3.5" aria-hidden />}
-        </Button>
-      </div>
 
-      <div className="flex min-w-0 flex-1 items-center gap-3">
+  return (
+    <div className="rule-t flex flex-col bg-ground sm:h-12 sm:flex-row sm:items-center sm:gap-3 sm:px-3">
+      {/* Row 1 — the shot itself */}
+      <div className="flex h-12 min-w-0 items-center gap-3 px-3 sm:h-auto sm:flex-1 sm:px-0">
+        <div className="flex shrink-0 items-center gap-1">
+          <Button
+            size="icon"
+            variant="outline"
+            className="size-8"
+            disabled={disabled}
+            onClick={onReplay}
+            aria-label="Fire again from the start"
+            title="Fire again"
+          >
+            <RotateCcw className="size-3.5" aria-hidden />
+          </Button>
+          <Button
+            size="icon"
+            className="size-8"
+            disabled={disabled}
+            onClick={playing ? onPause : onPlay}
+            aria-label={playing ? 'Pause' : 'Play the shot'}
+            title={playing ? 'Pause' : 'Play'}
+          >
+            {playing ? (
+              <Pause className="size-3.5" aria-hidden />
+            ) : (
+              <Play className="size-3.5" aria-hidden />
+            )}
+          </Button>
+        </div>
+
         <DraftSlider
-          className="min-w-16 flex-1"
+          className="min-w-12 flex-1"
           label="Shot timeline"
           valueText={`${num(t, 3)} seconds, ${t < releaseT ? 'stroke' : 'flight'}`}
           value={[Math.min(t, duration)]}
@@ -114,40 +140,24 @@ export function Transport({
           disabled={disabled}
           onValueChange={([v]) => onSeek(v)}
         />
-        <div className="tnum w-28 shrink-0 font-mono text-[11px] text-ink-2">
-          {num(t, 3)}
-          <span className="text-ink-3">/{num(duration, 2)} s</span>
+
+        <div className="tnum shrink-0 font-mono text-[11px] text-ink-2">
+          {num(t, 2)}
+          <span className="text-ink-3">/{num(duration, 2)}s</span>
         </div>
         <span
-          className={cn(
-            'stencil-sm w-12 shrink-0',
-            t < releaseT ? 'text-ink-3' : 'text-quench',
-          )}
+          className={cn('label w-11 shrink-0 text-right', t < releaseT ? 'text-ink-3' : 'text-quench')}
         >
           {phase}
         </span>
       </div>
 
-      <div className="hidden items-center gap-1 sm:flex">
-        {SPEEDS.map((s) => (
-          <button
-            key={s}
-            onClick={() => onSpeed(s)}
-            aria-pressed={speed === s}
-            className={cn(
-              'tnum rounded-sm border px-1.5 py-1 font-mono text-[10px] transition-colors',
-              speed === s
-                ? 'border-verdigris bg-verdigris/10 text-verdigris'
-                : 'border-rule text-ink-3 hover:border-ink-3 hover:text-ink-2',
-            )}
-            title={`Play at ${s}× real time`}
-          >
-            {s}×
-          </button>
-        ))}
-      </div>
+      {/* Row 2 — how you are looking at it */}
+      <div className="rule-t thin-scroll flex h-11 items-center gap-1.5 overflow-x-auto px-3 sm:h-auto sm:border-t-0 sm:px-0">
+        <SpeedControl speed={speed} onSpeed={onSpeed} />
 
-      <div className="rule-l flex items-center gap-1 pl-3">
+        <span className="mx-0.5 h-5 w-px shrink-0 bg-rule" aria-hidden />
+
         <IconToggle
           on={cameraMode === 'auto'}
           onClick={() => onCameraMode('auto')}
@@ -169,13 +179,18 @@ export function Transport({
         >
           <Maximize2 className="size-3.5" aria-hidden />
         </IconToggle>
-        <span className="mx-1 h-5 w-px bg-rule" aria-hidden />
+
+        <span className="mx-0.5 h-5 w-px shrink-0 bg-rule" aria-hidden />
+
         <IconToggle
           on={showDimensions}
           onClick={() => onShowDimensions(!showDimensions)}
           label="Show dimensions"
         >
           <Ruler className="size-3.5" aria-hidden />
+        </IconToggle>
+        <IconToggle on={showAngles} onClick={() => onShowAngles(!showAngles)} label="Show angles">
+          <DraftingCompass className="size-3.5" aria-hidden />
         </IconToggle>
         <IconToggle on={showGrid} onClick={() => onShowGrid(!showGrid)} label="Show grid">
           <Grid3x3 className="size-3.5" aria-hidden />

@@ -20,6 +20,7 @@ interface StageProps {
   t: number
   units: UnitSystem
   showDimensions: boolean
+  showAngles: boolean
   showGrid: boolean
   ghosts: Ghost[]
   mode: CameraMode
@@ -81,6 +82,7 @@ export function Stage({
   t,
   units,
   showDimensions,
+  showAngles,
   showGrid,
   ghosts,
   mode,
@@ -201,6 +203,7 @@ export function Stage({
       result,
       t,
       showDimensions,
+      showAngles,
       showGrid,
       ghosts,
       units,
@@ -218,6 +221,7 @@ export function Stage({
     rects,
     mode,
     showDimensions,
+    showAngles,
     showGrid,
     ghosts,
     units,

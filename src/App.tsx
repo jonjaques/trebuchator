@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronDown, ChevronUp, Target } from 'lucide-react'
 import { TopBar } from '@/components/TopBar.tsx'
 import { DesignRail } from '@/components/DesignRail.tsx'
 import { ReadoutRail, type SavedShot } from '@/components/ReadoutRail.tsx'
@@ -9,9 +9,9 @@ import { Stage, type CameraMode } from '@/components/stage/Stage.tsx'
 import { Button } from '@/components/ui/button.tsx'
 import { useShot, useSimClient } from '@/lib/useSimulation.ts'
 import { PRESETS, presetById } from '@/lib/treb/presets.ts'
-import { TUNABLES, type SweepPoint, type TunableKey } from '@/lib/treb/optimize.ts'
+import { TUNABLES, type SweepMode, type SweepPoint, type TunableKey } from '@/lib/treb/optimize.ts'
 import type { TrebuchetParams } from '@/lib/treb/types.ts'
-import { num, type UnitSystem } from '@/lib/format.ts'
+import { detectUnitSystem, num, type UnitSystem } from '@/lib/format.ts'
 import { cn } from '@/lib/utils.ts'
 
 const AUTOTUNE_KEYS: TunableKey[] = ['slingLength', 'cwHanger', 'initialBeamAngle', 'armShort']
@@ -21,7 +21,10 @@ export default function App() {
 
   const [presetId, setPresetId] = useState<string | null>('backyard')
   const [params, setParams] = useState<TrebuchetParams>(() => ({ ...PRESETS[0].params }))
-  const [units, setUnits] = useState<UnitSystem>('metric')
+  const [units, setUnits] = useState<UnitSystem>(() => {
+    const stored = localStorage.getItem('trebuchator:units')
+    return stored === 'metric' || stored === 'imperial' ? stored : detectUnitSystem()
+  })
   const [dark, setDark] = useState(
     () =>
       localStorage.getItem('trebuchator:theme') !== 'light' &&
@@ -42,6 +45,7 @@ export default function App() {
 
   const [cameraMode, setCameraMode] = useState<CameraMode>('auto')
   const [showDimensions, setShowDimensions] = useState(false)
+  const [showAngles, setShowAngles] = useState(false)
   const [showGrid, setShowGrid] = useState(true)
   const [showDesign, setShowDesign] = useState(false)
   const [showResults, setShowResults] = useState(false)
@@ -51,6 +55,7 @@ export default function App() {
 
   const [sweepOpen, setSweepOpen] = useState(true)
   const [sweepKey, setSweepKey] = useState<TunableKey>('slingLength')
+  const [sweepMode, setSweepMode] = useState<SweepMode>('asBuilt')
   const [sweepPoints, setSweepPoints] = useState<SweepPoint[]>([])
   const [sweepBusy, setSweepBusy] = useState(false)
 
@@ -63,6 +68,10 @@ export default function App() {
     setParams((prev) => ({ ...prev, ...next }))
     setPresetId(null)
   }, [])
+
+  useEffect(() => {
+    localStorage.setItem('trebuchator:units', units)
+  }, [units])
 
   // --- theme ---------------------------------------------------------------
   useEffect(() => {
@@ -125,6 +134,11 @@ export default function App() {
     [playing, seek],
   )
 
+  // Angles are the opposite case: they are most interesting *during* the
+  // stroke, where the sling closes on the pin, so enabling them leaves the
+  // cursor alone.
+  const toggleAngles = useCallback((next: boolean) => setShowAngles(next), [])
+
   // --- presets -------------------------------------------------------------
   const loadPreset = useCallback((id: string) => {
     const preset = presetById(id)
@@ -147,13 +161,13 @@ export default function App() {
     const timer = setTimeout(() => {
       setSweepBusy(true)
       setSweepPoints([])
-      client.sweep(params, sweepKey, sweepMin, sweepMax, 40, (pts, done) => {
+      client.sweep(params, sweepKey, sweepMin, sweepMax, 40, sweepMode, (pts, done) => {
         setSweepPoints(pts)
         if (done) setSweepBusy(false)
       })
     }, 220)
     return () => clearTimeout(timer)
-  }, [client, params, sweepKey, sweepMin, sweepMax, sweepOpen])
+  }, [client, params, sweepKey, sweepMin, sweepMax, sweepMode, sweepOpen])
 
   // --- actions -------------------------------------------------------------
   const tunePin = useCallback(async () => {
@@ -201,6 +215,15 @@ export default function App() {
     [saved],
   )
 
+  const sweepBest = useMemo(() => {
+    let best: SweepPoint | null = null
+    for (const pt of sweepPoints) {
+      if (!Number.isFinite(pt.range)) continue
+      if (!best || pt.range > best.range) best = pt
+    }
+    return best
+  }, [sweepPoints])
+
   // --- keyboard ------------------------------------------------------------
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -213,6 +236,7 @@ export default function App() {
       }
       if (e.key === 'r' || e.key === 'R') replay()
       if (e.key === 'd' || e.key === 'D') toggleDimensions(!showDimensions)
+      if (e.key === 'a' || e.key === 'A') setShowAngles((v) => !v)
       if (e.key === 'g' || e.key === 'G') setShowGrid((v) => !v)
     }
     window.addEventListener('keydown', onKey)
@@ -275,6 +299,7 @@ export default function App() {
               t={t}
               units={units}
               showDimensions={showDimensions}
+              showAngles={showAngles}
               showGrid={showGrid}
               ghosts={ghosts}
               mode={cameraMode}
@@ -286,17 +311,17 @@ export default function App() {
                 bottom of the sheet belongs to the range dimension. Everything in
                 it is derived from the machine, not decorative. */}
             <div className="pointer-events-none absolute right-3 top-3 hidden border border-rule bg-sheet/85 backdrop-blur-[2px] sm:block">
-              <div className="stencil-sm rule-b px-2.5 py-1.5 text-ink-2">{machineName}</div>
+              <div className="label rule-b px-2.5 py-1.5 text-ink-2">{machineName}</div>
               <dl className="grid grid-cols-[auto_auto] gap-x-4 gap-y-1 px-2.5 py-2">
-                <dt className="stencil-sm text-ink-3">Arm ratio</dt>
+                <dt className="label text-ink-3">Arm ratio</dt>
                 <dd className="tnum text-right font-mono text-[11px] text-ink">
                   {num(ratio, 2)} : 1
                 </dd>
-                <dt className="stencil-sm text-ink-3">Weight ratio</dt>
+                <dt className="label text-ink-3">Weight ratio</dt>
                 <dd className="tnum text-right font-mono text-[11px] text-ink">
                   {num(massRatio, 0)} : 1
                 </dd>
-                <dt className="stencil-sm text-ink-3">Sling</dt>
+                <dt className="label text-ink-3">Sling</dt>
                 <dd className="tnum text-right font-mono text-[11px] text-ink">
                   {num((params.slingLength / params.armLong) * 100, 0)}% of arm
                 </dd>
@@ -306,13 +331,13 @@ export default function App() {
 
           {sweepOpen && (
             <div className="rule-t bg-sheet px-3 pb-2 pt-2">
-              <div className="flex items-center gap-2 pb-1">
-                <span className="stencil text-ink">Sensitivity</span>
+              <div className="flex flex-wrap items-center gap-2 pb-1">
+                <span className="stencil shrink-0 text-ink">Sensitivity</span>
                 <select
                   value={sweepKey}
                   onChange={(e) => setSweepKey(e.target.value as TunableKey)}
                   aria-label="Parameter to sweep"
-                  className="stencil-sm rounded-sm border border-rule bg-ground px-2 py-1 text-ink-2 focus-visible:border-verdigris"
+                  className="label rounded-sm border border-rule bg-ground px-2 py-1 text-ink-2 focus-visible:border-verdigris"
                 >
                   {TUNABLES.map((s) => (
                     <option key={s.key} value={s.key}>
@@ -320,13 +345,60 @@ export default function App() {
                     </option>
                   ))}
                 </select>
-                <span className="hidden text-[11px] text-ink-3 lg:inline">
-                  Everything else held. Click the chart to adopt a value.
-                </span>
+
+                {/* Holding the pin angle while sweeping a dimension conflates
+                    "this dimension is better" with "my pin happens to suit it",
+                    which is the fastest way to make a curve untrustworthy.
+                    Naming both readings, and letting you switch, is the fix. */}
+                <div
+                  role="radiogroup"
+                  aria-label="How each point is set up"
+                  className="flex shrink-0 overflow-hidden rounded-sm border border-rule"
+                >
+                  {(
+                    [
+                      ['asBuilt', 'As built', 'Change this one number and nothing else.'],
+                      [
+                        'bestCase',
+                        'Best case',
+                        'Re-cock the beam and release at the ideal instant for every value — what this dimension could give you if you tuned around it.',
+                      ],
+                    ] as const
+                  ).map(([m, label, hint]) => (
+                    <button
+                      key={m}
+                      role="radio"
+                      aria-checked={sweepMode === m}
+                      title={hint}
+                      onClick={() => setSweepMode(m)}
+                      className={cn(
+                        'label px-2 py-1.5 transition-colors',
+                        sweepMode === m
+                          ? 'bg-verdigris/12 text-verdigris'
+                          : 'text-ink-3 hover:text-ink-2',
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="label h-7 shrink-0 gap-1.5"
+                  disabled={sweepBusy || !sweepBest}
+                  onClick={() => sweepBest && patch({ [sweepKey]: sweepBest.value })}
+                  title="Set this parameter to the value that throws furthest"
+                >
+                  <Target className="size-3" aria-hidden />
+                  Adopt best
+                </Button>
+
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="ml-auto size-7 text-ink-3"
+                  className="ml-auto size-7 shrink-0 text-ink-3"
                   onClick={() => setSweepOpen(false)}
                   aria-label="Hide the sensitivity chart"
                 >
@@ -339,6 +411,7 @@ export default function App() {
                 current={params[sweepKey]}
                 units={units}
                 loading={sweepBusy}
+                mode={sweepMode}
                 onPick={(v) => patch({ [sweepKey]: v })}
               />
             </div>
@@ -347,7 +420,7 @@ export default function App() {
           {!sweepOpen && (
             <button
               onClick={() => setSweepOpen(true)}
-              className="rule-t stencil-sm flex items-center justify-center gap-1.5 bg-sheet py-1.5 text-ink-3 hover:text-ink-2"
+              className="rule-t label flex items-center justify-center gap-1.5 bg-sheet py-1.5 text-ink-3 hover:text-ink-2"
             >
               <ChevronUp className="size-3.5" aria-hidden />
               Sensitivity
@@ -369,6 +442,8 @@ export default function App() {
             onCameraMode={setCameraMode}
             showDimensions={showDimensions}
             onShowDimensions={toggleDimensions}
+            showAngles={showAngles}
+            onShowAngles={toggleAngles}
             showGrid={showGrid}
             onShowGrid={setShowGrid}
             disabled={!result?.ok}

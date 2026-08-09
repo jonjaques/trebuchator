@@ -53,7 +53,7 @@ export function DesignRail({ params, patch, units, onTunePin, tuning }: Props) {
               aria-checked={params.type === m.id}
               onClick={() => patch({ type: m.id })}
               className={cn(
-                'stencil-sm rounded-sm border px-1 py-2 transition-colors',
+                'label rounded-sm border px-1 py-2 transition-colors',
                 params.type === m.id
                   ? 'border-verdigris bg-verdigris/10 text-ink'
                   : 'border-rule text-ink-3 hover:border-ink-3 hover:text-ink-2',
@@ -222,7 +222,7 @@ export function DesignRail({ params, patch, units, onTunePin, tuning }: Props) {
           <Button
             size="sm"
             variant="outline"
-            className="stencil-sm h-7 flex-1 gap-1.5"
+            className="label h-7 flex-1 gap-1.5"
             disabled={tuning}
             onClick={onTunePin}
           >
@@ -232,7 +232,7 @@ export function DesignRail({ params, patch, units, onTunePin, tuning }: Props) {
           <Button
             size="sm"
             variant={params.releaseMode === 'optimal' ? 'default' : 'outline'}
-            className="stencil-sm h-7 flex-1"
+            className="label h-7 flex-1"
             onClick={() =>
               patch({ releaseMode: params.releaseMode === 'optimal' ? 'pin' : 'optimal' })
             }
@@ -279,7 +279,7 @@ export function DesignRail({ params, patch, units, onTunePin, tuning }: Props) {
           <Button
             size="sm"
             variant="outline"
-            className="stencil-sm mt-1 h-7 w-full gap-1.5"
+            className="label mt-1 h-7 w-full gap-1.5"
             onClick={() => patch({ initialBeamAngle: cocked })}
           >
             <Wand2 className="size-3" aria-hidden />

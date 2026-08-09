@@ -3,6 +3,7 @@ import { buildModel, evalPoint, evalPointVel, poseOf } from './model.ts'
 import { kineticEnergies, makeScratch, rk4Step } from './solver.ts'
 import { cockToGround, flyBallistic, simulateShot } from './simulate.ts'
 import { PRESETS, presetById } from './presets.ts'
+import { bestReleaseAngle, sweep } from './optimize.ts'
 import type { TrebuchetParams } from './types.ts'
 
 const lab = () => structuredClone(presetById('lab')!.params)
@@ -327,5 +328,53 @@ describe('design behaviour', () => {
       expect(liftoff, preset.name).toBeDefined()
       expect(r.release!.t, preset.name).toBeGreaterThanOrEqual(liftoff!.t - 1e-9)
     }
+  })
+})
+
+describe('release tuning', () => {
+  it('never lets a pin angle beat the ideal release it was derived from', () => {
+    // `bestReleaseAngle` reads the pin angle back off an ideal-release run, so
+    // the ideal run is by construction the ceiling. If some pin beat it, the
+    // release search is missing candidates.
+    for (const preset of PRESETS) {
+      const ideal = simulateShot({ ...preset.params, releaseMode: 'optimal' })
+      if (!ideal.ok) continue
+      for (const angle of [20, 30, 40, 55, 70]) {
+        const pinned = simulateShot({ ...preset.params, releaseMode: 'pin', releaseAngle: angle })
+        if (!pinned.ok) continue
+        expect(pinned.range, `${preset.name} @ ${angle}°`).toBeLessThanOrEqual(ideal.range * 1.02)
+      }
+    }
+  })
+
+  it('reports a pin angle that reproduces the ideal shot when built to it', () => {
+    const p = presetById('backyard')!.params
+    const ideal = simulateShot({ ...p, releaseMode: 'optimal' })
+    const angle = bestReleaseAngle(p)
+    expect(angle).not.toBeNull()
+    const built = simulateShot({ ...p, releaseMode: 'pin', releaseAngle: angle! })
+    expect(built.range).toBeGreaterThan(ideal.range * 0.97)
+  })
+})
+
+describe('sweeps', () => {
+  it('re-cocks and re-releases every point in best-case mode', () => {
+    const p = presetById('backyard')!.params
+    // Sweep the long arm, which invalidates both the cocked angle and the pin.
+    const [min, max] = [p.armLong * 0.7, p.armLong * 1.5]
+    const asBuilt = sweep(p, 'armLong', min, max, 8, 'asBuilt')
+    const bestCase = sweep(p, 'armLong', min, max, 8, 'bestCase')
+    expect(asBuilt).toHaveLength(8)
+    expect(bestCase).toHaveLength(8)
+
+    // Best case is what the geometry could do if you tuned around it, so away
+    // from the machine's own setting it must not be the worse reading.
+    let improved = 0
+    for (let i = 0; i < 8; i++) {
+      if (!Number.isFinite(asBuilt[i].range) || !Number.isFinite(bestCase[i].range)) continue
+      expect(bestCase[i].range).toBeGreaterThan(asBuilt[i].range * 0.98)
+      if (bestCase[i].range > asBuilt[i].range * 1.02) improved++
+    }
+    expect(improved, 'holding a stale pin should cost range somewhere').toBeGreaterThan(0)
   })
 })

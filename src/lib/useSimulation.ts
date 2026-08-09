@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { SimRequest, SimResponse } from './treb/sim.worker.ts'
-import type { TunableKey, SweepPoint } from './treb/optimize.ts'
+import type { SweepMode, TunableKey, SweepPoint } from './treb/optimize.ts'
 import type { ShotResult, TrebuchetParams } from './treb/types.ts'
 
 /**
@@ -104,6 +104,7 @@ class SimClient {
     min: number,
     max: number,
     steps: number,
+    mode: SweepMode,
     onPoints: (points: SweepPoint[], done: boolean) => void,
   ): () => void {
     const id = this.nextId++
@@ -112,7 +113,7 @@ class SimClient {
       onPoints(msg.points, msg.done)
       if (msg.done) this.streams.delete(id)
     })
-    this.worker.postMessage({ kind: 'sweep', params, key, min, max, steps, id } as SimRequest)
+    this.worker.postMessage({ kind: 'sweep', params, key, min, max, steps, mode, id } as SimRequest)
     return () => this.streams.delete(id)
   }
 

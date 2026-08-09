@@ -1,13 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/ibm-plex-sans";
-@import "@fontsource/ibm-plex-sans-condensed/400.css";
-@import "@fontsource/ibm-plex-sans-condensed/500.css";
-@import "@fontsource/ibm-plex-sans-condensed/600.css";
-@import "@fontsource/ibm-plex-mono/400.css";
-@import "@fontsource/ibm-plex-mono/500.css";
-@import "@fontsource/ibm-plex-mono/600.css";
+@import "@fontsource-variable/instrument-sans";
+@import "@fontsource-variable/geist-mono";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -26,17 +21,19 @@
    deutan dE 16.1 dark / 12.9 light, contrast >= 3:1 in both. An earlier,
    softer teal failed at dE 5.8 and was confusable with the neutral ink.
 
-   Type: IBM Plex, in three roles. Condensed uppercase, tracked out, is the
-   closest a web font gets to Leroy drafting stencil lettering, so it carries
-   every label on the sheet. Mono carries every number, because a simulator is
-   almost entirely numbers and they must not shift width as they tick.
+   Type: Instrument Sans against Geist Mono. The contrast that carries the
+   design is sans-for-names against mono-for-numbers, and it does not need help
+   from letterforms — an earlier pass set every label in condensed uppercase at
+   500 with 0.16em tracking, which read as a wall rather than as a drawing.
+   Drafting lettering is *thin*. So: uppercase and tracked survives only on
+   section headers, where it is doing structural work, and everything else is
+   sentence case at 400. See `.stencil` and `.label` below.
 --------------------------------------------------------------------------- */
 
 @theme inline {
-    --font-sans: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif;
-    --font-heading: var(--font-cond);
-    --font-cond: 'IBM Plex Sans Condensed', 'IBM Plex Sans Variable', sans-serif;
-    --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+    --font-sans: 'Instrument Sans Variable', ui-sans-serif, system-ui, sans-serif;
+    --font-heading: var(--font-sans);
+    --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
 
     --color-ground: var(--ground);
     --color-sheet: var(--sheet);
@@ -207,24 +204,33 @@
 }
 
 @layer components {
-    /* The drawing's lettering. Uppercase and tracked wide, the way a
-       draughtsman letters a sheet — used for every label and section head. */
+    /* Section heads only. Uppercase and tracked is structural here — it marks
+       where one part of the sheet ends and the next begins — and there are
+       about eight of them on screen, not eighty. */
     .stencil {
-        font-family: var(--font-cond);
         text-transform: uppercase;
-        letter-spacing: 0.14em;
+        letter-spacing: 0.1em;
         font-weight: 500;
         font-size: 0.6875rem;
-        line-height: 1.1;
+        line-height: 1.15;
     }
 
-    .stencil-sm {
-        font-family: var(--font-cond);
-        text-transform: uppercase;
-        letter-spacing: 0.16em;
-        font-weight: 500;
-        font-size: 0.625rem;
-        line-height: 1.1;
+    /* Everything that names a thing: field labels, stat labels, captions,
+       chips. Sentence case at 400, because these appear in their dozens and
+       the reader is scanning them, not admiring them. */
+    .label {
+        font-weight: 400;
+        font-size: 0.71rem;
+        letter-spacing: 0.005em;
+        line-height: 1.25;
+    }
+
+    /* Meta text that must recede: units, hints, secondary counts. */
+    .micro {
+        font-weight: 400;
+        font-size: 0.65rem;
+        letter-spacing: 0.01em;
+        line-height: 1.2;
     }
 
     /* Hairline separators. Drawn at exactly one device pixel wherever the

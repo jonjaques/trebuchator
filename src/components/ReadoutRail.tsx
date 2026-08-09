@@ -38,7 +38,7 @@ function Stat({
 }) {
   return (
     <div className="flex items-baseline justify-between gap-2 py-[3px]" title={hint}>
-      <span className="stencil-sm shrink-0 text-ink-3">{label}</span>
+      <span className="label shrink-0 text-ink-3">{label}</span>
       <span className="h-px flex-1 translate-y-[-2px] bg-rule/60" aria-hidden />
       <span
         className={cn(

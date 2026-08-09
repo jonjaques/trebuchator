@@ -9,6 +9,37 @@
 
 export type UnitSystem = 'metric' | 'imperial'
 
+/** Regions that build in feet and pounds. The UK is not one of them — timber is */
+/* sold in millimetres there and weights in kilos, whatever the road signs say. */
+const NON_METRIC_REGIONS = new Set(['US', 'LR', 'MM'])
+
+/**
+ * Which units to start in.
+ *
+ * `Intl.Locale.measurementSystem` is the direct answer where it exists, but it
+ * is a recent addition, so we fall back to the maximised region and finally to
+ * feet and pounds — a trebuchet is a hobby machine and the largest community
+ * building them measures in inches.
+ */
+export function detectUnitSystem(): UnitSystem {
+  try {
+    const tag = typeof navigator === 'undefined' ? undefined : navigator.language
+    if (!tag) return 'imperial'
+    const locale = new Intl.Locale(tag)
+
+    const measurement = (locale as Intl.Locale & { measurementSystem?: string })
+      .measurementSystem
+    if (measurement) return measurement === 'metric' ? 'metric' : 'imperial'
+
+    // `maximize` fills in an implied region, so plain "en" resolves to en-US.
+    const region = (locale.maximize?.() ?? locale).region
+    if (!region) return 'imperial'
+    return NON_METRIC_REGIONS.has(region) ? 'imperial' : 'metric'
+  } catch {
+    return 'imperial'
+  }
+}
+
 export type Dimension =
   | 'length'
   | 'mass'
