@@ -73,6 +73,12 @@ export interface SheetInput {
   ghosts: Ghost[]
   /** Live what-if trajectory from hovering the sweep chart, in the accent. */
   preview?: Ghost | null
+  /**
+   * The dimension a control is currently pointing at. Drawn even when the
+   * annotation layer is off, which is the point: it answers "which one is
+   * that?" for the control under the pointer without turning on five.
+   */
+  highlight?: DimensionKey | null
   units: UnitSystem
 }
 
@@ -376,6 +382,25 @@ function angleParts(
   return out
 }
 
+/**
+ * A machine dimension a control can ask the sheet to point at.
+ *
+ * Deliberately the parameter's own name, so a control declares what it is
+ * measuring rather than mapping to a drawing-side identifier that would drift
+ * from it the first time either side was renamed.
+ */
+export type DimensionKey = 'armLong' | 'armShort' | 'cwHanger' | 'slingLength' | 'pivotHeight'
+
+interface DimRun {
+  key: DimensionKey
+  ax: number
+  ay: number
+  bx: number
+  by: number
+  off: number
+  value: number
+}
+
 function dimensionParts(
   p: Projector,
   params: TrebuchetParams,
@@ -383,37 +408,41 @@ function dimensionParts(
   pose: MachinePose,
   units: UnitSystem,
   measure: MeasureText,
+  opts: { showAll: boolean; highlight: DimensionKey | null },
 ): Instruction[] {
   const u = unitSymbol('length', units)
   const fmt = (v: number) => `${num(toDisplay(v, 'length', units), 2)}${u}`
-  const c = pal.verdigris
 
   // Beam dimensions ride on the beam so they stay legible as it swings; the
   // pivot height is measured off the frame, where a builder would measure it.
-  return [
-    ...dimension(
-      p.x(pose.axle.x), p.y(pose.axle.y), p.x(pose.tip.x), p.y(pose.tip.y),
-      -20, fmt(params.armLong), c, measure,
-    ),
-    ...dimension(
-      p.x(pose.shortEnd.x), p.y(pose.shortEnd.y), p.x(pose.axle.x), p.y(pose.axle.y),
-      -20, fmt(params.armShort), c, measure,
-    ),
+  const runs: DimRun[] = [
+    { key: 'armLong', ax: p.x(pose.axle.x), ay: p.y(pose.axle.y), bx: p.x(pose.tip.x), by: p.y(pose.tip.y), off: -20, value: params.armLong },
+    { key: 'armShort', ax: p.x(pose.shortEnd.x), ay: p.y(pose.shortEnd.y), bx: p.x(pose.axle.x), by: p.y(pose.axle.y), off: -20, value: params.armShort },
     ...(params.cwHanger > 0.02
-      ? dimension(
-          p.x(pose.shortEnd.x), p.y(pose.shortEnd.y), p.x(pose.cw.x), p.y(pose.cw.y),
-          28, fmt(params.cwHanger), c, measure,
-        )
+      ? [{ key: 'cwHanger' as const, ax: p.x(pose.shortEnd.x), ay: p.y(pose.shortEnd.y), bx: p.x(pose.cw.x), by: p.y(pose.cw.y), off: 28, value: params.cwHanger }]
       : []),
-    ...dimension(
-      p.x(pose.tip.x), p.y(pose.tip.y), p.x(pose.projectile.x), p.y(pose.projectile.y),
-      24, fmt(params.slingLength), c, measure,
-    ),
-    ...dimension(
-      p.x(0), p.y(0), p.x(0), p.y(params.pivotHeight),
-      -Math.max(46, p.s(params.armLong * 0.55)), fmt(params.pivotHeight), c, measure,
-    ),
+    { key: 'slingLength', ax: p.x(pose.tip.x), ay: p.y(pose.tip.y), bx: p.x(pose.projectile.x), by: p.y(pose.projectile.y), off: 24, value: params.slingLength },
+    { key: 'pivotHeight', ax: p.x(0), ay: p.y(0), bx: p.x(0), by: p.y(params.pivotHeight), off: -Math.max(46, p.s(params.armLong * 0.55)), value: params.pivotHeight },
   ]
+
+  // With the annotation layer off, pointing at a control brings up that one
+  // dimension and nothing else — the drawing answers "which number is that?"
+  // without the reader having to turn the whole layer on and find it. With the
+  // layer on, the pointed-at run is set heavier and its neighbours fade, which
+  // is emphasis inside the one accent that already means measurement.
+  const out: Instruction[] = []
+  for (const r of runs) {
+    const lit = r.key === opts.highlight
+    if (!lit && !opts.showAll) continue
+    out.push(
+      ...dimension(r.ax, r.ay, r.bx, r.by, r.off, fmt(r.value), pal.verdigris, measure, {
+        fontSize: lit ? 13 : 11,
+        weight: lit ? 600 : 500,
+        alpha: opts.highlight && !lit ? 0.32 : 1,
+      }),
+    )
+  }
+  return out
 }
 
 // --- the sheet ---------------------------------------------------------------
@@ -526,29 +555,29 @@ export function layout(input: SheetInput, measure: MeasureText): Instruction[] {
     })
   }
 
-  if (!result.ok) {
-    out.push({
-      op: 'text',
-      x: w / 2,
-      y: h / 2,
-      text: 'NO VALID SHOT',
-      font: sans(12, 500, 0.16),
-      fill: { color: pal.ink3 },
-      align: 'center',
-    })
-    return out
-  }
-
-  const timeline = result.timeline
-  const flying = isFlying(timeline, t)
+  // A machine that will not throw is still a machine, and it stays on the
+  // sheet. Everything about the *shot* drops out — no trajectory, no impact, no
+  // range to carry — but the drawing is where someone finds the dimension to
+  // change, and the fault is frequently visible in the cocked pose itself: an
+  // arm tip through the trough, a weight box below ground. The reason is
+  // reported over the sheet by `Stage`, where it can be read and dismissed;
+  // lettering "NO VALID SHOT" into the middle used to replace the entire
+  // drawing with two words that named no cause and offered no fix.
+  const timeline = result.ok ? result.timeline : null
+  const flying = timeline != null && isFlying(timeline, t)
   const frames = result.frames
   const frame = frames.length
-    ? frames[Math.min(frames.length - 1, Math.max(0, frameIndexAt(frames, strokeT(timeline, t))))]
+    ? frames[
+        Math.min(
+          frames.length - 1,
+          Math.max(0, timeline ? frameIndexAt(frames, strokeT(timeline, t)) : 0),
+        )
+      ]
     : null
 
   // --- flight path --------------------------------------------------------
   const traj = result.trajectory
-  if (traj.length > 1) {
+  if (timeline && traj.length > 1) {
     out.push({
       op: 'path',
       points: traj.map((pt): Point => [p.x(pt.x), p.y(pt.y)]),
@@ -574,7 +603,7 @@ export function layout(input: SheetInput, measure: MeasureText): Instruction[] {
   // clearest illustration of why a sling beats a bare arm. Clamped at release
   // explicitly: frames continue into the follow-through, where the "projectile"
   // point is the empty pouch, whose wanderings are not part of the shot.
-  if (frames.length > 1) {
+  if (timeline && frames.length > 1) {
     const whipEnd = Math.min(t, timeline.releaseT)
     const whip: Point[] = [[p.x(frames[0].pose.projectile.x), p.y(frames[0].pose.projectile.y)]]
     for (const f of frames) {
@@ -604,12 +633,19 @@ export function layout(input: SheetInput, measure: MeasureText): Instruction[] {
       })
     }
 
-    if (input.showDimensions) out.push(...dimensionParts(p, params, pal, pose, units, measure))
+    const highlight = input.highlight ?? null
+    if (input.showDimensions || highlight)
+      out.push(
+        ...dimensionParts(p, params, pal, pose, units, measure, {
+          showAll: input.showDimensions,
+          highlight,
+        }),
+      )
     if (input.showAngles) out.push(...angleParts(p, params, pal, pose))
   }
 
   // --- shot in flight -----------------------------------------------------
-  if (flying && traj.length) {
+  if (timeline && flying && traj.length) {
     const at = sampleTrajectory(traj, t - timeline.releaseT)
     out.push({
       op: 'circle',
@@ -619,6 +655,9 @@ export function layout(input: SheetInput, measure: MeasureText): Instruction[] {
       fill: { color: pal.quench },
     })
   }
+
+  // Everything past here is about a shot that actually happened.
+  if (!result.ok) return out
 
   // --- impact + range dimension -------------------------------------------
   // The shot lands on the *target's* ground plane, which sits below (or above)
@@ -646,7 +685,7 @@ export function layout(input: SheetInput, measure: MeasureText): Instruction[] {
     }
   }
 
-  if (isDone(timeline, t)) {
+  if (isDone(result.timeline, t)) {
     for (let i = 0; i < 5; i++) {
       const a = -Math.PI * (0.15 + i * 0.175)
       out.push(

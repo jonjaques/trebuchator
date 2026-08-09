@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { TriangleAlert } from 'lucide-react'
 import type { FiredShot, ShotResult, TrebuchetParams } from '@/lib/treb/types.ts'
 import type { UnitSystem } from '@/lib/format.ts'
 import { paint } from './paint.ts'
-import { SHEET_MARGIN, type Ghost, type Palette } from './sheet.ts'
+import { SHEET_MARGIN, type DimensionKey, type Ghost, type Palette } from './sheet.ts'
 import {
   approach,
   fitRect,
@@ -26,6 +27,16 @@ interface StageProps {
   ghosts: Ghost[]
   /** Live what-if trajectory from the sweep chart, or null. */
   preview: Ghost | null
+  /** The dimension a control is pointing at. Drawn even with annotations off. */
+  highlight: DimensionKey | null
+  /**
+   * True while a control is being changed. The camera comes back to the machine
+   * for as long as it is: a slider nudged with playback parked at the end of a
+   * flight was otherwise adjusting something two thirds of a field away and off
+   * the bottom of the sheet, so the whole point of dragging it — watching the
+   * machine change — was invisible.
+   */
+  editing: boolean
   mode: CameraMode
   onModeChange: (mode: CameraMode) => void
 }
@@ -51,7 +62,7 @@ function readPalette(el: HTMLElement): Palette {
  * frames, follow-through included — the arm whipping over the top after
  * release is part of what "frame the machine" has to hold.
  */
-function machineRect(result: FiredShot, params: TrebuchetParams): Rect {
+function machineRect(result: ShotResult, params: TrebuchetParams): Rect {
   const reach = params.armLong + params.slingLength
   let r: Rect = {
     x0: -params.pivotHeight * 0.55,
@@ -59,6 +70,9 @@ function machineRect(result: FiredShot, params: TrebuchetParams): Rect {
     x1: params.pivotHeight * 0.55,
     y1: params.pivotHeight + params.armShort + params.cwHanger,
   }
+  // A failed shot carries one frame — the cocked pose — so this frames that
+  // instead of the whole sweep, and the drawing stays on the sheet while the
+  // reader fixes whatever stopped it throwing.
   for (const f of result.frames) {
     for (const pt of [f.pose.tip, f.pose.cw, f.pose.projectile, f.pose.shortEnd]) {
       r = unionRect(r, { x0: pt.x, y0: pt.y, x1: pt.x, y1: pt.y })
@@ -89,6 +103,8 @@ export function Stage({
   showGrid,
   ghosts,
   preview,
+  highlight,
+  editing,
   mode,
   onModeChange,
 }: StageProps) {
@@ -148,8 +164,13 @@ export function Stage({
   }, [])
 
   const rects = useMemo(() => {
-    if (!result?.ok) return null
-    return { machine: machineRect(result, params), field: fieldRect(result, params) }
+    if (!result) return null
+    return {
+      machine: machineRect(result, params),
+      // Only a fired shot has a field to frame; a failed one has the machine
+      // and nothing beyond it.
+      field: result.ok ? fieldRect(result, params) : machineRect(result, params),
+    }
   }, [result, params])
 
   // Reset the camera when the machine changes shape enough that easing from the
@@ -169,7 +190,11 @@ export function Stage({
     canvas.height = Math.round(size.h * dpr)
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 
-    if (!result?.ok || !rects) {
+    // Only a genuinely empty sheet — no solver answer at all — blanks. A shot
+    // that failed still has a machine to draw, and blanking it was the app
+    // taking the drawing away at the exact moment the reader needed to look at
+    // it.
+    if (!result || !rects) {
       ctx.clearRect(0, 0, size.w, size.h)
       ctx.fillStyle = palette.sheet
       ctx.fillRect(0, 0, size.w, size.h)
@@ -177,7 +202,12 @@ export function Stage({
     }
 
     let target: Rect
-    if (mode === 'machine') target = rects.machine
+    // Editing outranks every automatic framing but not an explicit one: someone
+    // who has pinned the camera to the field or dragged it themselves has said
+    // where they want to look, and a slider is not permission to overrule that.
+    if (editing && mode === 'auto') target = rects.machine
+    else if (mode === 'machine') target = rects.machine
+    else if (!result.ok) target = rects.machine
     else if (mode === 'field') target = rects.field
     else if (mode === 'auto') {
       // Follow the shot: hold on the machine through the stroke, then open out
@@ -222,6 +252,7 @@ export function Stage({
       showGrid,
       ghosts,
       preview,
+      highlight,
       units,
     })
 
@@ -241,6 +272,8 @@ export function Stage({
     showGrid,
     ghosts,
     preview,
+    highlight,
+    editing,
     units,
     fontsReady,
     tick,
@@ -375,23 +408,44 @@ export function Stage({
         onPointerUp={endPointer}
         onPointerCancel={endPointer}
       />
-      {/* Nothing to paint, in the two ways that happens. The first solve costs a
-          worker boot plus 20–45 ms, and an unmarked blank sheet is the first
-          thing anyone sees of this app. A machine that will not throw blanks it
-          for as long as it stays broken — and below `xl` the rail carrying the
-          reason is closed, so the sheet was the whole story and it said
-          nothing. */}
-      {!result?.ok && (
+      {/* The first solve costs a worker boot plus 20–45 ms, and an unmarked
+          blank sheet is the first thing anyone sees of this app. */}
+      {result == null && (
         <p className="body pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center text-ink-2">
-          {result == null ? (
-            'Setting out the machine…'
-          ) : (
-            <span>
-              Nothing to draw — this machine will not throw.
-              <span className="xl:hidden"> Open the results panel for why.</span>
-            </span>
-          )}
+          Setting out the machine…
         </p>
+      )}
+
+      {/* A machine that will not throw used to take the drawing away and say
+          "nothing to draw" in the middle of an empty sheet — at the one moment
+          the reader most needed to see what they had built, and without naming
+          the cause. The machine stays drawn; this names the fault over the top
+          of it, and below `xl` (where the results rail is closed) it is the
+          only place the reason appears at all. */}
+      {result && !result.ok && (
+        <div
+          role="status"
+          className="pointer-events-none absolute inset-x-0 top-0 flex justify-center p-3"
+        >
+          {/* The one sanctioned shadow: an element that has genuinely left the
+              layout and is floating over the sheet, same as the rails do below
+              `xl`. No blur behind it — the system separates with tone and a 1px
+              rule, and a near-opaque `raised` already carries the text. */}
+          <div className="pointer-events-auto max-w-[30rem] rounded-sm border border-rule bg-raised/95 px-3 py-2.5 shadow-2xl">
+            <div className="flex items-center gap-2">
+              <TriangleAlert className="size-3.5 shrink-0 text-bad" aria-hidden />
+              <span className="label text-ink">This machine will not throw</span>
+            </div>
+            <ul className="body space-y-1 pt-1.5 text-ink-2">
+              {result.errors.map((e) => (
+                <li key={e}>{e}</li>
+              ))}
+            </ul>
+            <p className="body pt-1.5 text-ink-3">
+              The drawing is the cocked pose as specified — the fault is usually visible in it.
+            </p>
+          </div>
+        </div>
       )}
     </div>
   )

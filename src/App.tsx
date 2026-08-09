@@ -13,11 +13,22 @@ import { PRESETS, presetById } from '@/lib/treb/presets.ts'
 import {
   sweepConflict,
   TUNABLES,
+  type ParetoGoal,
   type ParetoPoint,
   type SweepMode,
   type SweepPoint,
   type TunableKey,
 } from '@/lib/treb/optimize.ts'
+import {
+  loadMachines,
+  loadMaterials,
+  newMachine,
+  saveMachines,
+  saveMaterials,
+  type CustomMaterial,
+  type SavedMachine,
+} from '@/lib/treb/library.ts'
+import type { DimensionKey } from '@/components/stage/sheet.ts'
 import type { TrebuchetParams } from '@/lib/treb/types.ts'
 import { TIME_EPS } from '@/lib/treb/timeline.ts'
 import {
@@ -30,6 +41,7 @@ import {
   type UnitSystem,
 } from '@/lib/format.ts'
 import { NotesContext } from '@/lib/notes.ts'
+import { PointAtContext } from '@/lib/pointing.ts'
 import { cn } from '@/lib/utils.ts'
 
 /** The dimensions the Pareto search varies. Masses stay the builder's own. */
@@ -78,14 +90,31 @@ export default function App() {
   const [saved, setSaved] = useState<SavedShot[]>([])
   const [tuning, setTuning] = useState(false)
   const [pareto, setPareto] = useState<ParetoPoint[] | null>(null)
-  // What-if preview: the trajectory of the machine under the hovered point on
-  // the sweep chart. The ref guards against a preview landing after the mouse
-  // has already left, or after the hover moved on to another value.
+  const [goal, setGoal] = useState<ParetoGoal>('range')
+
+  // The builder's own library. Read once at boot; every change writes it back.
+  const [machines, setMachines] = useState<SavedMachine[]>(loadMachines)
+  const [materials, setMaterials] = useState<CustomMaterial[]>(loadMaterials)
+
+  // Which dimension a control is pointing at, and whether one is being worked.
+  // Both drive the sheet: the first draws that measurement, the second brings
+  // the camera back to the machine so the change is somewhere the reader is
+  // looking.
+  const [pointedAt, setPointedAt] = useState<DimensionKey | null>(null)
+  const [editing, setEditing] = useState(false)
+  const editTimer = useRef<number | undefined>(undefined)
+  // What-if preview: the trajectory of whichever machine is being pointed at,
+  // on the sweep chart or on the optimizer's frontier. One slot, because the
+  // sheet draws one speculative line — and it carries its own label so the two
+  // sources letter their own curve rather than the sheet guessing which chart
+  // asked. The ref guards against a preview landing after the pointer has
+  // already left, or moved on to another candidate.
   const [preview, setPreview] = useState<{
-    value: number
+    id: string
+    label: string
     trajectory: { x: number; y: number }[]
   } | null>(null)
-  const previewValueRef = useRef<number | null>(null)
+  const previewIdRef = useRef<string | null>(null)
 
   const [sweepOpen, setSweepOpen] = useState(true)
   const [sweepKey, setSweepKey] = useState<TunableKey>('slingLength')
@@ -109,8 +138,18 @@ export default function App() {
     // searched around the old one, and a hovered preview belongs to its chart.
     setPareto(null)
     setPreview(null)
-    previewValueRef.current = null
+    previewIdRef.current = null
+    // Hold the camera on the machine for a moment after the last change. A
+    // timer rather than a pointer state because plenty of edits arrive from
+    // controls that measure nothing on the sheet — a mass, a toggle, a material
+    // — and those deserve the same look at what they did. It rides on the
+    // trailing edge so a slider drag holds the framing for its whole length.
+    setEditing(true)
+    clearTimeout(editTimer.current)
+    editTimer.current = window.setTimeout(() => setEditing(false), 1600)
   }, [])
+
+  useEffect(() => () => clearTimeout(editTimer.current), [])
 
   useEffect(() => {
     localStorage.setItem('trebuchator:units', units)
@@ -194,7 +233,7 @@ export default function App() {
     setPresetId(id)
     setPareto(null)
     setPreview(null)
-    previewValueRef.current = null
+    previewIdRef.current = null
     posRef.current = 0
     setCursor(0)
     setPlaying(true)
@@ -248,24 +287,93 @@ export default function App() {
     }
   }, [client, params, patch])
 
-  const optimize = useCallback(async () => {
-    setTuning(true)
-    setActionError(null)
-    try {
-      setPareto(await client.pareto(params, PARETO_KEYS))
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setTuning(false)
-    }
-  }, [client, params])
+  // Takes the goal explicitly rather than closing over it, because the goal
+  // switch has to search for the goal it is *moving to* — reading it from state
+  // would run the search against the value being replaced.
+  const runOptimize = useCallback(
+    async (searchFor: ParetoGoal) => {
+      setTuning(true)
+      setActionError(null)
+      try {
+        setPareto(await client.pareto(params, PARETO_KEYS, searchFor))
+      } catch (err) {
+        setActionError(err instanceof Error ? err.message : String(err))
+      } finally {
+        setTuning(false)
+      }
+    },
+    [client, params],
+  )
+
+  const optimize = useCallback(() => void runOptimize(goal), [runOptimize, goal])
+
+  // Changing the goal re-searches rather than re-sorting what is held: the
+  // non-dominated set for range is not the non-dominated set for efficiency,
+  // and filtering the old frontier would quietly present a subset of the wrong
+  // answer. The search has to be fired here — the panel only starts one when it
+  // opens, so clearing the frontier alone left the goal switch showing "no
+  // feasible builds" forever.
+  const changeGoal = useCallback(
+    (next: ParetoGoal) => {
+      setGoal(next)
+      setPareto(null)
+      void runOptimize(next)
+    },
+    [runOptimize],
+  )
+
+  // --- the builder's library -------------------------------------------------
+  const saveMachine = useCallback(
+    (name: string) => {
+      setMachines((prev) => {
+        const next = [...prev, newMachine(name, params)]
+        saveMachines(next)
+        return next
+      })
+    },
+    [params],
+  )
+
+  const loadMachine = useCallback(
+    (id: string) => {
+      const machine = machines.find((m) => m.id === id)
+      if (!machine) return
+      setParams({ ...machine.params })
+      // Saved machines share the preset slot: both answer "what is loaded", and
+      // two ids would mean every reader of that answer had to check both.
+      setPresetId(id)
+      setPareto(null)
+      setPreview(null)
+      previewIdRef.current = null
+      posRef.current = 0
+      setCursor(0)
+      setPlaying(true)
+    },
+    [machines],
+  )
+
+  const deleteMachine = useCallback((id: string) => {
+    setMachines((prev) => {
+      const next = prev.filter((m) => m.id !== id)
+      saveMachines(next)
+      return next
+    })
+    // Deleting the machine that is loaded leaves its numbers in hand but no
+    // longer under a name, which is what "Custom machine" says.
+    setPresetId((current) => (current === id ? null : current))
+  }, [])
+
+  const changeMaterials = useCallback((next: CustomMaterial[]) => {
+    setMaterials(next)
+    saveMaterials(next)
+  }, [])
 
   const applyPareto = useCallback((point: ParetoPoint) => {
     setParams({ ...point.params })
     setPresetId(null)
     setPareto(null)
     setPreview(null)
-    previewValueRef.current = null
+    previewIdRef.current = null
     posRef.current = 0
     setCursor(0)
     setPlaying(true)
@@ -312,41 +420,58 @@ export default function App() {
   // Hovering the chart fires the hovered machine as a real (coalesced) shot and
   // draws its trajectory on the sheet, so the curve and the drawing answer the
   // same question at the same moment.
-  const previewHover = useCallback(
-    (value: number | null) => {
-      previewValueRef.current = value
-      if (value == null) {
+  const flyPreview = useCallback(
+    (id: string | null, machine: TrebuchetParams | null, label: string) => {
+      previewIdRef.current = id
+      if (id == null || machine == null) {
         setPreview(null)
         return
       }
-      client.requestPreview(
-        { ...params, [sweepKey]: value },
-        {
-          onResult: (r) => {
-            if (previewValueRef.current !== value) return
-            if (!r.ok) {
-              setPreview(null)
-              return
-            }
-            setPreview({ value, trajectory: r.trajectory.map((pt) => ({ x: pt.x, y: pt.y })) })
-          },
-          // A failed preview simply doesn't draw; the chart still shows its
-          // figure, and errors about the *real* machine have their own channel.
-          onError: () => {},
+      client.requestPreview(machine, {
+        onResult: (r) => {
+          if (previewIdRef.current !== id) return
+          if (!r.ok) {
+            setPreview(null)
+            return
+          }
+          setPreview({ id, label, trajectory: r.trajectory.map((pt) => ({ x: pt.x, y: pt.y })) })
         },
-      )
+        // A failed preview simply doesn't draw; the chart still shows its
+        // figure, and errors about the *real* machine have their own channel.
+        onError: () => {},
+      })
     },
-    [client, params, sweepKey],
+    [client],
   )
 
-  const previewGhost = useMemo(() => {
-    if (!preview) return null
-    const dim: Dimension = sweepSpec.unit === 'ratio' ? 'none' : sweepSpec.unit
-    return {
-      trajectory: preview.trajectory,
-      label: `${sweepSpec.label.toLowerCase()} ${num(toDisplay(preview.value, dim, units), 2)}${unitSymbol(dim, units)}`,
-    }
-  }, [preview, sweepSpec, units])
+  const previewHover = useCallback(
+    (value: number | null) => {
+      if (value == null) return flyPreview(null, null, '')
+      const dim: Dimension = sweepSpec.unit === 'ratio' ? 'none' : sweepSpec.unit
+      flyPreview(
+        `sweep:${value}`,
+        { ...params, [sweepKey]: value },
+        `${sweepSpec.label.toLowerCase()} ${num(toDisplay(value, dim, units), 2)}${unitSymbol(dim, units)}`,
+      )
+    },
+    [flyPreview, params, sweepKey, sweepSpec, units],
+  )
+
+  const previewPareto = useCallback(
+    (point: ParetoPoint | null) => {
+      if (point == null) return flyPreview(null, null, '')
+      // Lettered with whatever the frontier was searched for, so the curve on
+      // the sheet and the point under the pointer name the same quantity.
+      const figure =
+        goal === 'efficiency'
+          ? `${num(point.efficiency * 100, 0)}% efficient`
+          : goal === 'releaseSpeed'
+            ? `${show(point.releaseSpeed, 'speed', units, 1)} ${unitSymbol('speed', units)} at release`
+            : `${show(point.range, 'length', units, 1)} ${unitSymbol('length', units)}`
+      flyPreview(`pareto:${point.axleLoad}`, point.params, figure)
+    },
+    [flyPreview, goal, units],
+  )
 
   // --- keyboard ------------------------------------------------------------
   useEffect(() => {
@@ -384,6 +509,7 @@ export default function App() {
 
   return (
     <NotesContext value={notes}>
+      <PointAtContext value={setPointedAt}>
       <div className="flex h-dvh w-full flex-col overflow-hidden bg-ground text-ink">
         <TopBar
           presetId={presetId}
@@ -394,10 +520,17 @@ export default function App() {
           onDark={setDark}
           onSave={saveShot}
           canSave={result?.ok ?? false}
+          machines={machines}
+          onSaveMachine={saveMachine}
+          onLoadMachine={loadMachine}
+          onDeleteMachine={deleteMachine}
           onOptimize={optimize}
           optimizing={tuning}
           pareto={pareto}
+          goal={goal}
+          onGoal={changeGoal}
           onApplyPareto={applyPareto}
+          onPreviewPareto={previewPareto}
           busy={busy}
           showDesign={showDesign}
           showResults={showResults}
@@ -427,6 +560,12 @@ export default function App() {
             />
           )}
           <aside
+            /* The catch-all for the highlight. A control clears it on
+               pointerleave, but a rail that closes — or a field that unmounts
+               when the machine type changes — never fires one, and the sheet
+               was left with a dimension lit for a control that is no longer on
+               screen. */
+            onPointerLeave={() => setPointedAt(null)}
             className={cn(
               'rule-r w-[21rem] shrink-0 bg-sheet xl:block',
               showDesign
@@ -440,6 +579,8 @@ export default function App() {
               units={units}
               onTunePin={tunePin}
               tuning={tuning}
+              materials={materials}
+              onMaterials={changeMaterials}
             />
           </aside>
 
@@ -454,7 +595,16 @@ export default function App() {
                 showAngles={showAngles}
                 showGrid={showGrid}
                 ghosts={ghosts}
-                preview={previewGhost}
+                preview={preview}
+                highlight={pointedAt}
+                /* Pointing counts as editing. Without this the highlight is
+                   invisible in the ordinary case: with playback parked at the
+                   end of a flight the camera is framed on the whole field, the
+                   machine is a few dozen pixels tall, and every dimension is
+                   below `MIN_DIMENSION` and correctly dropped — so pointing at
+                   a control lit nothing at all. Framing is what makes the
+                   measurement legible enough to be worth drawing. */
+                editing={editing || pointedAt !== null}
                 mode={cameraMode}
                 onModeChange={setCameraMode}
               />
@@ -639,6 +789,7 @@ export default function App() {
           </aside>
         </div>
       </div>
+      </PointAtContext>
     </NotesContext>
   )
 }

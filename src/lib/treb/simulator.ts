@@ -1,4 +1,4 @@
-import type { ParetoPoint, SweepMode, SweepPoint, TunableKey } from './optimize.ts'
+import type { ParetoGoal, ParetoPoint, SweepMode, SweepPoint, TunableKey } from './optimize.ts'
 import type { ShotResult, TrebuchetParams } from './types.ts'
 
 /**
@@ -19,8 +19,12 @@ export interface Simulator {
   shot(params: TrebuchetParams): Promise<ShotResult>
   /** The pin angle an ideal release would have used, or null if it never fired. */
   tunePin(params: TrebuchetParams): Promise<number | null>
-  /** The range-versus-axle-load frontier of feasible builds. See `paretoSearch`. */
-  pareto(params: TrebuchetParams, keys: TunableKey[]): Promise<ParetoPoint[]>
+  /** The goal-versus-axle-load frontier of feasible builds. See `paretoSearch`. */
+  pareto(
+    params: TrebuchetParams,
+    keys: TunableKey[],
+    goal: ParetoGoal,
+  ): Promise<ParetoPoint[]>
   /**
    * Sweep one parameter, reporting partial results as they arrive. Returns a
    * cancel function; call it and no further updates are delivered.
@@ -56,7 +60,7 @@ export type SweepUpdate =
 export type SimOps = {
   shot: { args: [TrebuchetParams]; result: ShotResult }
   tunePin: { args: [TrebuchetParams]; result: number | null }
-  pareto: { args: [TrebuchetParams, TunableKey[]]; result: ParetoPoint[] }
+  pareto: { args: [TrebuchetParams, TunableKey[], ParetoGoal]; result: ParetoPoint[] }
   sweep: {
     args: [TrebuchetParams, TunableKey, number, number, number, SweepMode]
     result: SweepPoint[]

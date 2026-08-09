@@ -3,6 +3,8 @@ import { ChevronDown } from 'lucide-react'
 import { DraftSlider } from './DraftSlider.tsx'
 import { Switch } from '@/components/ui/switch.tsx'
 import { useNotes } from '@/lib/notes.ts'
+import { usePointAt } from '@/lib/pointing.ts'
+import type { DimensionKey } from './stage/sheet.ts'
 import { cn } from '@/lib/utils.ts'
 import {
   fromDisplay,
@@ -31,6 +33,12 @@ interface FieldProps {
    * two decades goes logarithmic on its own.
    */
   scale?: 'linear' | 'log'
+  /**
+   * The dimension on the sheet this control sets. Pointing at the control draws
+   * that measurement on the drawing, so the two readings of the same fact are
+   * connected without the reader having to find one from the other.
+   */
+  measures?: DimensionKey
 }
 
 /** Trim trailing zeros, but only ever after a decimal point — 60 is not 6. */
@@ -59,9 +67,11 @@ export function Field({
   disabled,
   aside,
   scale,
+  measures,
 }: FieldProps) {
   const id = useId()
   const notes = useNotes()
+  const pointAt = usePointAt()
   const hintId = `${id}-hint`
   const dMin = toDisplay(min, dim, units)
   const dMax = toDisplay(max, dim, units)
@@ -103,7 +113,18 @@ export function Field({
   }
 
   return (
-    <div className={cn('group py-1.5', disabled && 'opacity-40')}>
+    /* Focus counts as pointing, so a keyboard gets the connection too. React's
+       `onFocus`/`onBlur` are delegated `focusin`/`focusout`, so they reach this
+       wrapper from the slider or the number box inside it — the native DOM
+       events of those names do not bubble and would never fire here. Touch is
+       covered by the pointer events a tap already sends. */
+    <div
+      className={cn('group py-1.5', disabled && 'opacity-40')}
+      onPointerEnter={measures ? () => pointAt(measures) : undefined}
+      onPointerLeave={measures ? () => pointAt(null) : undefined}
+      onFocus={measures ? () => pointAt(measures) : undefined}
+      onBlur={measures ? () => pointAt(null) : undefined}
+    >
       <div className="flex items-baseline justify-between gap-2 pb-1">
         {/* The tooltip is the fallback for a mouse when the notes are folded
             away, not the only copy of the text — see `lib/notes.ts`. */}

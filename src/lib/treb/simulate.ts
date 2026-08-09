@@ -49,12 +49,54 @@ interface StrokeSample {
   dragLoss: number
 }
 
-function emptyResult(errors: string[]): ShotResult {
+/**
+ * The machine as it stands, cocked, with nothing moving.
+ *
+ * A machine that will not throw is still a machine, and the sheet is where
+ * someone finds the dimension to change — so a failed result carries this one
+ * frame instead of an empty list, and the drawing has a pose to put up. Often
+ * the fault is *visible* in it: an arm tip driven through the trough or a
+ * weight box below ground is far quicker to understand drawn than described.
+ *
+ * Nothing numerical may read it. Every load, speed and energy on the frame is
+ * zero because none of them happened, not because they were computed to be
+ * zero — the same rule the follow-through frames carry.
+ *
+ * Null when the dimensions are too broken to place a point at all, which is the
+ * one case where there is genuinely nothing to draw.
+ */
+function cockedFrame(p: TrebuchetParams): SimFrame | null {
+  if (!(p.armLong > 0) || !(p.armShort > 0) || !(p.slingLength > 0)) return null
+  const model = buildModel(p)
+  const q = new Float64Array(model.nq)
+  q[model.iTheta] = p.initialBeamAngle * RAD
+  if (model.iPsi >= 0) q[model.iPsi] = 0
+  const tip0 = evalPoint(model.points.tip, q)
+  const sinPhi = (tip0.y - model.troughY) / p.slingLength
+  q[model.iPhi] = Math.asin(Math.min(1, Math.max(-1, sinPhi)))
+  const pose = poseOf(model, q)
+  if (!Number.isFinite(pose.tip.x) || !Number.isFinite(pose.projectile.y)) return null
+  return {
+    t: 0,
+    pose,
+    phase: 'ground',
+    gamma: slingArmAngle(pose),
+    slingTension: 0,
+    normalForce: 0,
+    axleLoad: 0,
+    beamMoment: 0,
+    projectileSpeed: 0,
+    keProjectile: 0,
+  }
+}
+
+function emptyResult(errors: string[], p?: TrebuchetParams): ShotResult {
+  const cocked = p ? cockedFrame(p) : null
   return {
     ok: false,
     warnings: [],
     errors,
-    frames: [],
+    frames: cocked ? [cocked] : [],
     release: null,
     timeline: null,
     trajectory: [],
@@ -174,7 +216,7 @@ export function plausibilityWarnings(p: TrebuchetParams): string[] {
  */
 export function simulateShot(p: TrebuchetParams, opts: SimOptions = {}): ShotResult {
   const errors = validateGeometry(p)
-  if (errors.length) return emptyResult(errors)
+  if (errors.length) return emptyResult(errors, p)
 
   const dt = opts.dt ?? 2e-4
   const maxTime = opts.maxTime ?? 6
@@ -199,7 +241,7 @@ export function simulateShot(p: TrebuchetParams, opts: SimOptions = {}): ShotRes
   if (available <= 0)
     return emptyResult([
       'This machine has no energy to give: the counterweight cannot fall far enough to lift the beam.',
-    ])
+    ], p)
 
   // --- Stroke ---------------------------------------------------------------
   const samples: StrokeSample[] = []
@@ -280,18 +322,18 @@ export function simulateShot(p: TrebuchetParams, opts: SimOptions = {}): ShotRes
   if (liftoffTime < 0) {
     return emptyResult([
       'The projectile never lifted off the trough. The counterweight is too light, or the sling is too long, for this beam.',
-    ])
+    ], p)
   }
 
   const candidates = samples.filter((s) => s.phase === 'swing')
-  if (candidates.length === 0) return emptyResult(['The stroke ended before the shot left the ground.'])
+  if (candidates.length === 0) return emptyResult(['The stroke ended before the shot left the ground.'], p)
 
   // --- Release --------------------------------------------------------------
   const release = pickRelease(model, p, candidates, warnings)
   if (!release) {
     return emptyResult([
       `The sling never reached a ${p.releaseAngle.toFixed(0)}° pin angle before the beam ran out of travel. Try a larger pin angle or a shorter sling.`,
-    ])
+    ], p)
   }
   const { sample: relSample, state: rel } = release
 
@@ -304,7 +346,7 @@ export function simulateShot(p: TrebuchetParams, opts: SimOptions = {}): ShotRes
       p.targetDrop < 0
         ? 'The target sits higher than the top of this trajectory, so the shot can never land on it. Bring "drop to target" back toward level, or throw faster.'
         : 'The shot was still airborne after two minutes of flight. This projectile floats more than it flies — give it more mass or less drag.',
-    ])
+    ], p)
   }
   // Drag only ever lowers the arc, so if the real flight landed the vacuum one
   // does too — but guard it anyway rather than let a phantom range through.

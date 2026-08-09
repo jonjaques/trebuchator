@@ -187,12 +187,24 @@ export function dimension(
   label: string,
   colour: string,
   measure: MeasureText,
-  opts: { fontSize?: number; weight?: number; clampX?: [number, number] } = {},
+  opts: {
+    fontSize?: number
+    weight?: number
+    clampX?: [number, number]
+    /**
+     * Fades the whole run — rule, heads and figure together. It exists so a
+     * sheet can emphasise one dimension by dimming its neighbours rather than
+     * by giving the important one a colour of its own; this drawing carries two
+     * accents with one job each, and verdigris already means "measurement".
+     */
+    alpha?: number
+  } = {},
 ): Instruction[] {
   const dx = bx - ax
   const dy = by - ay
   const len = Math.hypot(dx, dy)
   if (len < MIN_DIMENSION) return []
+  const alpha = opts.alpha ?? 1
 
   const ux = dx / len
   const uy = dy / len
@@ -205,7 +217,7 @@ export function dimension(
   const a: Point = [ax + ox, ay + oy]
   const b: Point = [bx + ox, by + oy]
 
-  const stroke: Stroke = { color: colour, width: 1 }
+  const stroke: Stroke = { color: colour, width: 1, alpha }
   const out: Instruction[] = []
 
   // Witness lines, with the small gap from the measured point that a
@@ -233,7 +245,7 @@ export function dimension(
   out.push(seg(a[0] + ux * (md + halfGap), a[1] + uy * (md + halfGap), b[0], b[1], stroke))
 
   const ah = Math.min(7, len / 3)
-  const head: Fill = { color: colour }
+  const head: Fill = { color: colour, alpha }
   out.push({ op: 'path', points: arrowHead(a[0], a[1], Math.atan2(-uy, -ux), ah), close: true, fill: head })
   out.push({ op: 'path', points: arrowHead(b[0], b[1], Math.atan2(uy, ux), ah), close: true, fill: head })
 
@@ -244,7 +256,7 @@ export function dimension(
     y: my,
     text: label,
     font,
-    fill: { color: colour },
+    fill: { color: colour, alpha },
     align: 'center',
     baseline: 'middle',
   })

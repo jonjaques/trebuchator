@@ -119,6 +119,47 @@ export const PRESETS: Preset[] = [
     }),
   },
   {
+    id: 'man-thrower',
+    name: 'Man Thrower (8647 Edition)',
+    era: 'modern',
+    blurb:
+      'A 48 m steel beam on a 31 m frame, throwing a six-foot granite boulder — 9 tonnes — half a mile. Sized against its own structure: the beam mass is what a girder carrying 43 MN·m actually weighs, and the 359 t ballast sits at the knee of the frontier, where more range starts costing frame far faster than it earns metres.',
+    params: make({
+      // 3.75:1 after Siano, which the sweep confirms is still the efficiency
+      // optimum at 75x the scale that rule was written for.
+      armLong: 38,
+      armShort: 10.13,
+      // Not a free number. A welded box girder at L/16 depth and 200 MPa,
+      // iterated against the moment it generates until the two agree.
+      armMass: 42000,
+      // 40:1, not the classic 100:1. For a shot this heavy the efficiency peak
+      // has moved to ~80:1 and is flat, so 40:1 gives up 2 points and halves
+      // the axle load.
+      cwMass: 359000,
+      // Long on purpose: a hanger this deep lets the ballast fall nearly
+      // straight, which is worth both efficiency and 100 t off the axle.
+      cwHanger: 16,
+      cwSize: 5.31,
+      // 0.86x the long arm. "Sling equals long arm" costs 500 ft here.
+      slingLength: 32.7,
+      slingMass: 144,
+      // Set by the ballast clearing the ground at the bottom of its swing, not
+      // by the arm: 10.13 short arm + 16 hanger + half the box + 2.5 m.
+      pivotHeight: 31.25,
+      // The boulder simply resting on the ground, so its centre is one radius up.
+      troughHeight: 0.91,
+      projectileMass: 8978,
+      projectileDiameter: 1.829,
+      projectileCd: 0.55,
+      releaseAngle: 20.5,
+      pivotFriction: 0.16,
+      pivotRadius: 0.45,
+      hingeFriction: 0.16,
+      hingeRadius: 0.3,
+      troughFriction: 0.6,
+    }),
+  },
+  {
     id: 'siege',
     name: 'Siege Trebuchet, c. 1250',
     era: 'historical',

@@ -12,6 +12,7 @@ import {
 import { PRESETS, presetById } from './presets.ts'
 import {
   bestReleaseAngle,
+  goalValue,
   paretoSearch,
   sweep,
   sweepAt,
@@ -451,9 +452,9 @@ describe('pareto frontier', () => {
   const keys: TunableKey[] = ['slingLength', 'cwHanger', 'initialBeamAngle', 'armShort']
 
   it('returns a feasible, mutually non-dominated frontier', () => {
-    const front = paretoSearch(presetById('backyard')!.params, keys, 60)
+    const front = paretoSearch(presetById('backyard')!.params, keys, 'range', 60)
     expect(front.length).toBeGreaterThan(0)
-    expect(front.length).toBeLessThanOrEqual(9)
+    expect(front.length).toBeLessThanOrEqual(24)
     for (const a of front) {
       expect(geometryImpossibilities(a.params)).toEqual([])
       for (const b of front) {
@@ -473,15 +474,52 @@ describe('pareto frontier', () => {
 
   it('gives the same frontier for the same machine', () => {
     const p = presetById('backyard')!.params
-    expect(paretoSearch(p, keys, 40)).toEqual(paretoSearch(p, keys, 40))
+    expect(paretoSearch(p, keys, 'range', 40)).toEqual(paretoSearch(p, keys, 'range', 40))
   })
 
   it('returns buildable pin-release machines, not optimal-release fictions', () => {
-    const front = paretoSearch(presetById('backyard')!.params, keys, 40)
+    const front = paretoSearch(presetById('backyard')!.params, keys, 'range', 40)
     for (const pt of front) {
       expect(pt.params.releaseMode).toBe('pin')
       const built = simulateShot(pt.params, { lightweight: true, dt: SWEEP_DT })
       expect(built.ok).toBe(true)
+    }
+  })
+
+  it('is non-dominated on whichever goal it was asked for', () => {
+    // The frontier for efficiency is not the frontier for range: a build can be
+    // the best converter on the field and still not the longest thrower.
+    for (const goal of ['efficiency', 'releaseSpeed'] as const) {
+      const front = paretoSearch(presetById('backyard')!.params, keys, goal, 60)
+      expect(front.length, goal).toBeGreaterThan(0)
+      for (const a of front) {
+        for (const b of front) {
+          if (a === b) continue
+          const dominates =
+            goalValue(b, goal) >= goalValue(a, goal) &&
+            b.axleLoad <= a.axleLoad &&
+            (goalValue(b, goal) > goalValue(a, goal) || b.axleLoad < a.axleLoad)
+          expect(dominates, goal).toBe(false)
+        }
+      }
+      // Sorted lightest frame first, and along a frontier the goal is bought
+      // with load — so both columns rise together whatever is being bought.
+      for (let i = 1; i < front.length; i++) {
+        expect(goalValue(front[i], goal), goal).toBeGreaterThanOrEqual(goalValue(front[i - 1], goal))
+      }
+    }
+  })
+
+  it('always marks the machine it was given, even after thinning', () => {
+    // The chart's "as built" ring reads off this flag. Dropping it during the
+    // downsample would tell a reader their machine had been beaten when it is
+    // sitting on the frontier.
+    const p = presetById('backyard')!.params
+    const front = paretoSearch(p, keys, 'range', 120)
+    const here = front.filter((pt) => pt.isCurrent)
+    expect(here.length).toBeLessThanOrEqual(1)
+    if (paretoSearch(p, keys, 'range', 120).some((pt) => pt.isCurrent)) {
+      expect(here).toHaveLength(1)
     }
   })
 })

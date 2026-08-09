@@ -23,8 +23,8 @@ export function directSimulator(): Simulator {
       return bestReleaseAngle(params)
     },
 
-    async pareto(params, keys) {
-      return paretoSearch(params, keys)
+    async pareto(params, keys, goal) {
+      return paretoSearch(params, keys, goal)
     },
 
     sweep(params, key, min, max, steps, mode, onUpdate) {

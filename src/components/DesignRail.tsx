@@ -4,14 +4,14 @@ import { SegmentedControl } from './SegmentedControl.tsx'
 import { Button } from '@/components/ui/button.tsx'
 import { beamProperties, uniformBeam } from '@/lib/treb/model.ts'
 import { cockToGround } from '@/lib/treb/simulate.ts'
+import { bearingPatch, boxSizeFor, projectileMassFor } from '@/lib/treb/materials.ts'
 import {
-  BEARINGS,
-  bearingPatch,
-  boxSizeFor,
-  CW_FILLS,
-  PROJECTILE_MATERIALS,
-  projectileMassFor,
-} from '@/lib/treb/materials.ts'
+  bearingsWith,
+  fillsWith,
+  shotMaterialsWith,
+  type CustomMaterial,
+} from '@/lib/treb/library.ts'
+import { MaterialEditor } from './MaterialEditor.tsx'
 import type { MachineType, TrebuchetParams } from '@/lib/treb/types.ts'
 import { num, show, type UnitSystem } from '@/lib/format.ts'
 import { useNotes } from '@/lib/notes.ts'
@@ -24,6 +24,9 @@ interface Props {
   units: UnitSystem
   onTunePin: () => void
   tuning: boolean
+  /** Matter this browser has added, listed under the handbook values. */
+  materials: CustomMaterial[]
+  onMaterials: (materials: CustomMaterial[]) => void
 }
 
 const MACHINES: { id: MachineType; name: string; note: string }[] = [
@@ -98,7 +101,13 @@ function MaterialPick({
   )
 }
 
-export function DesignRail({ params, patch, units, onTunePin, tuning }: Props) {
+export function DesignRail({ params, patch, units, onTunePin, tuning, materials, onMaterials }: Props) {
+  // Handbook values plus whatever this browser has added. Rebuilt per render
+  // rather than memoised: three short array concatenations against a solver
+  // call that dominates every frame these lists appear in.
+  const fills = fillsWith(materials)
+  const shots = shotMaterialsWith(materials)
+  const bearings = bearingsWith(materials)
   const beam = beamProperties(params)
   const uniform = uniformBeam(params)
   const ratio = params.armLong / Math.max(params.armShort, 1e-6)
@@ -124,6 +133,7 @@ export function DesignRail({ params, patch, units, onTunePin, tuning }: Props) {
       <Section title="Beam">
         <Field
           label="Long arm"
+          measures="armLong"
           hint="Pivot to the sling attachment — the throwing end."
           value={params.armLong}
           onChange={(v) => patch({ armLong: v })}
@@ -135,6 +145,7 @@ export function DesignRail({ params, patch, units, onTunePin, tuning }: Props) {
         />
         <Field
           label="Short arm"
+          measures="armShort"
           hint="Pivot to the counterweight attachment."
           value={params.armShort}
           onChange={(v) => patch({ armShort: v })}
@@ -208,6 +219,7 @@ export function DesignRail({ params, patch, units, onTunePin, tuning }: Props) {
         />
         <Field
           label={params.type === 'fixed' ? 'Standoff' : 'Hanger length'}
+          measures="cwHanger"
           hint={
             params.type === 'fixed'
               ? 'Extra reach past the short arm end. On a bolted machine this is just more short arm.'
@@ -233,12 +245,15 @@ export function DesignRail({ params, patch, units, onTunePin, tuning }: Props) {
         <MaterialPick
           label="Fill material"
           hint="Sizes the box to hold the current mass of this fill."
-          options={CW_FILLS}
+          options={fills}
           onPick={(id) => {
-            const fill = CW_FILLS.find((f) => f.id === id)!
+            const fill = fills.find((f) => f.id === id)!
             patch({ cwSize: boxSizeFor(params.cwMass, fill.density) })
           }}
         />
+        <div className="flex justify-end pb-1">
+          <MaterialEditor materials={materials} onChange={onMaterials} defaultKind="fill" />
+        </div>
         {params.type === 'hinged' && (
           <ToggleField
             label="Estimate box inertia"
@@ -252,6 +267,7 @@ export function DesignRail({ params, patch, units, onTunePin, tuning }: Props) {
       <Section title="Sling & release">
         <Field
           label="Sling length"
+          measures="slingLength"
           hint="Beam tip to the centre of the pouch. Start near the long arm's length."
           value={params.slingLength}
           onChange={(v) => patch({ slingLength: v })}
@@ -311,6 +327,7 @@ export function DesignRail({ params, patch, units, onTunePin, tuning }: Props) {
       <Section title="Frame">
         <Field
           label="Pivot height"
+          measures="pivotHeight"
           value={params.pivotHeight}
           onChange={(v) => patch({ pivotHeight: v })}
           min={0.2}
@@ -375,12 +392,15 @@ export function DesignRail({ params, patch, units, onTunePin, tuning }: Props) {
         <MaterialPick
           label="Material"
           hint="Sets the mass from the current diameter and this material's density."
-          options={PROJECTILE_MATERIALS}
+          options={shots}
           onPick={(id) => {
-            const mat = PROJECTILE_MATERIALS.find((m) => m.id === id)!
+            const mat = shots.find((m) => m.id === id)!
             patch({ projectileMass: projectileMassFor(params.projectileDiameter, mat.density) })
           }}
         />
+        <div className="flex justify-end pb-1">
+          <MaterialEditor materials={materials} onChange={onMaterials} defaultKind="shot" />
+        </div>
         <Field
           label="Drag coefficient"
           hint="0.47 smooth sphere · 0.55 rough stone or pumpkin · 0.8 something lumpy"
@@ -398,9 +418,12 @@ export function DesignRail({ params, patch, units, onTunePin, tuning }: Props) {
         <MaterialPick
           label="Bearing type"
           hint="Sets both friction coefficients to this bearing's."
-          options={BEARINGS}
-          onPick={(id) => patch(bearingPatch(BEARINGS.find((b) => b.id === id)!))}
+          options={bearings}
+          onPick={(id) => patch(bearingPatch(bearings.find((b) => b.id === id)!))}
         />
+        <div className="flex justify-end pb-1">
+          <MaterialEditor materials={materials} onChange={onMaterials} defaultKind="bearing" />
+        </div>
         <Field
           label="Axle friction"
           value={params.pivotFriction}

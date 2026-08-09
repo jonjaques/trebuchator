@@ -1,11 +1,13 @@
 import { useState } from 'react'
-import { BookmarkPlus, Moon, PanelLeft, PanelRight, Sun, Wand2 } from 'lucide-react'
+import { BookmarkPlus, ChevronDown, Moon, PanelLeft, PanelRight, Save, Sun, Trash2, Wand2 } from 'lucide-react'
 import { Button } from '@/components/ui/button.tsx'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover.tsx'
 import { SegmentedControl } from './SegmentedControl.tsx'
+import { ParetoChart } from './ParetoChart.tsx'
 import { PRESETS } from '@/lib/treb/presets.ts'
-import type { ParetoPoint } from '@/lib/treb/optimize.ts'
-import { num, scaled, show, unitSymbol, type UnitSystem } from '@/lib/format.ts'
+import { GOALS, type ParetoGoal, type ParetoPoint } from '@/lib/treb/optimize.ts'
+import type { SavedMachine } from '@/lib/treb/library.ts'
+import { type UnitSystem } from '@/lib/format.ts'
 import { cn } from '@/lib/utils.ts'
 
 interface Props {
@@ -19,12 +21,21 @@ interface Props {
   /** False while there is no fired shot to keep — the save button no-ops then,
    *  so it should look like it will. */
   canSave: boolean
+  /** The machines this browser has kept, newest last. */
+  machines: SavedMachine[]
+  onSaveMachine: (name: string) => void
+  onLoadMachine: (id: string) => void
+  onDeleteMachine: (id: string) => void
   /** Kick off a Pareto frontier search around the current machine. */
   onOptimize: () => void
   optimizing: boolean
   /** The frontier of the last search, or null when none is current. */
   pareto: ParetoPoint[] | null
+  goal: ParetoGoal
+  onGoal: (goal: ParetoGoal) => void
   onApplyPareto: (point: ParetoPoint) => void
+  /** Hovered frontier build — the sheet flies it. Null on leave. */
+  onPreviewPareto: (point: ParetoPoint | null) => void
   busy: boolean
   showDesign: boolean
   showResults: boolean
@@ -47,19 +58,30 @@ export function TopBar({
   onDark,
   onSave,
   canSave,
+  machines,
+  onSaveMachine,
+  onLoadMachine,
+  onDeleteMachine,
   onOptimize,
   optimizing,
   pareto,
+  goal,
+  onGoal,
   onApplyPareto,
+  onPreviewPareto,
   busy,
   showDesign,
   showResults,
   onToggleDesign,
   onToggleResults,
 }: Props) {
-  const current = PRESETS.find((p) => p.id === presetId)
   const eras = ['modern', 'historical', 'reference'] as const
   const [optimizeOpen, setOptimizeOpen] = useState(false)
+  const [presetOpen, setPresetOpen] = useState(false)
+  const currentName =
+    PRESETS.find((p) => p.id === presetId)?.name ??
+    machines.find((m) => m.id === presetId)?.name ??
+    'Custom machine'
 
   return (
     /* Two rows below `lg`, one above. On a phone the wordmark, the preset name
@@ -99,17 +121,47 @@ export function TopBar({
       <div className="rule-t flex h-12 flex-1 items-center gap-2 px-3 lg:h-auto lg:border-t-0 lg:px-0">
         <span className="mx-1 hidden h-6 w-px bg-rule lg:block" aria-hidden />
 
-      <Popover>
+      {/* Controlled so picking closes it. Uncontrolled, the menu stayed open
+          over the sheet after a choice, hiding the machine it had just changed
+          — the one thing the reader wanted to look at. */}
+      <Popover open={presetOpen} onOpenChange={setPresetOpen}>
         <PopoverTrigger asChild>
           <Button variant="outline" size="sm" className="label h-8 min-w-0 flex-1 gap-2">
-            <span className="truncate">{current?.name ?? 'Custom machine'}</span>
-            <span aria-hidden className="text-ink-3">
-              ▾
-            </span>
+            <span className="truncate">{currentName}</span>
+            <ChevronDown className="size-3 shrink-0 text-ink-3" aria-hidden />
           </Button>
         </PopoverTrigger>
         <PopoverContent align="start" className="w-[22rem] p-0">
           <div className="thin-scroll max-h-[70vh] overflow-y-auto">
+            {machines.length > 0 && (
+              <div>
+                <div className="label rule-b bg-raised px-3 py-2 text-ink-3">Your machines</div>
+                {machines.map((m) => (
+                  <div key={m.id} className="rule-b group/row relative flex items-stretch">
+                    <button
+                      onClick={() => {
+                        onLoadMachine(m.id)
+                        setPresetOpen(false)
+                      }}
+                      className={cn(
+                        'flex-1 border-l border-l-transparent px-3 py-2.5 text-left transition-colors hover:border-l-verdigris hover:bg-ground',
+                        m.id === presetId && 'border-l-verdigris bg-verdigris/8',
+                      )}
+                    >
+                      <div className="label text-ink">{m.name}</div>
+                    </button>
+                    <button
+                      onClick={() => onDeleteMachine(m.id)}
+                      aria-label={`Delete ${m.name}`}
+                      title={`Delete ${m.name}`}
+                      className="tap-target relative px-3 text-ink-3 transition-colors hover:bg-ground hover:text-bad focus-visible:text-bad"
+                    >
+                      <Trash2 className="size-3.5" aria-hidden />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             {eras.map((era) => (
               <div key={era}>
                 <div className="label rule-b bg-raised px-3 py-2 text-ink-3">
@@ -118,10 +170,19 @@ export function TopBar({
                 {PRESETS.filter((p) => p.era === era).map((p) => (
                   <button
                     key={p.id}
-                    onClick={() => onPreset(p.id)}
+                    onClick={() => {
+                      onPreset(p.id)
+                      setPresetOpen(false)
+                    }}
                     className={cn(
-                      'rule-b block w-full px-3 py-2.5 text-left transition-colors hover:bg-raised',
-                      p.id === presetId && 'bg-verdigris/8',
+                      /* `hover:bg-raised` was not a weak hover, it was no hover:
+                         `--popover` *is* `--raised`, so the rows were already
+                         sitting on the colour they hovered to. `--ground` is the
+                         one neutral that differs from the popover surface in
+                         both themes, and the hairline that lights up beside the
+                         row is what a draughtsman would use to point at it. */
+                      'rule-b block w-full border-l border-l-transparent px-3 py-2.5 text-left transition-colors hover:border-l-verdigris hover:bg-ground',
+                      p.id === presetId && 'border-l-verdigris bg-verdigris/8',
                     )}
                   >
                     <div className="label pb-1 text-ink">{p.name}</div>
@@ -131,6 +192,14 @@ export function TopBar({
               </div>
             ))}
           </div>
+          {/* Saving lives with the list it saves into rather than as a fourth
+              button on a bar that already wraps on a phone. */}
+          <SaveMachineRow
+            onSave={(name) => {
+              onSaveMachine(name)
+              setPresetOpen(false)
+            }}
+          />
         </PopoverContent>
       </Popover>
 
@@ -141,6 +210,9 @@ export function TopBar({
           // A fresh open with no current frontier starts the search at once —
           // an empty panel with a second "go" button is a step nobody needs.
           if (open && pareto == null && !optimizing) onOptimize()
+          // Closing over a hovered point would otherwise strand its trajectory
+          // on the sheet with nothing left on screen to explain it.
+          if (!open) onPreviewPareto(null)
         }}
       >
         <PopoverTrigger asChild>
@@ -154,55 +226,45 @@ export function TopBar({
             {optimizing ? 'Searching…' : 'Optimize'}
           </Button>
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-[24rem] p-0">
-          <div className="label rule-b bg-raised px-3 py-2 text-ink-3">
-            Pareto frontier — range against frame load
+        {/* 26rem is wider than a small phone, so it gives ground rather than
+            sitting flush against both edges with the chart's axis labels
+            touching the bezel. */}
+        <PopoverContent align="start" className="w-[min(26rem,calc(100vw-1.5rem))] p-0">
+          <div className="px-3 py-2.5">
+            <SegmentedControl
+              label="Optimize for"
+              variant="boxed"
+              className="grid-cols-3"
+              value={goal}
+              onChange={onGoal}
+              options={GOALS.map((g) => ({ value: g.goal, label: g.label, title: g.blurb }))}
+            />
           </div>
-          <p className="body rule-b px-3 py-2 text-ink-2">
-            Sling, hanger, cocked angle and short arm searched; every build below is
-            feasible and none beats another on both counts — more range costs a
-            heavier-loaded frame. The pin comes bent to the angle each build wants.
-            Pick the trade you would build.
+          <p className="body rule-t rule-b px-3 py-2 text-ink-2">
+            Sling, hanger, cocked angle and short arm searched. Every build is feasible
+            and none beats another on both counts — more of what you asked for is only
+            bought with a heavier-loaded frame. The pin comes bent to the angle each
+            build wants.
           </p>
           {optimizing ? (
-            <p className="body px-3 py-4 text-ink-2">Firing candidate machines…</p>
+            <p className="body px-3 py-6 text-ink-2">Firing candidate machines…</p>
           ) : pareto == null || pareto.length === 0 ? (
-            <p className="body px-3 py-4 text-ink-2">
-              No feasible builds found near this machine.
+            <p className="body px-3 py-6 text-ink-2">
+              No feasible builds found near this machine. Widen it — a longer sling or a
+              heavier counterweight gives the search somewhere to go.
             </p>
           ) : (
-            <div className="thin-scroll max-h-[45vh] overflow-y-auto">
-              <div className="label grid grid-cols-[1fr_1fr_auto] gap-x-3 px-3 py-1.5 text-ink-3">
-                <span>Range</span>
-                <span>Axle load</span>
-                <span>Shot’s share</span>
-              </div>
-              {pareto.map((pt, i) => {
-                const axle = scaled(pt.axleLoad, 'force', units)
-                return (
-                  <button
-                    key={i}
-                    onClick={() => {
-                      onApplyPareto(pt)
-                      setOptimizeOpen(false)
-                    }}
-                    className="rule-t grid w-full grid-cols-[1fr_1fr_auto] items-baseline gap-x-3 px-3 py-2 text-left transition-colors hover:bg-raised"
-                  >
-                    <span className="tnum font-mono text-xs text-ink">
-                      {show(pt.range, 'length', units, 1)}
-                      <span className="micro pl-1 text-ink-3">{unitSymbol('length', units)}</span>
-                    </span>
-                    <span className="tnum font-mono text-xs text-ink-2">
-                      {axle.text}
-                      <span className="micro pl-1 text-ink-3">{axle.unit}</span>
-                    </span>
-                    <span className="tnum font-mono text-[11px] text-ink-3">
-                      {num(pt.efficiency * 100, 0)}%
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
+            <ParetoChart
+              points={pareto}
+              goal={goal}
+              units={units}
+              onHover={onPreviewPareto}
+              onPick={(pt) => {
+                onApplyPareto(pt)
+                onPreviewPareto(null)
+                setOptimizeOpen(false)
+              }}
+            />
           )}
         </PopoverContent>
       </Popover>
@@ -240,6 +302,52 @@ export function TopBar({
         </div>
       </div>
     </header>
+  )
+}
+
+/**
+ * Keep the machine in hand under a name.
+ *
+ * Saved to this browser only — the product has no backend by constraint — and
+ * the hint says so rather than letting "saved" imply a sync that does not
+ * exist. A machine is its numbers, so this keeps the parameters and nothing
+ * else: no shot, no camera, no panel state to go stale against a later build.
+ */
+function SaveMachineRow({ onSave }: { onSave: (name: string) => void }) {
+  const [name, setName] = useState('')
+  const trimmed = name.trim()
+
+  return (
+    <div className="rule-t bg-raised px-3 py-2.5">
+      <div className="flex items-center gap-2">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter' || !trimmed) return
+            onSave(trimmed)
+            setName('')
+          }}
+          placeholder="Name this machine"
+          aria-label="Name for the machine you are saving"
+          className="label min-w-0 flex-1 rounded-sm border border-rule bg-ground px-2 py-1.5 text-ink placeholder:text-ink-3 focus-visible:border-verdigris"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          className="label h-8 shrink-0 gap-1.5"
+          disabled={!trimmed}
+          onClick={() => {
+            onSave(trimmed)
+            setName('')
+          }}
+        >
+          <Save className="size-3.5" aria-hidden />
+          Save
+        </Button>
+      </div>
+      <p className="body pt-1.5 text-ink-3">Kept in this browser only.</p>
+    </div>
   )
 }
 

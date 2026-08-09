@@ -230,10 +230,55 @@ export function bestReleaseAngle(p: TrebuchetParams): number | null {
 }
 
 /**
- * One build on the range-versus-axle-load frontier.
+ * What a search is trying to get more of.
  *
- * `params` is buildable as returned: the release is a concrete pin at the
- * angle the ideal release used, not `releaseMode: 'optimal'`.
+ * The thing it is traded *against* is not a choice: it is always peak axle
+ * load. Every one of these goals is bought with frame — a machine that throws
+ * further, converts better or lets go faster is a machine that hits its own
+ * axle harder — so holding the cost axis fixed is what makes the frontier
+ * readable as "here is the price". Letting both axes be picked sounds more
+ * powerful and mostly produces pairs that do not trade, which collapses the
+ * frontier to a single point and teaches nothing.
+ */
+export type ParetoGoal = 'range' | 'efficiency' | 'releaseSpeed'
+
+export interface GoalSpec {
+  goal: ParetoGoal
+  label: string
+  /** How the chart letters the axis. `ratio` is the 0–1 efficiency fraction. */
+  unit: 'length' | 'speed' | 'ratio'
+  blurb: string
+}
+
+export const GOALS: GoalSpec[] = [
+  {
+    goal: 'range',
+    label: 'Range',
+    unit: 'length',
+    blurb: 'The furthest shot the frame will stand.',
+  },
+  {
+    goal: 'efficiency',
+    label: 'Efficiency',
+    unit: 'ratio',
+    blurb: 'The most of the counterweight’s energy delivered to the shot.',
+  },
+  {
+    goal: 'releaseSpeed',
+    label: 'Release speed',
+    unit: 'speed',
+    blurb: 'The fastest the sling lets go, whatever the shot then does in air.',
+  },
+]
+
+/**
+ * One build on the frontier.
+ *
+ * Every metric is carried rather than just the one searched on, so the chart
+ * can letter a point with all of them and switching goal does not require the
+ * caller to know which field it asked for. `params` is buildable as returned:
+ * the release is a concrete pin at the angle the ideal release used, not
+ * `releaseMode: 'optimal'`.
  */
 export interface ParetoPoint {
   params: TrebuchetParams
@@ -242,6 +287,20 @@ export interface ParetoPoint {
   /** Peak main-axle load through the stroke — the frame this build demands. */
   axleLoad: number
   efficiency: number
+  /** Speed of the shot at the instant the sling lets go, m/s. */
+  releaseSpeed: number
+  /**
+   * This is the machine the search started from, evaluated as candidate zero.
+   * Marking it is what lets the chart answer "is what I have any good?" rather
+   * than only "what else is there?" — and a current machine that survives the
+   * non-dominated filter is genuinely already on the frontier.
+   */
+  isCurrent: boolean
+}
+
+/** The searched metric of a point. */
+export function goalValue(pt: ParetoPoint, goal: ParetoGoal): number {
+  return goal === 'range' ? pt.range : goal === 'efficiency' ? pt.efficiency : pt.releaseSpeed
 }
 
 /**
@@ -258,16 +317,16 @@ function lcg(seed: number): () => number {
 }
 
 /**
- * Multi-objective search: the Pareto frontier of range against peak axle load.
+ * Multi-objective search: the Pareto frontier of `goal` against peak axle load.
  *
  * The coordinate-descent auto-tuner this replaces had two faults. It chased
  * range alone, so it happily specified a machine whose extra metres cost a
  * frame nobody would build — and it wandered into geometry that cannot exist
  * (hangers that put the weight box underground at rest). Here every candidate
  * is feasibility-checked before it is fired, both objectives are kept, and the
- * result is the set of non-dominated builds: for each one, more range is only
- * available by accepting a heavier-loaded frame. Which trade to take is the
- * builder's call, not the optimizer's.
+ * result is the set of non-dominated builds: for each one, more of what you
+ * asked for is only available by accepting a heavier-loaded frame. Which trade
+ * to take is the builder's call, not the optimizer's.
  *
  * Plain rejection sampling over the tunable ranges, not a genetic algorithm:
  * with four dimensions and a ~10 ms evaluation, a few hundred samples cover
@@ -276,10 +335,16 @@ function lcg(seed: number): () => number {
  * Candidates are scored with an ideal release so no one is handicapped by a
  * stale pin, and the pin angle that release *used* is written back as a
  * concrete `releaseAngle` — the returned params are buildable as-is.
+ *
+ * A candidate that will not throw is rejected on `ok` alone rather than on
+ * `range <= 0`: a shot fired straight up scores no range and is still a real
+ * machine, and under the release-speed goal it is one the search should be
+ * allowed to keep.
  */
 export function paretoSearch(
   p: TrebuchetParams,
   keys: TunableKey[],
+  goal: ParetoGoal = 'range',
   samples = 160,
 ): ParetoPoint[] {
   const rand = lcg(0x7eb0c4e7)
@@ -287,23 +352,25 @@ export function paretoSearch(
     .map((key) => TUNABLES.find((t) => t.key === key))
     .filter((s): s is TunableSpec => s != null)
 
-  const evaluate = (candidate: TrebuchetParams): ParetoPoint | null => {
+  const evaluate = (candidate: TrebuchetParams, isCurrent = false): ParetoPoint | null => {
     if (validateGeometry(candidate).length > 0) return null
     if (geometryImpossibilities(candidate).length > 0) return null
     const r = simulateShot({ ...candidate, releaseMode: 'optimal' }, FAST)
-    if (!r.ok || r.range <= 0) return null
+    if (!r.ok) return null
     return {
       params: { ...candidate, releaseMode: 'pin', releaseAngle: r.release.gamma },
       range: r.range,
       axleLoad: r.peaks.axleLoad,
       efficiency: r.efficiency,
+      releaseSpeed: r.release.speed,
+      isCurrent,
     }
   }
 
   // The current machine is candidate zero, so the frontier always says where
   // the build in hand stands — dominated or already optimal.
   const points: ParetoPoint[] = []
-  const current = evaluate(p)
+  const current = evaluate(p, true)
   if (current) points.push(current)
 
   for (let i = 0; i < samples; i++) {
@@ -316,27 +383,42 @@ export function paretoSearch(
     if (pt) points.push(pt)
   }
 
-  // Non-dominated filter: keep a build only if nothing throws at least as far
-  // for at most that axle load (with one of the two strictly better).
+  // Non-dominated filter: keep a build only if nothing scores at least as well
+  // on the goal for at most that axle load (with one of the two strictly
+  // better).
   const front = points.filter(
     (a) =>
       !points.some(
         (b) =>
           b !== a &&
-          b.range >= a.range &&
+          goalValue(b, goal) >= goalValue(a, goal) &&
           b.axleLoad <= a.axleLoad &&
-          (b.range > a.range || b.axleLoad < a.axleLoad),
+          (goalValue(b, goal) > goalValue(a, goal) || b.axleLoad < a.axleLoad),
       ),
   )
   front.sort((a, b) => a.axleLoad - b.axleLoad)
 
-  // A dozen non-dominated builds read as a menu; forty read as noise. Keep the
-  // ends and an even spread of range between them.
-  const MAX_FRONT = 9
+  // Two dozen points draw as a curve; nine draw as a dotted line with gaps the
+  // eye reads as meaning something. The cap is higher than it was because the
+  // frontier is now a chart rather than a list of rows to scan.
+  const MAX_FRONT = 24
   if (front.length <= MAX_FRONT) return front
   const kept: ParetoPoint[] = []
   for (let i = 0; i < MAX_FRONT; i++) {
     kept.push(front[Math.round((i * (front.length - 1)) / (MAX_FRONT - 1))])
+  }
+  // Thinning must never drop the machine in hand. If it survived the
+  // non-dominated filter it is genuinely on the frontier, and a chart that
+  // silently omits its "as built" marker tells the reader the opposite of the
+  // truth — that what they have was beaten.
+  const asBuilt = front.find((pt) => pt.isCurrent)
+  if (asBuilt && !kept.includes(asBuilt)) {
+    let nearest = 0
+    for (let i = 1; i < kept.length; i++) {
+      if (Math.abs(kept[i].axleLoad - asBuilt.axleLoad) < Math.abs(kept[nearest].axleLoad - asBuilt.axleLoad))
+        nearest = i
+    }
+    kept[nearest] = asBuilt
   }
   return kept
 }

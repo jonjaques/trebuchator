@@ -4,10 +4,22 @@ A full-screen counterweight trebuchet calculator. Model every dimension, mass an
 material property of a machine — medieval or modern — fire it, and watch where the
 shot lands.
 
-The whole interface is dressed as a setting-out drawing: hatched ground, a
-hairline grid, timber drawn to scale, and measurements carried on proper
-dimension lines. The range is not a number in a card, it is the dimension across
-the bottom of the sheet.
+[![Healthcheck](https://img.shields.io/github/actions/workflow/status/jonjaques/trebuchator/healthcheck.yml?branch=main&style=flat-square&label=healthcheck)](https://github.com/jonjaques/trebuchator/actions/workflows/healthcheck.yml)
+[![License](https://img.shields.io/github/license/jonjaques/trebuchator?style=flat-square&color=3fd0bc)](./LICENSE)
+[![Contributors](https://img.shields.io/github/contributors/jonjaques/trebuchator?style=flat-square&color=3fd0bc)](https://github.com/jonjaques/trebuchator/graphs/contributors)
+[![Live](https://img.shields.io/badge/live-trebuchator.jonjaques.com-ff6b2c?style=flat-square)](https://trebuchator.jonjaques.com)
+
+**Live Site: [trebuchator.jonjaques.com](https://trebuchator.jonjaques.com)**
+
+<!-- Widths chosen so both images land on a common height of ~316 px: desktop is
+     1456×823 and mobile is 869×1371, so a shared height is the only way a
+     landscape and a portrait shot read as one row. GitHub's stylesheet caps
+     images at max-width:100%, so on a narrow screen these wrap and shrink
+     rather than overflowing. -->
+<p>
+  <img src="docs/desktop.jpg" width="560" alt="The Trebuchator sheet: a hinged counterweight trebuchet at the end of its shot, the projectile's trajectory arcing across the drawing in orange, and the range carried on a dimension line beneath the hatched ground">
+  <img src="docs/mobile.jpg" width="200" alt="Trebuchator on a narrow screen: the drawing fills the top of the display with the shot's trajectory and range dimension, the what-if chart below it, and the transport controls along the bottom">
+</p>
 
 ```bash
 bun install
@@ -63,7 +75,7 @@ and the optimal launch angle is exactly 45° in vacuum and lower with drag. Both
 are asserted in the test suite.
 
 ```bash
-bun run test        # 97 tests: physics, conservation, ballistics, the drawing, UI
+bun run test        # physics, conservation, ballistics, the drawing, UI
 bun run test:watch
 ```
 
@@ -74,8 +86,8 @@ bun run test:watch
 - **Find best pin** reports the spigot angle to bend, by running the swing once
   with an ideal-release solver and reading back the angle it chose.
 - **Optimize** searches sling length, hanger, cocked angle and short arm and
-  returns the Pareto frontier of range against peak axle load — feasible builds
-  only, none better than another on both counts. Pick the trade you would
+  returns the Pareto frontier of your chosen goal against peak axle load — feasible
+  builds only, none better than another on both counts. Pick the trade you would
   actually build; the pin comes bent to the angle each build wants.
 - **What if** sweeps any one parameter and plots range against it, with the
   range your machine gets now and the gain on offer spelled out. *As built*
@@ -86,10 +98,31 @@ bun run test:watch
 - **Angles** (`A`) puts protractors on the joints. The one at the beam tip shows
   the sling closing on your pin angle, which is the whole of tuning in one arc.
 - **Save shot** keeps a trajectory on the sheet as a dashed ghost to compare against.
-- Keys: `space` play/pause, `R` fire again, `D` dimensions, `A` angles, `G` grid.
-  Drag and scroll the sheet to pan and zoom.
+- Keys: `space` play/pause, `R` fire again, `D` dimensions, `A` angles, `G` grid,
+  `N` explanations. Drag and scroll the sheet to pan and zoom.
 - Units follow your locale on first run (`Intl`, falling back to feet and
   pounds) and remember whatever you pick after that.
+
+## How it's put together
+
+React 19 and TypeScript on Vite, Tailwind v4, drawn to a plain 2D canvas. The solver
+in `src/lib/treb/` is self-contained, SI throughout, and has no React in it — it runs
+in a Web Worker, because a full shot is 20–45 ms and a 40-point parameter sweep is
+over half a second, which is far too long to sit between a slider's mousemove events.
+
+[`CLAUDE.md`](./CLAUDE.md) is the architecture document: what each module owns, which
+decisions are load-bearing, and which apparently-reasonable changes are silently
+wrong. It is worth reading before changing anything under `src/lib/treb/`.
+
+## Contributing
+
+Bug reports, physics corrections and new machine topologies are all welcome. See
+[CONTRIBUTING.md](./CONTRIBUTING.md) — the short version is that `bun run healthcheck`
+runs everything CI runs, so a green run locally is a green pull request.
+
+## License
+
+[MIT](./LICENSE) © Jon Jaques
 
 Sources for the historical figures and the design rules are listed in `CLAUDE.md`.
 

@@ -78,8 +78,15 @@ point in those frames is the empty pouch.
 **The optimizer is a Pareto frontier, not a hill-climb.** `paretoSearch` samples the
 tunable ranges (deterministic LCG — the same machine must always yield the same
 frontier), rejects candidates that fail `validateGeometry` or
-`geometryImpossibilities`, and keeps the non-dominated set of range against peak axle
-load. The coordinate-descent auto-tuner it replaced chased range alone and walked into
+`geometryImpossibilities`, and keeps the non-dominated set of a chosen `ParetoGoal`
+(range, efficiency or release speed) against peak axle load. **The cost axis is not a
+choice.** Every goal is bought with frame, so holding axle load fixed is what makes the
+curve read as a price; letting both axes be picked mostly yields pairs that do not trade
+and a frontier collapsed to one point. Changing the goal re-searches rather than
+re-sorting — the non-dominated set for efficiency is not a subset of the one for range.
+The current machine is candidate zero and is flagged `isCurrent`; the thinning step that
+caps the frontier must never drop it, or the chart's "as built" marker vanishes and tells
+the reader their machine was beaten when it is sitting on the curve. The coordinate-descent auto-tuner it replaced chased range alone and walked into
 geometry that cannot exist. Material impossibilities (a box denser than lead) are
 deliberately *not* filtered: they do not vary with the searched keys, so filtering on
 them would empty the frontier without offering a candidate that fixes them.
@@ -172,6 +179,23 @@ rotated weight box is what a canvas is for, and the rule worth testing is the sp
 and the angle. Text measurement is an injected `MeasureText`, an internal seam: the
 adapter passes `ctx.measureText`, a test passes an estimator, and only the dimension
 figure needs it.
+
+**A machine that will not throw still gets drawn.** A failed `ShotResult` carries one
+frame — the cocked pose, built by `cockedFrame` in `simulate.ts` — and `layout` draws the
+machine from it, skipping everything about the shot. Nothing numerical may read that
+frame: every load and speed on it is zero because none of them happened. `Stage` names the
+reason in an overlay over the drawing. Three separate places used to blank the sheet
+instead (the layout's early return, the canvas effect's guard, and a centred "nothing to
+draw"), which took the drawing away at the moment the reader most needed it — and below
+`xl`, where the results rail is closed, said nothing about the cause.
+
+**Pointing at a control lights its measurement.** `SheetInput.highlight` carries a
+`DimensionKey` — a parameter's own name, so a control declares what it measures rather
+than mapping to a drawing-side id that would drift. With annotations off only that
+dimension is drawn; with them on it is set heavier and the rest fade to 0.32 alpha. The
+channel is `lib/pointing.ts`, a context for the same reason `notes.ts` is one. Emphasis
+stays inside the verdigris accent: a third accent would mean nothing on a sheet where
+verdigris already means measurement.
 
 `SHEET_MARGIN` is exported from `sheet.ts` and used by `Stage.tsx` for its camera inset.
 It has to clear the sheet's own furniture — the range dimension 40 px below the ground
@@ -321,6 +345,17 @@ painted in `body` type or `sr-only`. It is never conditionally *rendered* — th
 always in the DOM and wired with `aria-describedby` where it describes a control, so
 folding the layer away is a visual choice and not a loss of content. The toggle lives in
 the transport's annotation row beside dimensions/angles/grid, with `n` for a shortcut.
+
+**Reference data is read-only; the builder's own additions layer over it.** `presets.ts`
+and `materials.ts` are handbook values and stay fixed, so two people quoting a density to
+each other quote the same number. `lib/treb/library.ts` holds what this browser has added
+— saved machines and custom fills, shot materials and bearings — persisted through
+`lib/store.ts`, which swallows its own failures because `localStorage` *throws* rather
+than returning null in some private modes, and an unguarded read at module scope takes the
+page down before React mounts. Anything parsed back out is untrusted input: stored params
+are merged over `DEFAULT_PARAMS` and every numeric field checked finite, because a machine
+saved by an older build reaches the solver as `NaN` range and reads as a physics bug
+rather than as stale data.
 
 **`SegmentedControl` owns the radiogroup keyboard contract.** Machine type, units, sweep
 mode and playback speed were four hand-rolled copies, each declaring `role="radiogroup"`

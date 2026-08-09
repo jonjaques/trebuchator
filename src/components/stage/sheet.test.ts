@@ -50,10 +50,36 @@ describe('the whole sheet', () => {
     ...over,
   })
 
-  it('says so plainly when the machine will not throw', () => {
+  it('still draws the machine when it will not throw', () => {
+    // The reason is reported over the sheet by `Stage`; the drawing stays up,
+    // because it is where someone finds the dimension that broke it.
+    const dead = simulateShot({ ...params, cwMass: 0 })
+    expect(dead.ok).toBe(false)
+    const ins = layout(sheet({ result: dead }), measure)
+    const beam = ins.filter((i) => i.op === 'path' && i.stroke?.color === palette.oak)
+    expect(beam.length).toBeGreaterThan(0)
+  })
+
+  it('carries no range dimension for a shot that never flew', () => {
     const dead = simulateShot({ ...params, cwMass: 0 })
     const ins = layout(sheet({ result: dead }), measure)
-    expect(texts(ins).map((t) => t.text)).toContain('NO VALID SHOT')
+    expect(texts(ins).map((t) => t.text)).not.toContain('RANGE FROM PIVOT')
+  })
+
+  it('draws the pointed-at dimension with the annotation layer off', () => {
+    const off = layout(sheet(), measure)
+    const lit = layout(sheet({ highlight: 'slingLength' }), measure)
+    // One dimension appears: witness lines, a broken rule, two heads, a figure.
+    expect(lit.length).toBeGreaterThan(off.length)
+  })
+
+  it('fades the others when one dimension is pointed at', () => {
+    const all = layout(sheet({ showDimensions: true }), measure)
+    const lit = layout(sheet({ showDimensions: true, highlight: 'slingLength' }), measure)
+    const faded = (ins: Instruction[]) =>
+      ins.filter((i) => i.op === 'path' && i.stroke?.color === palette.verdigris && i.stroke.alpha === 0.32)
+    expect(faded(all)).toHaveLength(0)
+    expect(faded(lit).length).toBeGreaterThan(0)
   })
 
   it('carries the range as a dimension across the bottom', () => {
