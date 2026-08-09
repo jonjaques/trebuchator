@@ -1,0 +1,15 @@
+{
+  "files": [],
+  // Duplicated from tsconfig.app.json purely so the shadcn CLI can find the alias —
+  // it reads the root tsconfig, not the referenced projects. tsc itself ignores
+  // compilerOptions here because "files" is empty and the real work is in the refs.
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}
