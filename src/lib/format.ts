@@ -133,9 +133,13 @@ export function scaled(
   return { text: num(v), unit: u }
 }
 
-/** Metres per second is meaningless to most people; add a familiar echo. */
-export function speedAside(ms: number, system: UnitSystem): string {
-  return system === 'metric'
-    ? `${num(ms * 3.6, 0)} km/h`
-    : `${num(ms * 2.236936292, 0)} mph`
+/**
+ * Metres per second is meaningless to most people, so a metric readout carries
+ * a km/h echo. An imperial one already reads in mph and gets nothing back —
+ * the echo used to restate, to the nearest whole number, the figure directly
+ * above it. Invisible while it lived in a tooltip; obvious the moment the notes
+ * were printed.
+ */
+export function speedAside(ms: number, system: UnitSystem): string | null {
+  return system === 'metric' ? `${num(ms * 3.6, 0)} km/h` : null
 }

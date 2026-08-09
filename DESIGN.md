@@ -49,6 +49,12 @@ typography:
     fontWeight: 400
     lineHeight: 1.25
     letterSpacing: "0.005em"
+  wordmark:
+    fontFamily: "Instrument Sans Variable, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "0.9rem"
+    fontWeight: 600
+    lineHeight: 1
+    letterSpacing: "0.2em"
   micro:
     fontFamily: "Instrument Sans Variable, ui-sans-serif, system-ui, sans-serif"
     fontSize: "0.65rem"
@@ -206,7 +212,8 @@ or an error.
 - **Raised** (dark `#25201b` · light `#fbf8f1`): popovers and the one step up from sheet.
 - **Ink** (dark `#ede7da` · light `#241f1a`): primary text and the heaviest drawn line.
 - **Ink-2** (dark `#a79c8b` · light `#5b5347`): labels, secondary text, the sling.
-- **Ink-3** (dark `#7a7161` · light `#8b8171`): units, hints, ground hatching, axis figures.
+- **Ink-3** (dark `#7a7161` · light `#8b8171`): units, asides, counts, ground hatching, axis
+  figures. Short meta only — never a sentence, see the rule below.
 - **Rule** (dark `#372f27` · light `#c9c0ae`): every 1px separator, border and grid line.
 - **Ramp 1 / 2 / 3** (dark `#cfc6b4` / `#9a9080` / `#6a6154`): a lightness ramp, not three
   hues, used for the graded overheads in the energy budget. They encode magnitude of
@@ -228,6 +235,15 @@ together on the same element.
 **The Depiction Rule.** Oak and iron are not interface colours. They exist to draw timber
 and metal on the canvas and in the wordmark, and they must never appear in a control, a
 label, a border or a panel.
+
+**The Prose Rule.** `ink-3` never carries a sentence. It measures 3.4:1 against `sheet` in
+light and 3.7:1 in dark, which is under the 4.5:1 floor for body text at this size, and it is
+that low on purpose — the flat-sheet system separates by tone, and a three-step ink ramp is
+what does the separating. So the tone stays and the job moves: anything set in `.body` takes
+`ink-2` (7.0:1 light, 6.5:1 dark) and `ink-3` keeps the short meta it was designed for. This
+became load-bearing when the rails' hints stopped being tooltips and started being printed
+prose. Note what is *not* claimed: `ink-3` still carries stat labels, units and axis figures
+below 4.5:1, which is the project's own recorded position rather than an oversight.
 
 **The Two-Surface Rule.** Every colour exists in both `:root` and `.dark`, and a new one
 is added to both in the same edit. The canvas reads its palette out of computed styles at
@@ -254,11 +270,16 @@ every label in condensed tracked capitals read as a wall rather than as a drawin
   percentage. The second-largest number on the sheet and the only other one at this size.
 - **Title** (sans, 500, 0.6875rem / 11px, 0.1em tracking, uppercase, line-height 1.15):
   `.stencil`. Section heads only — about eight on screen, not eighty.
-- **Body** (sans, 400, 0.6875rem / 11px, line-height 1.375): explanatory notes, warnings,
-  error text, the energy-bucket descriptions. Sentence case, always.
+- **Body** (sans, 400, 0.6875rem / 11px, line-height 1.375): `.body`. Explanatory notes,
+  warnings, error text, field hints, the energy-bucket descriptions. Sentence case, always.
+  It is a class rather than a pair of utilities because it appeared about forty times as a
+  literal `text-[11px] leading-snug`, which is a role the system had named and not built.
 - **Label** (sans, 400, 0.71rem, 0.005em, line-height 1.25): `.label`. Field names, stat
   names, chips, captions — everything that names a thing. These appear in dozens and the
   reader is scanning them, not admiring them.
+- **Wordmark** (sans, 600, 0.9rem, 0.2em tracking, uppercase): `.wordmark`. The product
+  name in the top bar and nothing else. It carries `margin-inline-end: -0.2em` to take back
+  the sidebearing tracking leaves after the last letter.
 - **Micro** (sans, 400, 0.65rem, 0.01em, line-height 1.2): units, hints, secondary counts.
   Meta text that must recede.
 - **Numeric** (mono, 400, 0.75rem, tabular): every value in a stat row, a field box, a
@@ -272,8 +293,9 @@ one contrast carries the whole design and does not need reinforcing with weight 
 
 **The Tracked-Caps Rule.** Uppercase with 0.1em tracking survives only on `.stencil`,
 where it is doing structural work — marking where one part of the sheet ends and the next
-begins. Everything else is sentence case at 400. Do not reintroduce tracked capitals on
-labels, buttons or chips.
+begins, and on `.wordmark`, which is a mark rather than a head and is set once. Everything
+else is sentence case at 400. Do not reintroduce tracked capitals on labels, buttons or
+chips — preset names in the machine menu were set that way and are not any more.
 
 **The Tabular Rule.** Any figure that can change sets `.tnum`
 (`font-variant-numeric: tabular-nums`, `font-feature-settings: 'tnum' 1, 'zero' 1`). Every
@@ -295,8 +317,11 @@ rail at `21rem`, the sheet taking the remaining width, and the readout rail at `
 separated by a 1px rule. Below `xl` it becomes an absolutely positioned overlay at
 `z-20` with a shadow, and opening one closes the other — two overlapping full-height
 panels on a phone is unusable. Three breakpoints are in play and each does one job:
-`sm` (640px) splits the transport into two rows, `md` (768px) splits the top bar into two
-rows, `xl` (1280px) docks the rails.
+`sm` (640px) splits the transport into two rows, `lg` (1024px) splits the top bar into two
+rows, `xl` (1280px) docks the rails. The top-bar split was at `md` (768px) and was wrong:
+the single row does not actually fit until about 900px, so between the two it overflowed a
+shell that deliberately cannot scroll and the last control was silently clipped off the
+edge. Its identity row also wraps, so nothing is ever cut on a 360px phone either.
 
 **Rhythm.** Sections are `12px` padded with a 1px bottom rule and no rule on the last.
 Field rows are `6px` vertical. Control gaps are `8px`, tight groupings `4px`, and the
@@ -377,6 +402,11 @@ its unit set beside the figure. That is the test for anything new.
   dismiss and collapse affordances.
 - **Hover / Focus:** hover shifts background only. Focus is a 2px `verdigris` outline at
   `1px` offset, applied globally through `:focus-visible` — never a glow, never a shadow.
+  It has to be stated **twice**: once in `@layer base` for the controls this app draws, and
+  once *unlayered* for `[data-slot]`, the vendored ones. Those ship `outline-none` plus a
+  3px `ring` from Tailwind's `utilities` layer, and layer order is settled before
+  specificity — so a layered rule cannot reach them however it is written, and every
+  shadcn Button in the app was quietly wearing the glow instead of the outline.
 - **Press:** `translate-y-px`. A single pixel; the control moves the way a real one would.
 
 ### Chips and Toggles
@@ -384,9 +414,17 @@ its unit set beside the figure. That is the test for anything new.
 - **Icon toggle** (`28px` square, `1px` radius): the view controls in the transport. Off is
   a `rule` border with `ink-3` glyph; on is a `verdigris` border with a `verdigris/10`
   wash and a `verdigris` glyph. State is carried by `aria-pressed`.
-- **Segmented control:** a hairline-bordered row with no gaps between segments, the
-  selected one taking `verdigris` text on a `verdigris/12` wash. Used for machine type,
-  units, sweep mode and playback speed — always as a real `role="radiogroup"`.
+- **Segmented control:** `SegmentedControl`, in two shapes. `joined` is a hairline-bordered
+  row with no gaps between segments, the selected one taking `verdigris` text on a
+  `verdigris/12` wash. `boxed` is separate cells in a caller-supplied grid, selected taking
+  a `verdigris` border and a `verdigris/10` wash, for options that need room to be read
+  rather than scanned. Used for machine type, units, sweep mode and playback speed.
+
+  It is one component and not four copies because `role="radiogroup"` is a **promise about
+  the keyboard**: one tab stop for the group, arrows and Home/End within it. All four
+  copies declared the role and none of them kept it, so a screen reader told people to
+  arrow through a control that only answered Tab. Anything new that reads as a choice from
+  a short fixed list uses this rather than restating the pattern.
 
 ### Cards / Containers
 
@@ -427,6 +465,17 @@ lettered beneath in tracked micro caps. When either end runs off the sheet, the 
 slides along its own dimension line rather than leaving with the arrowhead. A dimension
 shorter than 52px is dropped entirely; a cluster of illegible figures is worse than a
 missing one.
+
+**The Notes Layer.** Every explanatory hint in the rails — what a field measures, what a
+reading is for, what "best case" re-cocks — is printed under its row in `body` type at
+`ink-3`, and switched off as a set from the transport's annotation row. It is the same kind
+of control as dimensions, angles and grid, one divider along, because it is the same kind of
+thing: a layer of explanation you turn on when you want it. The hints previously lived only
+in `title` attributes, which a touch screen cannot show at all — so on a product whose second
+job is teaching, most of the teaching was unreachable on the device a builder is holding.
+Whatever the toggle says, the text is always in the DOM and `sr-only` when folded, and every
+one that describes a control is wired to it with `aria-describedby`. A hint is never the only
+copy of something a reader needs.
 
 **The Protractor.** A graduated arc on a joint, filled at 6% opacity, ticked every 10°
 with every third major, with a radial pointer on the live angle. The one at the beam tip

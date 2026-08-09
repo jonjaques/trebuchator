@@ -270,3 +270,23 @@ void for "never released", which is unused capacity rather than a loss.
 
 Merge class names with `cn()` from `@/lib/utils` (clsx + tailwind-merge) rather than template
 strings, so conflicting utilities resolve last-wins.
+
+**Focus has to be declared twice, and the second one is unlayered.** `@layer base` carries
+the 2px verdigris outline for the controls this app draws. The vendored shadcn files ship
+`outline-none` plus a 3px `ring` on `:focus-visible`, both of which land in Tailwind's
+`utilities` layer — and cascade layers are resolved *before* specificity, so no layered rule
+can outrank them however it is written. The `[data-slot]:focus-visible` block at the bottom
+of `index.css` sits outside every layer for exactly that reason; move it into one and every
+Button silently goes back to wearing a glow the design system has no vocabulary for.
+
+**Explanations are a layer, not a tooltip.** `lib/notes.ts` holds one boolean in context;
+`Field`, `ToggleField` and `ReadoutRail`'s `Stat` read it to decide whether their hint is
+painted in `body` type or `sr-only`. It is never conditionally *rendered* — the text is
+always in the DOM and wired with `aria-describedby` where it describes a control, so
+folding the layer away is a visual choice and not a loss of content. The toggle lives in
+the transport's annotation row beside dimensions/angles/grid, with `n` for a shortcut.
+
+**`SegmentedControl` owns the radiogroup keyboard contract.** Machine type, units, sweep
+mode and playback speed were four hand-rolled copies, each declaring `role="radiogroup"`
+and none of them implementing it — one tab stop per option and no arrow keys. Add a choice
+from a short fixed list by adding an options array, not another copy.

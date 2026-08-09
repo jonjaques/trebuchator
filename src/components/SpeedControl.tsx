@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover.tsx'
-import { cn } from '@/lib/utils.ts'
+import { SegmentedControl } from './SegmentedControl.tsx'
 import { num } from '@/lib/format.ts'
 
 /**
@@ -14,6 +14,15 @@ import { num } from '@/lib/format.ts'
  */
 
 const STOPS = [0.05, 0.1, 0.25, 0.5, 1, 2, 3]
+
+/**
+ * The chip that is lit, or `NaN` when the box holds a speed no chip covers.
+ * `NaN` matches nothing, so a custom speed lights none of them — which is the
+ * honest reading, and the control keeps its tab stop regardless.
+ */
+function nearestStop(speed: number): number {
+  return STOPS.find((s) => Math.abs(speed - s) < 1e-9) ?? Number.NaN
+}
 
 function fmt(speed: number): string {
   return `${speed >= 1 ? num(speed, speed % 1 === 0 ? 0 : 2) : num(speed, 2).replace(/0+$/, '').replace(/\.$/, '')}×`
@@ -38,7 +47,7 @@ export function SpeedControl({
     <Popover>
       <PopoverTrigger asChild>
         <button
-          className="tnum flex h-7 shrink-0 items-center gap-1 rounded-sm border border-rule px-2 font-mono text-[11px] text-ink-2 transition-colors hover:border-ink-3 hover:text-ink"
+          className="tap-target tnum relative flex h-7 shrink-0 items-center gap-1 rounded-sm border border-rule px-2 font-mono text-[11px] text-ink-2 transition-colors hover:border-ink-3 hover:text-ink"
           title="Playback speed"
           aria-label={`Playback speed, currently ${fmt(speed)}`}
         >
@@ -50,24 +59,15 @@ export function SpeedControl({
       </PopoverTrigger>
       <PopoverContent align="end" className="w-52 p-2">
         <div className="label pb-2 text-ink-3">Playback speed</div>
-        <div role="radiogroup" aria-label="Playback speed" className="grid grid-cols-4 gap-1">
-          {STOPS.map((s) => (
-            <button
-              key={s}
-              role="radio"
-              aria-checked={Math.abs(speed - s) < 1e-9}
-              onClick={() => onSpeed(s)}
-              className={cn(
-                'tnum rounded-sm border py-1.5 font-mono text-[11px] transition-colors',
-                Math.abs(speed - s) < 1e-9
-                  ? 'border-verdigris bg-verdigris/10 text-verdigris'
-                  : 'border-rule text-ink-3 hover:border-ink-3 hover:text-ink-2',
-              )}
-            >
-              {fmt(s)}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          label="Playback speed"
+          variant="boxed"
+          className="grid-cols-4"
+          cellClassName="tnum font-mono text-[11px]"
+          value={nearestStop(speed)}
+          onChange={onSpeed}
+          options={STOPS.map((s) => ({ value: s, label: fmt(s) }))}
+        />
         <label className="mt-2 flex items-center gap-2 rounded-sm border border-rule bg-ground px-2 py-1.5 focus-within:border-verdigris">
           <span className="label shrink-0 text-ink-3">Custom</span>
           <input

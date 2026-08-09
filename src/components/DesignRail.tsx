@@ -1,10 +1,10 @@
 import { Field, Section, ToggleField } from './Field.tsx'
+import { SegmentedControl } from './SegmentedControl.tsx'
 import { Button } from '@/components/ui/button.tsx'
 import { beamProperties, uniformBeam } from '@/lib/treb/model.ts'
 import { cockToGround } from '@/lib/treb/simulate.ts'
 import type { MachineType, TrebuchetParams } from '@/lib/treb/types.ts'
 import { num, show, type UnitSystem } from '@/lib/format.ts'
-import { cn } from '@/lib/utils.ts'
 import { Crosshair, Wand2 } from 'lucide-react'
 
 interface Props {
@@ -43,26 +43,17 @@ export function DesignRail({ params, patch, units, onTunePin, tuning }: Props) {
   const offCock = Math.abs(cocked - params.initialBeamAngle) > 0.5
 
   return (
-    <div className="thin-scroll h-full overflow-y-auto">
+    /* Tail padding so the last field clears the bottom edge on a full scroll. */
+    <div className="thin-scroll h-full overflow-y-auto pb-8">
       <Section title="Machine" note={machine.note}>
-        <div role="radiogroup" aria-label="Machine type" className="grid grid-cols-3 gap-1 pt-1">
-          {MACHINES.map((m) => (
-            <button
-              key={m.id}
-              role="radio"
-              aria-checked={params.type === m.id}
-              onClick={() => patch({ type: m.id })}
-              className={cn(
-                'label rounded-sm border px-1 py-2 transition-colors',
-                params.type === m.id
-                  ? 'border-verdigris bg-verdigris/10 text-ink'
-                  : 'border-rule text-ink-3 hover:border-ink-3 hover:text-ink-2',
-              )}
-            >
-              {m.name}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          label="Machine type"
+          variant="boxed"
+          className="grid-cols-3 pt-1"
+          value={params.type}
+          onChange={(type) => patch({ type })}
+          options={MACHINES.map((m) => ({ value: m.id, label: m.name, title: m.note }))}
+        />
       </Section>
 
       <Section title="Beam">
@@ -134,7 +125,7 @@ export function DesignRail({ params, patch, units, onTunePin, tuning }: Props) {
             />
           </>
         )}
-        <p className="pt-1 text-[11px] text-ink-3">
+        <p className="body pt-1 text-ink-2">
           Balance point {show(beam.cg, 'length', units, 2)} from the pivot.
         </p>
       </Section>

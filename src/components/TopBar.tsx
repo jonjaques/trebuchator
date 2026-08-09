@@ -1,6 +1,7 @@
 import { BookmarkPlus, Moon, PanelLeft, PanelRight, Sun, Wand2 } from 'lucide-react'
 import { Button } from '@/components/ui/button.tsx'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover.tsx'
+import { SegmentedControl } from './SegmentedControl.tsx'
 import { PRESETS } from '@/lib/treb/presets.ts'
 import type { UnitSystem } from '@/lib/format.ts'
 import { cn } from '@/lib/utils.ts'
@@ -48,28 +49,27 @@ export function TopBar({
   const eras = ['modern', 'historical', 'reference'] as const
 
   return (
-    /* Two rows below `md`, one above. On a phone the wordmark, the preset name
+    /* Two rows below `lg`, one above. On a phone the wordmark, the preset name
        and four icon buttons cannot share a row without the first two colliding
-       — which is exactly what they did. */
-    <header className="rule-b flex shrink-0 flex-col bg-ground md:h-12 md:flex-row md:items-center md:gap-2 md:px-3">
-      <div className="flex h-12 items-center gap-2.5 px-3 md:h-auto md:px-0">
+       — which is exactly what they did. The switch used to be at `md`, but the
+       single row does not actually fit until about 900px: between the two it
+       overflowed a shell that deliberately cannot scroll, so the last control
+       was silently clipped off the edge rather than wrapping. */
+    <header className="rule-b flex shrink-0 flex-col bg-ground lg:h-12 lg:flex-row lg:items-center lg:gap-2 lg:px-3">
+      {/* Wraps rather than clips. Below about 380px the wordmark and the four
+          settings controls genuinely do not fit on one line, and the shell
+          cannot scroll — so without this the last control was simply gone off
+          the edge. Wrapping costs a row only on the phones that need one, which
+          is cheaper than a fourth breakpoint and a shrunken wordmark. */}
+      <div className="flex min-h-12 flex-wrap items-center gap-2 px-3 py-1.5 lg:min-h-0 lg:flex-nowrap lg:py-0 lg:px-0">
         <TrebuchetMark />
         <div className="leading-none">
-          <h1
-            className="font-[600] text-ink"
-            style={{
-              fontFamily: "'Instrument Sans Variable', sans-serif",
-              letterSpacing: '0.2em',
-              fontSize: '0.9rem',
-            }}
-          >
-            TREBUCHATOR
-          </h1>
-          <p className="label hidden pt-1 text-ink-3 sm:block">
+          <h1 className="wordmark text-ink">Trebuchator</h1>
+          <p className="label hidden whitespace-nowrap pt-1 text-ink-3 sm:block">
             Counterweight siege engine calculator
           </p>
         </div>
-        <div className="ml-auto flex items-center gap-1.5 md:hidden">
+        <div className="ml-auto flex items-center gap-1.5 lg:hidden">
           <UnitToggle units={units} onUnits={onUnits} />
           <ThemeButton dark={dark} onDark={onDark} />
           <PanelButtons
@@ -81,8 +81,8 @@ export function TopBar({
         </div>
       </div>
 
-      <div className="rule-t flex h-12 items-center gap-2 px-3 md:h-auto md:border-t-0 md:px-0">
-        <span className="mx-1 hidden h-6 w-px bg-rule md:block" aria-hidden />
+      <div className="rule-t flex h-12 items-center gap-2 px-3 lg:h-auto lg:border-t-0 lg:px-0">
+        <span className="mx-1 hidden h-6 w-px bg-rule lg:block" aria-hidden />
 
       <Popover>
         <PopoverTrigger asChild>
@@ -109,8 +109,8 @@ export function TopBar({
                       p.id === presetId && 'bg-verdigris/8',
                     )}
                   >
-                    <div className="stencil pb-1 text-ink">{p.name}</div>
-                    <div className="text-[11px] leading-snug text-ink-3">{p.blurb}</div>
+                    <div className="label pb-1 text-ink">{p.name}</div>
+                    <div className="body text-ink-2">{p.blurb}</div>
                   </button>
                 ))}
               </div>
@@ -143,17 +143,14 @@ export function TopBar({
       </Button>
 
         <div className="ml-auto flex items-center gap-1.5">
-          <span
-            className={cn(
-              'label hidden pr-1 text-ink-3 transition-opacity sm:inline',
-              busy ? 'opacity-100' : 'opacity-0',
-            )}
-            aria-live="polite"
-          >
-            Solving
+          {/* The width is reserved rather than the text hidden: an always-present
+              "Solving" is announced on every pass through the bar and never
+              announced when it actually starts, which is backwards. */}
+          <span className="label hidden w-12 pr-1 text-right text-ink-3 sm:inline-block" aria-live="polite">
+            {busy ? 'Solving' : ''}
           </span>
 
-          <div className="hidden items-center gap-1.5 md:flex">
+          <div className="hidden items-center gap-1.5 lg:flex">
             <UnitToggle units={units} onUnits={onUnits} />
             <ThemeButton dark={dark} onDark={onDark} />
             <PanelButtons
@@ -177,35 +174,25 @@ function UnitToggle({
   onUnits: (u: UnitSystem) => void
 }) {
   return (
-    <div
-      role="radiogroup"
-      aria-label="Units"
-      className="flex shrink-0 overflow-hidden rounded-sm border border-rule"
-    >
-      {(['metric', 'imperial'] as const).map((u) => (
-        <button
-          key={u}
-          role="radio"
-          aria-checked={units === u}
-          onClick={() => onUnits(u)}
-          className={cn(
-            'label px-2 py-1.5 transition-colors',
-            units === u ? 'bg-verdigris/12 text-verdigris' : 'text-ink-3 hover:text-ink-2',
-          )}
-        >
-          {u === 'metric' ? 'm · kg' : 'ft · lb'}
-        </button>
-      ))}
-    </div>
+    <SegmentedControl
+      label="Units"
+      value={units}
+      onChange={onUnits}
+      options={[
+        { value: 'metric', label: 'm · kg' },
+        { value: 'imperial', label: 'ft · lb' },
+      ]}
+    />
   )
 }
+
 
 function ThemeButton({ dark, onDark }: { dark: boolean; onDark: (v: boolean) => void }) {
   return (
     <Button
       size="icon"
       variant="outline"
-      className="size-8 shrink-0"
+      className="tap-target relative size-8 shrink-0"
       onClick={() => onDark(!dark)}
       aria-label={dark ? 'Switch to the light sheet' : 'Switch to the dark sheet'}
       title={dark ? 'Light sheet' : 'Dark sheet'}
@@ -231,7 +218,7 @@ function PanelButtons({
       <Button
         size="icon"
         variant="outline"
-        className="size-8 shrink-0 xl:hidden"
+        className="tap-target relative size-8 shrink-0 xl:hidden"
         onClick={onToggleDesign}
         aria-pressed={showDesign}
         aria-label="Toggle the design panel"
@@ -241,7 +228,7 @@ function PanelButtons({
       <Button
         size="icon"
         variant="outline"
-        className="size-8 shrink-0 xl:hidden"
+        className="tap-target relative size-8 shrink-0 xl:hidden"
         onClick={onToggleResults}
         aria-pressed={showResults}
         aria-label="Toggle the results panel"

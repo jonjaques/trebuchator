@@ -4,6 +4,7 @@ import { num, scaled, show, speedAside, toDisplay, unitSymbol, type Dimension, t
 import { EnergyBar } from './EnergyBar.tsx'
 import { Section } from './Field.tsx'
 import { Button } from '@/components/ui/button.tsx'
+import { useNotes } from '@/lib/notes.ts'
 import { cn } from '@/lib/utils.ts'
 
 export interface SavedShot {
@@ -38,19 +39,23 @@ function Stat({
   hint?: string
   emphasis?: boolean
 }) {
+  const notes = useNotes()
   return (
-    <div className="flex items-baseline justify-between gap-2 py-[3px]" title={hint}>
-      <span className="label shrink-0 text-ink-3">{label}</span>
-      <span className="h-px flex-1 translate-y-[-2px] bg-rule/60" aria-hidden />
-      <span
-        className={cn(
-          'tnum shrink-0 font-mono text-xs',
-          emphasis ? 'text-ink' : 'text-ink-2',
-        )}
+    <div className="py-[3px]">
+      <div
+        className="flex items-baseline justify-between gap-2"
+        title={notes ? undefined : hint}
       >
-        {value}
-        {unit && <span className="pl-1 text-[10px] text-ink-3">{unit}</span>}
-      </span>
+        <span className="label shrink-0 text-ink-3">{label}</span>
+        <span className="h-px flex-1 translate-y-[-2px] bg-rule/60" aria-hidden />
+        <span className={cn('tnum shrink-0 font-mono text-xs', emphasis ? 'text-ink' : 'text-ink-2')}>
+          {value}
+          {unit && <span className="micro pl-1 text-ink-3">{unit}</span>}
+        </span>
+      </div>
+      {/* Always in the DOM so a screen reader reading the row straight through
+          gets the explanation; painted only when the notes layer is on. */}
+      {hint && <p className={cn('text-ink-2', notes ? 'body pt-0.5' : 'sr-only')}>{hint}</p>}
     </div>
   )
 }
@@ -68,8 +73,8 @@ export function ReadoutRail({ result, error, params, units, saved, onRecall, onD
           <Ban className="mt-px size-4 shrink-0 text-bad" aria-hidden />
           <div>
             <h3 className="stencil pb-1.5 text-bad">The solver stopped</h3>
-            <p className="text-[11px] leading-snug text-ink-2">{error}</p>
-            <p className="pt-1.5 text-[11px] leading-snug text-ink-3">
+            <p className="body text-ink-2">{error}</p>
+            <p className="body pt-1.5 text-ink-2">
               That is a fault in the simulator rather than in your machine. Change any parameter
               to fire again.
             </p>
@@ -81,7 +86,7 @@ export function ReadoutRail({ result, error, params, units, saved, onRecall, onD
 
   if (!result) {
     return (
-      <div className="p-4 text-[11px] text-ink-3">Setting out the machine…</div>
+      <div className="body p-4 text-ink-2">Setting out the machine…</div>
     )
   }
 
@@ -92,7 +97,7 @@ export function ReadoutRail({ result, error, params, units, saved, onRecall, onD
           <Ban className="mt-px size-4 shrink-0 text-bad" aria-hidden />
           <div>
             <h3 className="stencil pb-1.5 text-bad">This machine will not throw</h3>
-            <ul className="space-y-1.5 text-[11px] leading-snug text-ink-2">
+            <ul className="body space-y-1.5 text-ink-2">
               {result.errors.map((e) => (
                 <li key={e}>{e}</li>
               ))}
@@ -112,7 +117,10 @@ export function ReadoutRail({ result, error, params, units, saved, onRecall, onD
   const dragCost = result.vacuumRange - result.range
 
   return (
-    <div className="thin-scroll h-full overflow-y-auto">
+    /* The tail padding is so the last reading clears the bottom edge when the
+       rail is scrolled all the way down — flush against the viewport it read as
+       the end of the list rather than the end of the scroll. */
+    <div className="thin-scroll h-full overflow-y-auto pb-8">
       <Section title="The shot">
         <div className="flex items-end gap-2 pb-2 pt-1">
           <span className="tnum font-mono text-[2.6rem] leading-none font-medium text-quench">
@@ -120,7 +128,7 @@ export function ReadoutRail({ result, error, params, units, saved, onRecall, onD
           </span>
           <span className="pb-1 font-mono text-sm text-ink-3">{lengthU}</span>
         </div>
-        <p className="pb-2 text-[11px] leading-snug text-ink-3">
+        <p className="body pb-2 text-ink-2">
           Measured along the ground from the pivot to where it lands.
         </p>
         <Stat
@@ -151,7 +159,7 @@ export function ReadoutRail({ result, error, params, units, saved, onRecall, onD
           value={show(rel.speed, 'speed', units, 1)}
           unit={unitSymbol('speed', units)}
           emphasis
-          hint={speedAside(rel.speed, units)}
+          hint={speedAside(rel.speed, units) ?? undefined}
         />
         <Stat label="Launch angle" value={num(rel.angle, 1)} unit="°" />
         <Stat
@@ -236,7 +244,7 @@ export function ReadoutRail({ result, error, params, units, saved, onRecall, onD
         <Section title="Watch out">
           <ul className="space-y-2">
             {result.warnings.map((wmsg) => (
-              <li key={wmsg} className="flex gap-2 text-[11px] leading-snug text-ink-2">
+              <li key={wmsg} className="body flex gap-2 text-ink-2">
                 <AlertTriangle className="mt-px size-3.5 shrink-0 text-warn" aria-hidden />
                 <span>{wmsg}</span>
               </li>
@@ -255,7 +263,7 @@ export function ReadoutRail({ result, error, params, units, saved, onRecall, onD
                   className="flex flex-1 items-baseline justify-between gap-2 rounded-sm px-1.5 py-1.5 text-left hover:bg-raised"
                   title="Load this machine back into the panel"
                 >
-                  <span className="truncate text-[11px] text-ink-2">{s.label}</span>
+                  <span className="body truncate text-ink-2">{s.label}</span>
                   <span className="tnum shrink-0 font-mono text-[11px] text-ink">
                     {num(toDisplay(s.range, 'length', units), 1)}
                     <span className="pl-0.5 text-ink-3">{lengthU}</span>

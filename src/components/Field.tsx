@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import { DraftSlider } from './DraftSlider.tsx'
 import { Switch } from '@/components/ui/switch.tsx'
+import { useNotes } from '@/lib/notes.ts'
 import { cn } from '@/lib/utils.ts'
 import {
   fromDisplay,
@@ -59,6 +60,8 @@ export function Field({
   scale,
 }: FieldProps) {
   const id = useId()
+  const notes = useNotes()
+  const hintId = `${id}-hint`
   const dMin = toDisplay(min, dim, units)
   const dMax = toDisplay(max, dim, units)
   const dValue = toDisplay(value, dim, units)
@@ -101,10 +104,16 @@ export function Field({
   return (
     <div className={cn('group py-1.5', disabled && 'opacity-40')}>
       <div className="flex items-baseline justify-between gap-2 pb-1">
-        <label htmlFor={id} className="label text-ink-2 truncate" title={hint}>
+        {/* The tooltip is the fallback for a mouse when the notes are folded
+            away, not the only copy of the text — see `lib/notes.ts`. */}
+        <label
+          htmlFor={id}
+          className="label truncate text-ink-2"
+          title={notes ? undefined : hint}
+        >
           {label}
         </label>
-        {aside && <span className="tnum font-mono text-[10px] text-ink-3 shrink-0">{aside}</span>}
+        {aside && <span className="tnum micro shrink-0 font-mono text-ink-3">{aside}</span>}
       </div>
       <div className="flex items-center gap-2">
         <DraftSlider
@@ -124,6 +133,7 @@ export function Field({
             type="text"
             inputMode="decimal"
             disabled={disabled}
+            aria-describedby={hint ? hintId : undefined}
             value={shown}
             onChange={(e) => setDraft(e.target.value)}
             onBlur={(e) => commit(e.target.value)}
@@ -133,11 +143,14 @@ export function Field({
             }}
             className="tnum w-full min-w-0 bg-transparent text-right font-mono text-xs text-ink outline-none"
           />
-          <span className="font-mono text-[10px] text-ink-3 shrink-0">
-            {unitSymbol(dim, units)}
-          </span>
+          <span className="micro shrink-0 font-mono text-ink-3">{unitSymbol(dim, units)}</span>
         </div>
       </div>
+      {hint && (
+        <p id={hintId} className={cn('text-ink-2', notes ? 'body pt-1' : 'sr-only')}>
+          {hint}
+        </p>
+      )}
     </div>
   )
 }
@@ -154,12 +167,26 @@ export function ToggleField({
   hint?: string
 }) {
   const id = useId()
+  const notes = useNotes()
+  const hintId = `${id}-hint`
   return (
-    <div className="flex items-center justify-between gap-3 py-2">
-      <label htmlFor={id} className="label text-ink-2" title={hint}>
-        {label}
-      </label>
-      <Switch id={id} checked={checked} onCheckedChange={onChange} />
+    <div className="py-2">
+      <div className="flex items-center justify-between gap-3">
+        <label htmlFor={id} className="label text-ink-2" title={notes ? undefined : hint}>
+          {label}
+        </label>
+        <Switch
+          id={id}
+          checked={checked}
+          onCheckedChange={onChange}
+          aria-describedby={hint ? hintId : undefined}
+        />
+      </div>
+      {hint && (
+        <p id={hintId} className={cn('text-ink-2', notes ? 'body pt-1' : 'sr-only')}>
+          {hint}
+        </p>
+      )}
     </div>
   )
 }
@@ -179,7 +206,7 @@ export function Section({
         <span className="h-px w-3 shrink-0 bg-verdigris" aria-hidden />
         {title}
       </h3>
-      {note && <p className="pb-1.5 text-[11px] leading-snug text-ink-3">{note}</p>}
+      {note && <p className="body pb-1.5 text-ink-2">{note}</p>}
       {children}
     </section>
   )

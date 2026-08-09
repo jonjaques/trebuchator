@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import type { EnergyBudget } from '@/lib/treb/types.ts'
 import { num, scaled, toDisplay, unitSymbol, type UnitSystem } from '@/lib/format.ts'
 import { cn } from '@/lib/utils.ts'
@@ -66,14 +66,20 @@ function buckets(e: EnergyBudget): Bucket[] {
 }
 
 export function EnergyBar({ energy, units }: { energy: EnergyBudget; units: UnitSystem }) {
+  // Two cursors, not one. Hover previews a band and click keeps it — without the
+  // second, a band's explanation was unreachable on a touch screen, which is
+  // where a builder actually stands.
   const [hover, setHover] = useState<string | null>(null)
+  const [held, setHeld] = useState<string | null>(null)
+  const noteId = useId()
   const rows = buckets(energy)
   const total = Math.max(
     1e-9,
     rows.reduce((s, b) => s + Math.max(0, b.value), 0),
   )
   const available = scaled(energy.available, 'energy', units)
-  const active = rows.find((r) => r.key === hover)
+  const shownKey = hover ?? held
+  const active = rows.find((r) => r.key === shownKey)
 
   return (
     <div>
@@ -85,12 +91,13 @@ export function EnergyBar({ energy, units }: { energy: EnergyBudget; units: Unit
         </span>
       </div>
 
+      {/* Deliberately not `role="img"`: that makes everything inside it
+          presentational, and these bands are the controls that reveal the
+          budget. The group is named instead and the bands stay reachable. */}
       <div
         className="flex h-6 w-full gap-[2px]"
-        role="img"
-        aria-label={rows
-          .map((b) => `${b.label} ${num((b.value / total) * 100, 0)} percent`)
-          .join(', ')}
+        role="group"
+        aria-label="Energy budget"
         onMouseLeave={() => setHover(null)}
       >
         {rows.map((b) => {
@@ -104,19 +111,22 @@ export function EnergyBar({ energy, units }: { energy: EnergyBudget; units: Unit
               className={cn(
                 'relative h-full min-w-[3px] rounded-[1px] transition-opacity',
                 b.fill === null && 'border border-dashed border-rule',
-                hover && hover !== b.key && 'opacity-45',
+                shownKey && shownKey !== b.key && 'opacity-45',
               )}
               onMouseEnter={() => setHover(b.key)}
               onFocus={() => setHover(b.key)}
               onBlur={() => setHover(null)}
+              onClick={() => setHeld((prev) => (prev === b.key ? null : b.key))}
+              aria-expanded={held === b.key}
+              aria-controls={noteId}
               aria-label={`${b.label}: ${num((b.value / total) * 100, 0)}%`}
             />
           )
         })}
       </div>
 
-      <p className="min-h-[2.4rem] pt-2 text-[11px] leading-snug text-ink-3">
-        {active?.note ?? 'Hover a band to see what it accounts for.'}
+      <p id={noteId} className="body min-h-[2.4rem] pt-2 text-ink-2">
+        {active?.note ?? 'Pick a band to see what it accounts for.'}
       </p>
 
       <dl className="pt-1">
@@ -127,7 +137,7 @@ export function EnergyBar({ energy, units }: { energy: EnergyBudget; units: Unit
               key={b.key}
               className={cn(
                 'flex items-center gap-2 py-[3px] transition-opacity',
-                hover && hover !== b.key && 'opacity-45',
+                shownKey && shownKey !== b.key && 'opacity-45',
               )}
               onMouseEnter={() => setHover(b.key)}
               onMouseLeave={() => setHover(null)}
@@ -137,7 +147,7 @@ export function EnergyBar({ energy, units }: { energy: EnergyBudget; units: Unit
                 className={cn('h-2.5 w-2.5 shrink-0 rounded-[1px]', b.fill === null && 'border border-dashed border-rule')}
                 style={b.fill ? { background: b.fill } : undefined}
               />
-              <dt className="flex-1 truncate text-[11px] text-ink-2">{b.label}</dt>
+              <dt className="body flex-1 truncate text-ink-2">{b.label}</dt>
               <dd className="tnum shrink-0 font-mono text-[11px] text-ink-3">
                 {num(toDisplay(b.value, 'energy', units))} {unitSymbol('energy', units)}
               </dd>

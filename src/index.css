@@ -225,6 +225,30 @@
         line-height: 1.25;
     }
 
+    /* Explanatory prose: section notes, field hints, warnings, error text. The
+       only role in the system that runs to a sentence, so the only one set
+       loose enough to read as one. */
+    .body {
+        font-weight: 400;
+        font-size: 0.6875rem;
+        line-height: 1.375;
+    }
+
+    /* The one set of tracked capitals that is not `.stencil`. A wordmark is a
+       mark rather than a section head, it is set once, and it is drawn wider
+       than the sheet's lettering on purpose. */
+    .wordmark {
+        text-transform: uppercase;
+        font-weight: 600;
+        font-size: 0.9rem;
+        letter-spacing: 0.2em;
+        line-height: 1;
+        /* Tracking is applied after the last letter too, so the box runs ~3px
+           wider than the ink and everything after it sits that much too far
+           right. Take the trailing sidebearing back. */
+        margin-inline-end: -0.2em;
+    }
+
     /* Meta text that must recede: units, hints, secondary counts. */
     .micro {
         font-weight: 400;
@@ -273,6 +297,48 @@
     .thin-scroll::-webkit-scrollbar-track {
         background: transparent;
     }
+
+    /* A 28px control is the right size for this sheet and the wrong size for a
+       thumb. On a coarse pointer the hit area grows past the paint without
+       moving anything, so the drawing keeps its scale and the finger gets a
+       target. Vertical gets the full 8px — the rows it sits in are 44px tall.
+       Horizontal gets 3px, half the 6px control gap, so neighbouring targets
+       meet rather than overlap: an overlap hands the painted edge of one
+       control to the one beside it, which is worse than a small target. */
+    @media (pointer: coarse) {
+        .tap-target::after {
+            content: '';
+            position: absolute;
+            inset-block: -8px;
+            inset-inline: -3px;
+        }
+    }
+}
+
+/* ---------------------------------------------------------------------------
+   Focus, on the vendored controls only — and deliberately outside every
+   `@layer`.
+
+   The rule in `@layer base` above is the system's focus language and it works
+   everywhere this app draws its own controls. It never reached a shadcn one.
+   Those files ship `outline-none` *and* a 3px `ring` on `:focus-visible`, both
+   of which land in Tailwind's `utilities` layer; layer order is settled before
+   specificity, so no layered rule can outrank them however it is written. The
+   result was that every Button in the app — the transport, the presets, the
+   theme switch — showed the soft glow this system has no vocabulary for, and
+   the outline DESIGN.md documents was simply not painted.
+
+   Unlayered declarations outrank all layers, which is the only lever that
+   reaches this. Scoped to `[data-slot]`, which is exactly the set of vendored
+   components, so our own controls keep the base rule and the two that suppress
+   the outline on purpose — the slide-rule slider cursor paints its own — are
+   left alone. Only `--tw-ring-shadow` is cancelled rather than `box-shadow`
+   wholesale, so the popover keeps the one sanctioned shadow in the system.
+--------------------------------------------------------------------------- */
+[data-slot]:focus-visible {
+    outline: 2px solid var(--verdigris);
+    outline-offset: 1px;
+    --tw-ring-shadow: 0 0 #0000;
 }
 
 @media (prefers-reduced-motion: reduce) {

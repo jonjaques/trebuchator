@@ -83,6 +83,19 @@ function niceStep(span: number, target: number): number {
   return mag * 10
 }
 
+/**
+ * Decimals the whole axis is lettered to: the fewest that still write the step
+ * exactly. Formatting each tick against its own magnitude instead put "8.00"
+ * next to "10" on one axis, which is not something a draughtsman would do.
+ */
+function tickDecimals(step: number): number {
+  for (let d = 0; d < 4; d++) {
+    const scaledStep = step * 10 ** d
+    if (Math.abs(scaledStep - Math.round(scaledStep)) < 1e-9) return d
+  }
+  return 4
+}
+
 export function SweepChart({
   points,
   paramKey,
@@ -140,7 +153,7 @@ export function SweepChart({
     return (
       <div
         ref={plotRef}
-        className="flex w-full items-center justify-center text-[11px] text-ink-3"
+        className="body flex w-full items-center justify-center text-ink-2"
         style={{ height: H }}
       >
         {loading ? 'Sweeping…' : 'Not enough valid shots to plot.'}
@@ -159,10 +172,12 @@ export function SweepChart({
   const gain = Number.isFinite(atCurrent) ? best.range - atCurrent : Number.NaN
 
   const yStep = niceStep(yTop, 3)
+  const yDecimals = tickDecimals(yStep)
   const yTicks: number[] = []
   for (let v = 0; v <= yTop; v += yStep) yTicks.push(v)
   const xSpanDisplay = toDisplay(x1, dim, units) - toDisplay(x0, dim, units)
   const xStep = niceStep(Math.abs(xSpanDisplay), 6)
+  const xDecimals = tickDecimals(xStep)
   const xTicks: number[] = []
   {
     const lo = toDisplay(x0, dim, units)
@@ -223,7 +238,7 @@ export function SweepChart({
               fontSize={10}
               fontFamily="'Geist Mono Variable', monospace"
             >
-              {num(v, 0)}
+              {num(v, yDecimals)}
             </text>
           </g>
         ))}
@@ -276,7 +291,7 @@ export function SweepChart({
                 fontSize={10}
                 fontFamily="'Geist Mono Variable', monospace"
               >
-                {num(v, Math.abs(v) >= 10 ? 0 : 2)}
+                {num(v, xDecimals)}
               </text>
             </g>
           )
@@ -417,6 +432,15 @@ export function SweepChart({
           )}
           {Number.isFinite(gain) && gain <= 0.05 && ' — you are already there'}
         </span>
+        {deadBands.length > 0 && (
+          /* The shading had no key. A reader met a grey block on a chart of
+             ranges with nothing to tell them whether it meant "no data" or
+             "very short shot" — which are opposite conclusions. */
+          <span className="label flex items-center gap-1.5 text-ink-3">
+            <span aria-hidden className="h-2.5 w-4 shrink-0 bg-ink-3/12" />
+            Shaded: will not throw
+          </span>
+        )}
         <span className="label ml-auto text-ink-3">
           {loading
             ? 'Sweeping…'

@@ -3,6 +3,7 @@ import {
   DraftingCompass,
   Frame,
   Grid3x3,
+  Info,
   Maximize2,
   Pause,
   Play,
@@ -36,6 +37,8 @@ interface Props {
   onShowAngles: (v: boolean) => void
   showGrid: boolean
   onShowGrid: (v: boolean) => void
+  notes: boolean
+  onNotes: (v: boolean) => void
   disabled: boolean
 }
 
@@ -57,7 +60,7 @@ function IconToggle({
       title={label}
       aria-label={label}
       className={cn(
-        'flex size-7 shrink-0 items-center justify-center rounded-sm border transition-colors',
+        'tap-target relative flex size-7 shrink-0 items-center justify-center rounded-sm border transition-colors',
         on
           ? 'border-verdigris bg-verdigris/10 text-verdigris'
           : 'border-rule text-ink-3 hover:border-ink-3 hover:text-ink-2',
@@ -93,6 +96,8 @@ export function Transport({
   onShowAngles,
   showGrid,
   onShowGrid,
+  notes,
+  onNotes,
   disabled,
 }: Props) {
   const duration = timeline?.duration ?? 0
@@ -106,7 +111,7 @@ export function Transport({
           <Button
             size="icon"
             variant="outline"
-            className="size-8"
+            className="tap-target relative size-8"
             disabled={disabled}
             onClick={onReplay}
             aria-label="Fire again from the start"
@@ -116,7 +121,7 @@ export function Transport({
           </Button>
           <Button
             size="icon"
-            className="size-8"
+            className="tap-target relative size-8"
             disabled={disabled}
             onClick={playing ? onPause : onPlay}
             aria-label={playing ? 'Pause' : 'Play the shot'}
@@ -195,6 +200,21 @@ export function Transport({
         </IconToggle>
         <IconToggle on={showGrid} onClick={() => onShowGrid(!showGrid)} label="Show grid">
           <Grid3x3 className="size-3.5" aria-hidden />
+        </IconToggle>
+
+        <span className="mx-0.5 h-5 w-px shrink-0 bg-rule" aria-hidden />
+
+        {/* The rails' annotations, one divider along from the sheet's. It is the
+            same kind of control — a layer of explanation you switch on when you
+            want it — and this row is already where the app keeps those. The top
+            bar is not: it was full, and had been silently clipping its last
+            control since before this one existed. */}
+        <IconToggle
+          on={notes}
+          onClick={() => onNotes(!notes)}
+          label="Show the notes beside each reading"
+        >
+          <Info className="size-3.5" aria-hidden />
         </IconToggle>
       </div>
     </div>

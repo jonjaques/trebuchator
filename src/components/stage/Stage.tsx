@@ -268,6 +268,24 @@ export function Stage({
           setGrabbing(false)
         }}
       />
+      {/* Nothing to paint, in the two ways that happens. The first solve costs a
+          worker boot plus 20–45 ms, and an unmarked blank sheet is the first
+          thing anyone sees of this app. A machine that will not throw blanks it
+          for as long as it stays broken — and below `xl` the rail carrying the
+          reason is closed, so the sheet was the whole story and it said
+          nothing. */}
+      {!result?.ok && (
+        <p className="body pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center text-ink-2">
+          {result == null ? (
+            'Setting out the machine…'
+          ) : (
+            <span>
+              Nothing to draw — this machine will not throw.
+              <span className="xl:hidden"> Open the results panel for why.</span>
+            </span>
+          )}
+        </p>
+      )}
     </div>
   )
 }

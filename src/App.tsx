@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, ChevronUp, Target } from 'lucide-react'
 import { TopBar } from '@/components/TopBar.tsx'
+import { SegmentedControl } from '@/components/SegmentedControl.tsx'
 import { DesignRail } from '@/components/DesignRail.tsx'
 import { ReadoutRail, type SavedShot } from '@/components/ReadoutRail.tsx'
 import { Transport } from '@/components/Transport.tsx'
@@ -19,6 +20,7 @@ import {
 import type { TrebuchetParams } from '@/lib/treb/types.ts'
 import { TIME_EPS } from '@/lib/treb/timeline.ts'
 import { detectUnitSystem, num, type UnitSystem } from '@/lib/format.ts'
+import { NotesContext } from '@/lib/notes.ts'
 import { cn } from '@/lib/utils.ts'
 
 const AUTOTUNE_KEYS: TunableKey[] = ['slingLength', 'cwHanger', 'initialBeamAngle', 'armShort']
@@ -32,6 +34,12 @@ export default function App() {
     const stored = localStorage.getItem('trebuchator:units')
     return stored === 'metric' || stored === 'imperial' ? stored : detectUnitSystem()
   })
+  // On by default: the product's second job is teaching, and a builder meeting
+  // "hanger length" for the first time should not have to discover a tooltip to
+  // find out what it measures. One click folds them all away again.
+  const [notes, setNotes] = useState(
+    () => localStorage.getItem('trebuchator:notes') !== 'off',
+  )
   const [dark, setDark] = useState(
     () =>
       localStorage.getItem('trebuchator:theme') !== 'light' &&
@@ -83,6 +91,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('trebuchator:units', units)
   }, [units])
+
+  useEffect(() => {
+    localStorage.setItem('trebuchator:notes', notes ? 'on' : 'off')
+  }, [notes])
 
   // --- theme ---------------------------------------------------------------
   useEffect(() => {
@@ -263,9 +275,18 @@ export default function App() {
   // --- keyboard ------------------------------------------------------------
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return
       const el = e.target as HTMLElement | null
-      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) return
+      // Anywhere a keystroke is already meaningful: a text box, the parameter
+      // menu, an open popover. A bare letter belongs to that control, not to a
+      // shortcut — pressing "a" in the sweep menu used to jump to a preset's
+      // option *and* toggle the angle overlay behind it.
+      if (el?.closest('input, textarea, select, [contenteditable="true"], [role="dialog"]')) return
       if (e.key === ' ') {
+        // Space is how a focused button, switch or slider is worked. Swallowing
+        // it globally meant no keyboard user could press Auto-tune, Save shot,
+        // or any toggle in the app — the shortcut ate the activation.
+        if (el?.closest('button, a[href], [role="switch"], [role="slider"]')) return
         e.preventDefault()
         if (playing) setPlaying(false)
         else play()
@@ -274,6 +295,7 @@ export default function App() {
       if (e.key === 'd' || e.key === 'D') toggleDimensions(!showDimensions)
       if (e.key === 'a' || e.key === 'A') setShowAngles((v) => !v)
       if (e.key === 'g' || e.key === 'G') setShowGrid((v) => !v)
+      if (e.key === 'n' || e.key === 'N') setNotes((v) => !v)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -285,234 +307,240 @@ export default function App() {
     params.type === 'hinged' ? 'Hinged counterweight' : params.type === 'fixed' ? 'Bolted counterweight' : 'Floating arm'
 
   return (
-    <div className="flex h-dvh w-full flex-col overflow-hidden bg-ground text-ink">
-      <TopBar
-        presetId={presetId}
-        onPreset={loadPreset}
-        units={units}
-        onUnits={setUnits}
-        dark={dark}
-        onDark={setDark}
-        onSave={saveShot}
-        onAutoTune={autoTune}
-        tuning={tuning}
-        busy={busy}
-        showDesign={showDesign}
-        showResults={showResults}
-        onToggleDesign={() => {
-          setShowDesign((v) => !v)
-          setShowResults(false)
-        }}
-        onToggleResults={() => {
-          setShowResults((v) => !v)
-          setShowDesign(false)
-        }}
-      />
+    <NotesContext value={notes}>
+      <div className="flex h-dvh w-full flex-col overflow-hidden bg-ground text-ink">
+        <TopBar
+          presetId={presetId}
+          onPreset={loadPreset}
+          units={units}
+          onUnits={setUnits}
+          dark={dark}
+          onDark={setDark}
+          onSave={saveShot}
+          onAutoTune={autoTune}
+          tuning={tuning}
+          busy={busy}
+          showDesign={showDesign}
+          showResults={showResults}
+          onToggleDesign={() => {
+            setShowDesign((v) => !v)
+            setShowResults(false)
+          }}
+          onToggleResults={() => {
+            setShowResults((v) => !v)
+            setShowDesign(false)
+          }}
+        />
 
-      <div className="relative flex min-h-0 flex-1">
-        <aside
-          className={cn(
-            'rule-r w-[21rem] shrink-0 bg-sheet xl:block',
-            showDesign
-              ? 'absolute inset-y-0 left-0 z-20 block shadow-2xl xl:relative xl:shadow-none'
-              : 'hidden',
-          )}
-        >
-          <DesignRail
-            params={params}
-            patch={patch}
-            units={units}
-            onTunePin={tunePin}
-            tuning={tuning}
-          />
-        </aside>
-
-        <main className="flex min-w-0 flex-1 flex-col">
-          <div className="relative min-h-0 flex-1">
-            <Stage
-              result={result}
+        <div className="relative flex min-h-0 flex-1">
+          <aside
+            className={cn(
+              'rule-r w-[21rem] shrink-0 bg-sheet xl:block',
+              showDesign
+                ? 'absolute inset-y-0 left-0 z-20 block shadow-2xl xl:relative xl:shadow-none'
+                : 'hidden',
+            )}
+          >
+            <DesignRail
               params={params}
-              t={t}
+              patch={patch}
               units={units}
-              showDimensions={showDimensions}
-              showAngles={showAngles}
-              showGrid={showGrid}
-              ghosts={ghosts}
-              mode={cameraMode}
-              onModeChange={setCameraMode}
+              onTunePin={tunePin}
+              tuning={tuning}
             />
+          </aside>
 
-            {/* Title block, the way a drawing carries its own identification.
-                Top right rather than the traditional bottom corner, because the
-                bottom of the sheet belongs to the range dimension. Everything in
-                it is derived from the machine, not decorative. */}
-            <div className="pointer-events-none absolute right-3 top-3 hidden border border-rule bg-sheet/85 backdrop-blur-[2px] sm:block">
-              <div className="label rule-b px-2.5 py-1.5 text-ink-2">{machineName}</div>
-              <dl className="grid grid-cols-[auto_auto] gap-x-4 gap-y-1 px-2.5 py-2">
-                <dt className="label text-ink-3">Arm ratio</dt>
-                <dd className="tnum text-right font-mono text-[11px] text-ink">
-                  {num(ratio, 2)} : 1
-                </dd>
-                <dt className="label text-ink-3">Weight ratio</dt>
-                <dd className="tnum text-right font-mono text-[11px] text-ink">
-                  {num(massRatio, 0)} : 1
-                </dd>
-                <dt className="label text-ink-3">Sling</dt>
-                <dd className="tnum text-right font-mono text-[11px] text-ink">
-                  {num((params.slingLength / params.armLong) * 100, 0)}% of arm
-                </dd>
-              </dl>
-            </div>
-          </div>
+          <main className="flex min-w-0 flex-1 flex-col">
+            <div className="relative min-h-0 flex-1">
+              <Stage
+                result={result}
+                params={params}
+                t={t}
+                units={units}
+                showDimensions={showDimensions}
+                showAngles={showAngles}
+                showGrid={showGrid}
+                ghosts={ghosts}
+                mode={cameraMode}
+                onModeChange={setCameraMode}
+              />
 
-          {sweepOpen && (
-            <div className="rule-t bg-sheet px-3 pb-2 pt-2">
-              <div className="flex flex-wrap items-center gap-2 pb-1">
-                <span className="stencil shrink-0 text-ink">Sensitivity</span>
-                <select
-                  value={sweepKey}
-                  onChange={(e) => setSweepKey(e.target.value as TunableKey)}
-                  aria-label="Parameter to sweep"
-                  className="label rounded-sm border border-rule bg-ground px-2 py-1 text-ink-2 focus-visible:border-verdigris"
-                >
-                  {TUNABLES.map((s) => (
-                    <option key={s.key} value={s.key}>
-                      {s.label}
-                    </option>
-                  ))}
-                </select>
-
-                {/* Holding the pin angle while sweeping a dimension conflates
-                    "this dimension is better" with "my pin happens to suit it",
-                    which is the fastest way to make a curve untrustworthy.
-                    Naming both readings, and letting you switch, is the fix. */}
-                <div
-                  role="radiogroup"
-                  aria-label="How each point is set up"
-                  className="flex shrink-0 overflow-hidden rounded-sm border border-rule"
-                >
-                  {(
-                    [
-                      ['asBuilt', 'As built', 'Change this one number and nothing else.'],
-                      [
-                        'bestCase',
-                        'Best case',
-                        'Re-cock the beam and release at the ideal instant for every value — what this dimension could give you if you tuned around it.',
-                      ],
-                    ] as const
-                  ).map(([m, label, hint]) => (
-                    <button
-                      key={m}
-                      role="radio"
-                      aria-checked={sweepMode === m}
-                      title={hint}
-                      onClick={() => setSweepMode(m)}
-                      className={cn(
-                        'label px-2 py-1.5 transition-colors',
-                        sweepMode === m
-                          ? 'bg-verdigris/12 text-verdigris'
-                          : 'text-ink-3 hover:text-ink-2',
-                      )}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="label h-7 shrink-0 gap-1.5"
-                  disabled={sweepBusy || !sweepBest || sweepBlocked != null}
-                  onClick={() => sweepBest && patch({ [sweepKey]: sweepBest.value })}
-                  title="Set this parameter to the value that throws furthest"
-                >
-                  <Target className="size-3" aria-hidden />
-                  Adopt best
-                </Button>
-
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="ml-auto size-7 shrink-0 text-ink-3"
-                  onClick={() => setSweepOpen(false)}
-                  aria-label="Hide the sensitivity chart"
-                >
-                  <ChevronDown className="size-4" aria-hidden />
-                </Button>
+              {/* Title block, the way a drawing carries its own identification.
+                  Top right rather than the traditional bottom corner, because the
+                  bottom of the sheet belongs to the range dimension. Everything in
+                  it is derived from the machine, not decorative. */}
+              <div className="pointer-events-none absolute right-3 top-3 hidden border border-rule bg-sheet/85 backdrop-blur-[2px] sm:block">
+                <div className="label rule-b px-2.5 py-1.5 text-ink-2">{machineName}</div>
+                <dl className="grid grid-cols-[auto_auto] gap-x-4 gap-y-1 px-2.5 py-2">
+                  <dt className="label text-ink-3">Arm ratio</dt>
+                  <dd className="tnum text-right font-mono text-[11px] text-ink">
+                    {num(ratio, 2)} : 1
+                  </dd>
+                  <dt className="label text-ink-3">Weight ratio</dt>
+                  <dd className="tnum text-right font-mono text-[11px] text-ink">
+                    {num(massRatio, 0)} : 1
+                  </dd>
+                  <dt className="label text-ink-3">Sling</dt>
+                  <dd className="tnum text-right font-mono text-[11px] text-ink">
+                    {num((params.slingLength / params.armLong) * 100, 0)}% of arm
+                  </dd>
+                </dl>
               </div>
-              {(sweepBlocked ?? sweepError) ? (
-                <p className="label mx-auto max-w-prose px-2 py-10 text-center leading-relaxed text-ink-3">
-                  {sweepBlocked ?? sweepError}
-                </p>
-              ) : (
-                <SweepChart
-                  points={sweepPoints}
-                  paramKey={sweepKey}
-                  current={params[sweepKey]}
-                  units={units}
-                  loading={sweepBusy}
-                  mode={sweepMode}
-                  onPick={(v) => patch({ [sweepKey]: v })}
-                />
-              )}
             </div>
-          )}
 
-          {!sweepOpen && (
-            <button
-              onClick={() => setSweepOpen(true)}
-              className="rule-t label flex items-center justify-center gap-1.5 bg-sheet py-1.5 text-ink-3 hover:text-ink-2"
-            >
-              <ChevronUp className="size-3.5" aria-hidden />
-              Sensitivity
-            </button>
-          )}
+            {sweepOpen && (
+              <div className="rule-t bg-sheet px-3 pb-2 pt-2">
+                {/* The collapse control leads the row rather than floating right
+                    on an `ml-auto`. In a wrapping row that put it alone on a line
+                    of its own once the buttons wrapped — and a disclosure belongs
+                    next to the name of the thing it discloses anyway, which is
+                    where the collapsed state already puts it. */}
+                <div className="flex flex-wrap items-center gap-2 pb-1">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="tap-target relative -ml-1 size-7 shrink-0 text-ink-3"
+                    onClick={() => setSweepOpen(false)}
+                    aria-expanded
+                    aria-label="Hide the sensitivity chart"
+                  >
+                    <ChevronDown className="size-4" aria-hidden />
+                  </Button>
+                  <span className="stencil shrink-0 text-ink">Sensitivity</span>
+                  {/* A native select for a 12-item list — the platform picker is
+                      the right control on a phone — but with its own chrome off,
+                      because a macOS select is rounder than anything else drawn
+                      on this sheet. */}
+                  <div className="relative shrink-0">
+                    <select
+                      value={sweepKey}
+                      onChange={(e) => setSweepKey(e.target.value as TunableKey)}
+                      aria-label="Parameter to sweep"
+                      className="label appearance-none rounded-sm border border-rule bg-ground py-1 pl-2 pr-6 text-ink-2 focus-visible:border-verdigris"
+                    >
+                      {TUNABLES.map((s) => (
+                        <option key={s.key} value={s.key}>
+                          {s.label}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown
+                      className="pointer-events-none absolute right-1.5 top-1/2 size-3 -translate-y-1/2 text-ink-3"
+                      aria-hidden
+                    />
+                  </div>
 
-          <Transport
-            t={t}
-            timeline={timeline}
-            playing={playing}
-            speed={speed}
-            onSeek={seek}
-            onPlay={play}
-            onPause={() => setPlaying(false)}
-            onReplay={replay}
-            onSpeed={setSpeed}
-            cameraMode={cameraMode}
-            onCameraMode={setCameraMode}
-            showDimensions={showDimensions}
-            onShowDimensions={toggleDimensions}
-            showAngles={showAngles}
-            onShowAngles={toggleAngles}
-            showGrid={showGrid}
-            onShowGrid={setShowGrid}
-            disabled={!result?.ok}
-          />
-        </main>
+                  {/* Holding the pin angle while sweeping a dimension conflates
+                      "this dimension is better" with "my pin happens to suit it",
+                      which is the fastest way to make a curve untrustworthy.
+                      Naming both readings, and letting you switch, is the fix. */}
+                  <SegmentedControl
+                    label="How each point is set up"
+                    value={sweepMode}
+                    onChange={setSweepMode}
+                    options={[
+                      {
+                        value: 'asBuilt',
+                        label: 'As built',
+                        title: 'Change this one number and nothing else.',
+                      },
+                      {
+                        value: 'bestCase',
+                        label: 'Best case',
+                        title:
+                          'Re-cock the beam and release at the ideal instant for every value — what this dimension could give you if you tuned around it.',
+                      },
+                    ]}
+                  />
 
-        <aside
-          className={cn(
-            'rule-l w-[20rem] shrink-0 bg-sheet xl:block',
-            showResults
-              ? 'absolute inset-y-0 right-0 z-20 block shadow-2xl xl:relative xl:shadow-none'
-              : 'hidden',
-          )}
-        >
-          <ReadoutRail
-            result={result}
-            error={error ?? actionError}
-            params={params}
-            units={units}
-            saved={saved}
-            onRecall={(s) => {
-              setParams({ ...s.params })
-              setPresetId(null)
-            }}
-            onDrop={(id) => setSaved((prev) => prev.filter((s) => s.id !== id))}
-          />
-        </aside>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="label h-7 shrink-0 gap-1.5"
+                    disabled={sweepBusy || !sweepBest || sweepBlocked != null}
+                    onClick={() => sweepBest && patch({ [sweepKey]: sweepBest.value })}
+                    title="Set this parameter to the value that throws furthest"
+                  >
+                    <Target className="size-3" aria-hidden />
+                    Adopt best
+                  </Button>
+                </div>
+                {(sweepBlocked ?? sweepError) ? (
+                  <p className="body mx-auto max-w-prose px-2 py-10 text-center text-ink-2">
+                    {sweepBlocked ?? sweepError}
+                  </p>
+                ) : (
+                  <SweepChart
+                    points={sweepPoints}
+                    paramKey={sweepKey}
+                    current={params[sweepKey]}
+                    units={units}
+                    loading={sweepBusy}
+                    mode={sweepMode}
+                    onPick={(v) => patch({ [sweepKey]: v })}
+                  />
+                )}
+              </div>
+            )}
+
+            {!sweepOpen && (
+              <button
+                onClick={() => setSweepOpen(true)}
+                aria-expanded={false}
+                className="rule-t label flex items-center justify-center gap-1.5 bg-sheet py-1.5 text-ink-3 hover:text-ink-2"
+              >
+                <ChevronUp className="size-3.5" aria-hidden />
+                Sensitivity
+              </button>
+            )}
+
+            <Transport
+              t={t}
+              timeline={timeline}
+              playing={playing}
+              speed={speed}
+              onSeek={seek}
+              onPlay={play}
+              onPause={() => setPlaying(false)}
+              onReplay={replay}
+              onSpeed={setSpeed}
+              cameraMode={cameraMode}
+              onCameraMode={setCameraMode}
+              showDimensions={showDimensions}
+              onShowDimensions={toggleDimensions}
+              showAngles={showAngles}
+              onShowAngles={toggleAngles}
+              showGrid={showGrid}
+              onShowGrid={setShowGrid}
+              notes={notes}
+              onNotes={setNotes}
+              disabled={!result?.ok}
+            />
+          </main>
+
+          <aside
+            className={cn(
+              'rule-l w-[20rem] shrink-0 bg-sheet xl:block',
+              showResults
+                ? 'absolute inset-y-0 right-0 z-20 block shadow-2xl xl:relative xl:shadow-none'
+                : 'hidden',
+            )}
+          >
+            <ReadoutRail
+              result={result}
+              error={error ?? actionError}
+              params={params}
+              units={units}
+              saved={saved}
+              onRecall={(s) => {
+                setParams({ ...s.params })
+                setPresetId(null)
+              }}
+              onDrop={(id) => setSaved((prev) => prev.filter((s) => s.id !== id))}
+            />
+          </aside>
+        </div>
       </div>
-    </div>
+    </NotesContext>
   )
 }
