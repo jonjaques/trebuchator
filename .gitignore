@@ -25,3 +25,6 @@ dist-ssr
 
 # Test output
 coverage
+
+# Wrangler local state
+.wrangler
