@@ -2,20 +2,85 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- Matches --ground in both palettes, so the browser paints the right
          colour behind the app before any CSS or JS has loaded. -->
     <meta name="theme-color" content="#14110e" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#e9e3d5" media="(prefers-color-scheme: light)" />
+
+    <title>Trebuchator — counterweight trebuchet calculator &amp; simulator</title>
     <meta
       name="description"
-      content="A counterweight trebuchet calculator. Model every dimension and mass of a medieval or modern machine, fire it, and see how far it throws."
+      content="A free counterweight trebuchet calculator and simulator. Model every dimension and mass of a medieval or modern machine, fire it, and see how far it throws."
     />
-    <title>Trebuchator — counterweight siege engine calculator</title>
+    <meta name="author" content="Jon Jaques" />
+    <link rel="canonical" href="https://trebuchator.jonjaques.com/" />
+
+    <!-- ico first so legacy agents stop there; evergreen browsers take the SVG. -->
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="apple-mobile-web-app-title" content="Trebuchator" />
+
+    <!-- Social cards. og:image must be absolute — scrapers do not resolve
+         relative URLs against the page. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Trebuchator" />
+    <meta property="og:title" content="Trebuchator — counterweight trebuchet calculator" />
+    <meta
+      property="og:description"
+      content="Model every dimension and mass of a trebuchet, fire it, and see how far it throws. Three topologies, real physics, drawn as a setting-out sheet."
+    />
+    <meta property="og:url" content="https://trebuchator.jonjaques.com/" />
+    <meta property="og:image" content="https://trebuchator.jonjaques.com/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="A line drawing of a trebuchet at the instant of release, its shot arcing 42.8 metres downrange."
+    />
+    <meta property="og:locale" content="en_US" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Trebuchator — counterweight trebuchet calculator" />
+    <meta
+      name="twitter:description"
+      content="Model every dimension and mass of a trebuchet, fire it, and see how far it throws."
+    />
+    <meta name="twitter:image" content="https://trebuchator.jonjaques.com/og.png" />
+    <meta
+      name="twitter:image:alt"
+      content="A line drawing of a trebuchet at the instant of release, its shot arcing 42.8 metres downrange."
+    />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Trebuchator",
+        "url": "https://trebuchator.jonjaques.com/",
+        "description": "A free counterweight trebuchet calculator and simulator. Model every dimension and mass of a medieval or modern machine, fire it, and see how far it throws.",
+        "applicationCategory": "EducationalApplication",
+        "operatingSystem": "Any",
+        "browserRequirements": "Requires JavaScript",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "image": "https://trebuchator.jonjaques.com/og.png",
+        "author": { "@type": "Person", "name": "Jon Jaques", "url": "https://jonjaques.com" },
+        "keywords": "trebuchet calculator, trebuchet simulator, counterweight trebuchet, siege engine, projectile range"
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <h1>Trebuchator</h1>
+      <p>
+        A counterweight trebuchet calculator and simulator. Model every dimension, mass
+        and material of a machine — hinged, bolted or floating-arm — fire it, and watch
+        where the shot lands on a full-screen setting-out drawing. Trebuchator needs
+        JavaScript to run its physics solver; please enable it and reload.
+      </p>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
