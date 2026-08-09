@@ -8,6 +8,7 @@ import {
 } from '@/lib/treb/timeline.ts'
 import { fromDisplay, toDisplay, unitSymbol, num, type UnitSystem } from '@/lib/format.ts'
 import { projector, type Camera, type Projector } from './camera.ts'
+import { crater, fireball, type BlastColours } from './blast.ts'
 import {
   delta,
   dimension,
@@ -51,6 +52,9 @@ export interface Palette {
   verdigris: string
   oak: string
   iron: string
+  /** Depiction only, and only for the boulder. See `blast.ts`. */
+  ember: string
+  flame: string
 }
 
 export interface Ghost {
@@ -80,6 +84,71 @@ export interface SheetInput {
    */
   highlight?: DimensionKey | null
   units: UnitSystem
+  /**
+   * The granite boulder, once it has decoded. Only ever supplied for a machine
+   * `isBoulderShot` agrees about, and the drawing falls back to the plain
+   * quench mark until it arrives — a sprite that has not loaded must not take
+   * the shot off the sheet.
+   */
+  sprite?: CanvasImageSource | null
+  /**
+   * Seconds since the boulder landed, or null for no fireball. `Stage` owns
+   * this clock because it is the one thing on the sheet the solver has no
+   * opinion about: the shot's own duration ends at the impact, and what happens
+   * after it is wall time. Null under `prefers-reduced-motion`, which leaves the
+   * crater and takes away the flash.
+   */
+  blast?: number | null
+}
+
+/**
+ * Is this machine throwing an actual boulder?
+ *
+ * The trigger for the whole easter egg, and it is deliberately physical rather
+ * than a preset id. Keyed on the id it would have died the moment anyone
+ * lengthened the sling — and "a six-foot lump of granite" is a truthful
+ * description of a projectile, where "the machine in row six" is not. Anyone who
+ * dimensions a machine around a stone this size has earned it.
+ *
+ * The two thresholds do the separating between them. Every other preset that
+ * throws stone (siege, warwolf, lab) is stone by density but nowhere near the
+ * size — the largest is 0.45 m — and the machines throwing something boulder-
+ * sized in the abstract (pumpkins, at ~700 kg/m³) are nothing like dense enough.
+ */
+export function isBoulderShot(params: TrebuchetParams): boolean {
+  // Four feet. Below this the word is "stone", and nobody has ever called a
+  // 450 mm shot a boulder.
+  if (params.projectileDiameter < 1.2) return false
+  const volume = (4 / 3) * Math.PI * Math.pow(params.projectileDiameter / 2, 3)
+  const density = params.projectileMass / volume
+  // Sandstone through basalt, with granite at 2700 in the middle of it.
+  return density >= 2200 && density <= 3200
+}
+
+/**
+ * How far the boulder has turned, radians clockwise on screen.
+ *
+ * Rolling contact while it is still on the trough, which is the one part of the
+ * stroke where the rotation is not a guess; held through the swing, where the
+ * pouch cradles it; then a constant spin through the flight. Carrying the
+ * rolling formula on through the whip was the obvious thing and it span the
+ * rock like a bearing — the shot covers thirty metres in the last half second
+ * of the stroke, which at a 0.9 m radius is five revolutions.
+ */
+function boulderTurn(params: TrebuchetParams, result: ShotResult, t: number): number {
+  const frames = result.frames
+  if (!frames.length) return 0
+  const r = Math.max(1e-6, params.projectileDiameter / 2)
+  const rollT = result.ok ? Math.min(t, result.timeline.liftoffT) : 0
+  let turn = (frames[frameIndexAt(frames, rollT)].pose.projectile.x - frames[0].pose.projectile.x) / r
+  if (result.ok && t > result.timeline.releaseT) {
+    // Geared right down from the release speed. Free rotation at the rate it
+    // left the sling at would be about sixteen turns a second; a nine-tonne
+    // rock has to look heavy, and slow tumbling is what does that.
+    turn +=
+      (result.release.speed / (params.projectileDiameter * 26)) * (t - result.timeline.releaseT)
+  }
+  return turn
 }
 
 /**
@@ -613,6 +682,19 @@ export function layout(input: SheetInput, measure: MeasureText): Instruction[] {
     out.push({ op: 'path', points: whip, stroke: { color: pal.quench, width: 1.5, alpha: 0.35 } })
   }
 
+  // The shot itself. Every machine but one draws it as the quench mark that
+  // means "this is the thing you are throwing"; a machine dimensioned around a
+  // six-foot granite boulder draws the boulder. One helper, because the shot is
+  // drawn twice — cradled in the pouch, and in the air — and the two had no
+  // business disagreeing about what a projectile looks like.
+  const boulder = isBoulderShot(params)
+  const sprite = boulder ? (input.sprite ?? null) : null
+  const turn = sprite ? boulderTurn(params, result, t) : 0
+  const shotMark = (sx: number, sy: number, r: number): Instruction =>
+    sprite
+      ? { op: 'image', img: sprite, x: sx, y: sy, size: r * 2, rotate: turn }
+      : { op: 'circle', x: sx, y: sy, r, fill: { color: pal.quench } }
+
   // --- machine ------------------------------------------------------------
   const pose = frame?.pose ?? frames[0]?.pose
   if (pose) {
@@ -624,13 +706,7 @@ export function layout(input: SheetInput, measure: MeasureText): Instruction[] {
     out.push(...pivotParts(p, pal, pose))
 
     if (!flying) {
-      out.push({
-        op: 'circle',
-        x: p.x(pose.projectile.x),
-        y: p.y(pose.projectile.y),
-        r: radius,
-        fill: { color: pal.quench },
-      })
+      out.push(shotMark(p.x(pose.projectile.x), p.y(pose.projectile.y), radius))
     }
 
     const highlight = input.highlight ?? null
@@ -647,13 +723,7 @@ export function layout(input: SheetInput, measure: MeasureText): Instruction[] {
   // --- shot in flight -----------------------------------------------------
   if (timeline && flying && traj.length) {
     const at = sampleTrajectory(traj, t - timeline.releaseT)
-    out.push({
-      op: 'circle',
-      x: p.x(at.x),
-      y: p.y(at.y),
-      r: Math.max(3, p.s(params.projectileDiameter / 2)),
-      fill: { color: pal.quench },
-    })
+    out.push(shotMark(p.x(at.x), p.y(at.y), Math.max(3, p.s(params.projectileDiameter / 2))))
   }
 
   // Everything past here is about a shot that actually happened.
@@ -686,17 +756,34 @@ export function layout(input: SheetInput, measure: MeasureText): Instruction[] {
   }
 
   if (isDone(result.timeline, t)) {
-    for (let i = 0; i < 5; i++) {
-      const a = -Math.PI * (0.15 + i * 0.175)
-      out.push(
-        seg(
-          impactX + Math.cos(a) * 4,
-          targetY + Math.sin(a) * 4,
-          impactX + Math.cos(a) * 11,
-          targetY + Math.sin(a) * 11,
-          { color: pal.quench, width: 1.5 },
-        ),
-      )
+    if (boulder) {
+      // Nine tonnes of granite at sixty metres a second does not warrant a
+      // five-line splash mark. The crater is permanent and drafted; the
+      // fireball is on its own clock and is the one loud thing on this sheet.
+      const blaze: BlastColours = {
+        ember: pal.ember,
+        flame: pal.flame,
+        fire: pal.quench,
+        ink2: pal.ink2,
+        ink3: pal.ink3,
+      }
+      const d = params.projectileDiameter
+      out.push(...crater(impactX, targetY, cam.scale, d, blaze))
+      if (input.blast != null)
+        out.push(...fireball(impactX, targetY, cam.scale, d, input.blast, blaze))
+    } else {
+      for (let i = 0; i < 5; i++) {
+        const a = -Math.PI * (0.15 + i * 0.175)
+        out.push(
+          seg(
+            impactX + Math.cos(a) * 4,
+            targetY + Math.sin(a) * 4,
+            impactX + Math.cos(a) * 11,
+            targetY + Math.sin(a) * 11,
+            { color: pal.quench, width: 1.5 },
+          ),
+        )
+      }
     }
   }
 

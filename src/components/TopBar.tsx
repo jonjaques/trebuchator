@@ -1,10 +1,11 @@
-import { useState } from 'react'
-import { BookmarkPlus, ChevronDown, Moon, PanelLeft, PanelRight, Save, Sun, Trash2, Wand2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { BookmarkPlus, Check, ChevronDown, Link2, Moon, PanelLeft, PanelRight, Save, Sun, Trash2, Wand2 } from 'lucide-react'
 import { Button } from '@/components/ui/button.tsx'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover.tsx'
 import { SegmentedControl } from './SegmentedControl.tsx'
 import { ParetoChart } from './ParetoChart.tsx'
 import { PRESETS } from '@/lib/treb/presets.ts'
+import { shareUrl } from '@/lib/share.ts'
 import { GOALS, type ParetoGoal, type ParetoPoint } from '@/lib/treb/optimize.ts'
 import type { SavedMachine } from '@/lib/treb/library.ts'
 import { type UnitSystem } from '@/lib/format.ts'
@@ -281,6 +282,8 @@ export function TopBar({
         Save shot
       </Button>
 
+      <ShareButton presetId={presetId} />
+
         <div className="ml-auto flex items-center gap-1.5">
           {/* The width is reserved rather than the text hidden: an always-present
               "Solving" is announced on every pass through the bar and never
@@ -302,6 +305,72 @@ export function TopBar({
         </div>
       </div>
     </header>
+  )
+}
+
+/**
+ * A link to the machine on the sheet.
+ *
+ * Only the machines in the list have one, and the control says why rather than
+ * going quietly dead. The two it refuses are refused for different reasons and
+ * both are worth stating: a machine you have *edited* is thirty-odd numbers that
+ * are not in the address, and one you have *saved* is in this browser's storage
+ * and nobody else's. Either would hand someone a link that quietly loaded a
+ * different machine from the one on screen, which is worse than no link.
+ *
+ * There is nothing to build the link from — `App` already keeps the address bar
+ * naming the loaded preset — so this copies what is effectively already there,
+ * and says so when the clipboard refuses.
+ */
+function ShareButton({ presetId }: { presetId: string | null }) {
+  const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle')
+  const timer = useRef<number | undefined>(undefined)
+  useEffect(() => () => clearTimeout(timer.current), [])
+
+  const shareable = presetId != null && PRESETS.some((p) => p.id === presetId)
+
+  const copy = async () => {
+    const href = shareUrl(presetId, window.location.href)
+    if (!href) return
+    try {
+      await navigator.clipboard.writeText(href)
+      setState('copied')
+    } catch {
+      setState('failed')
+    }
+    clearTimeout(timer.current)
+    timer.current = window.setTimeout(() => setState('idle'), 2400)
+  }
+
+  return (
+    <Button
+      size="icon"
+      variant="outline"
+      className="tap-target relative size-8 shrink-0"
+      onClick={() => void copy()}
+      disabled={!shareable}
+      aria-label="Copy a link to this machine"
+      title={
+        shareable
+          ? 'Copy a link to this machine'
+          : 'Only the machines in the list have a link. This one is yours, and it is kept in this browser.'
+      }
+    >
+      {/* The swapped glyph is the whole confirmation. A colour would have to be
+          verdigris or nothing, and verdigris means measurement here. */}
+      {state === 'copied' ? (
+        <Check className="size-3.5" aria-hidden />
+      ) : (
+        <Link2 className="size-3.5" aria-hidden />
+      )}
+      <span className="sr-only" aria-live="polite">
+        {state === 'copied'
+          ? 'Link copied'
+          : state === 'failed'
+            ? 'Could not reach the clipboard. The link is in the address bar.'
+            : ''}
+      </span>
+    </Button>
   )
 }
 

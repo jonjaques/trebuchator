@@ -197,6 +197,43 @@ channel is `lib/pointing.ts`, a context for the same reason `notes.ts` is one. E
 stays inside the verdigris accent: a third accent would mean nothing on a sheet where
 verdigris already means measurement.
 
+### The boulder
+
+There is an easter egg, and it is fenced rather than sprinkled. `isBoulderShot` in
+`sheet.ts` asks a question about the *projectile* — at least 1.2 m across and of stone
+density — rather than checking a preset id, so it survives someone retuning the machine
+around it, and so "a six-foot lump of granite" is the thing being described rather than
+"the row in the menu". Only `man-thrower` answers yes today; the siege engines throw
+stone at a fifth the size and the pumpkin hurlers throw something big at a quarter the
+density.
+
+**All of the kitsch is in `blast.ts` and nothing else knows it exists.** Two exports,
+two call sites in `sheet.ts`, and deleting the module takes the whole thing with it.
+`crater()` is permanent and *drafted* — a dished ground line with the ground band's own
+hatching, because a reader might measure it. `fireball()` is the corn and lasts
+`BLAST_LIFE`. Both are pure functions of an age in seconds and scatter from a seeded LCG,
+for the same reason the rest of the drawing is a pure function of the cursor: scrub back
+off the impact and the explosion has to un-happen. Sizes are multiples of the projectile
+diameter converted through the world scale, so the blast stays a size in *metres* while
+the camera pulls off it.
+
+Two clocks meet here and they are not the same clock. The shot's own ends at the impact,
+so the fireball runs on wall time held in a ref by `Stage` and passed down as
+`SheetInput.blast`. Null means no fireball — which is also how reduced motion is honoured:
+crater yes, flash no, and no camera chase either.
+
+`Stage`'s `chaseRect` is one continuous function of time in the air, not three framings it
+cuts between. It leaves from the machine's own rect at t=0, rides at `CHASE_SPAN`, and
+opens out to `BLAST_SPAN` *before* the landing rather than after it. The first version
+switched framings and eased between them, and no rate worked: stiff read as a cut, gentle
+lagged a 90 m/s target several window-widths and lost it off the edge. Give the camera
+somewhere continuous to be and the stiff rate becomes safe.
+
+The sprite is a 384 px WebP (`src/assets/granite-boulder.webp`, ~73 KB) loaded through a
+module-level promise on first need. `SheetInput.sprite` is optional and the drawing falls
+back to the quench mark without it — a sprite that has not decoded must never take the
+shot off the sheet.
+
 `SHEET_MARGIN` is exported from `sheet.ts` and used by `Stage.tsx` for its camera inset.
 It has to clear the sheet's own furniture — the range dimension 40 px below the ground
 line, its caption 22 below that, the 12 px hatch band — and framing used to pick that
@@ -356,6 +393,17 @@ page down before React mounts. Anything parsed back out is untrusted input: stor
 are merged over `DEFAULT_PARAMS` and every numeric field checked finite, because a machine
 saved by an older build reaches the solver as `NaN` range and reads as a physics bug
 rather than as stale data.
+
+**A link can only name a machine that exists on the other end.** `lib/share.ts` puts one
+query parameter (`?m=`) in the address bar and `App` keeps it in step with the loaded
+preset through `replaceState` — browsing a menu is not navigating, and a back button that
+walked back through every machine you glanced at would be a trap. The parameter is
+*removed*, not left stale, the moment the machine stops being a preset, and the two it
+refuses are refused for different reasons: a saved machine's id names a row in one
+browser's `localStorage`, and an edited machine is thirty numbers that are not in the URL.
+Either would hand someone a link that quietly loads something other than what the sender
+was looking at. Every function there takes the href rather than reading `window.location`,
+so the rule about what is shareable is asserted without a DOM.
 
 **`SegmentedControl` owns the radiogroup keyboard contract.** Machine type, units, sweep
 mode and playback speed were four hand-rolled copies, each declaring `role="radiogroup"`

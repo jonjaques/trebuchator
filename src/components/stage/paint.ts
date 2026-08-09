@@ -80,6 +80,16 @@ function draw(ctx: CanvasRenderingContext2D, ins: Instruction) {
       if (ins.stroke) applyStroke(ctx, ins.stroke)
       break
 
+    case 'image':
+      // Rotation is a real transform rather than pre-rotated corner geometry:
+      // `drawImage` cannot skew a bitmap into a quad, so there is nothing to
+      // hand it but a rotated context.
+      ctx.globalAlpha = ins.alpha ?? 1
+      ctx.translate(ins.x, ins.y)
+      if (ins.rotate) ctx.rotate(ins.rotate)
+      ctx.drawImage(ins.img, -ins.size / 2, -ins.size / 2, ins.size, ins.size)
+      break
+
     case 'text':
       ctx.globalAlpha = ins.fill.alpha ?? 1
       ctx.fillStyle = ins.fill.color

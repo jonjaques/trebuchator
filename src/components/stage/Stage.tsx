@@ -2,19 +2,67 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointer
 import { TriangleAlert } from 'lucide-react'
 import type { FiredShot, ShotResult, TrebuchetParams } from '@/lib/treb/types.ts'
 import type { UnitSystem } from '@/lib/format.ts'
+import { isDone, sampleTrajectory } from '@/lib/treb/timeline.ts'
 import { paint } from './paint.ts'
-import { SHEET_MARGIN, type DimensionKey, type Ghost, type Palette } from './sheet.ts'
+import { BLAST_LIFE } from './blast.ts'
+import { isBoulderShot, SHEET_MARGIN, type DimensionKey, type Ghost, type Palette } from './sheet.ts'
 import {
   approach,
+  blendRect,
   fitRect,
   near,
   padRect,
+  smoothstep,
   unionRect,
   type Camera,
   type Rect,
 } from './camera.ts'
+import boulderUrl from '@/assets/granite-boulder.webp'
 
 export type CameraMode = 'auto' | 'machine' | 'field' | 'free'
+
+/**
+ * The boulder sprite, fetched the first time a machine asks for one and held
+ * for the session. A module-level promise for the same reason the worker is a
+ * module singleton: StrictMode mounts twice, and this would otherwise be two
+ * requests and two decodes.
+ *
+ * Static `import` of the URL rather than a dynamic one — Vite emits the file as
+ * an asset either way, and the module only ever carries the string. Nothing is
+ * fetched until a boulder is actually on the sheet.
+ */
+let spritePromise: Promise<HTMLImageElement> | null = null
+function loadBoulder(): Promise<HTMLImageElement> {
+  spritePromise ??= new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = reject
+    img.src = boulderUrl
+  })
+  return spritePromise
+}
+
+/**
+ * The chase window's world *height*, in boulder diameters — one for the flight
+ * and a much wider one for the impact.
+ *
+ * They differ by nearly a factor of ten because the two moments want opposite
+ * things. In the air the boulder *is* the subject: at 1.9 diameters it fills
+ * something like two fifths of the sheet, close enough to read the granite and
+ * watch it turn. On landing the fireball alone is twelve diameters across and
+ * the debris carries further than that, so the camera has to get out of its own
+ * way. The pull-out between them is fired by the impact and is deliberately not
+ * eased at the chase rate — see the note on stiffness below.
+ */
+const CHASE_SPAN = 1.9
+const BLAST_SPAN = 18
+/** How far downrange of centre the window sits, as a fraction of its span. */
+const CHASE_LEAD = 0.16
+/** Seconds spent pushing in off the machine, and opening out for the landing. */
+const CHASE_ENTER = 0.55
+const BLAST_OPEN = 1.2
+/** Seconds the camera stays down on the impact before it lets go of it. */
+const BLAST_HOLD = 1.3
 
 interface StageProps {
   result: ShotResult | null
@@ -54,6 +102,8 @@ function readPalette(el: HTMLElement): Palette {
     verdigris: get('verdigris'),
     oak: get('oak'),
     iron: get('iron'),
+    ember: get('ember'),
+    flame: get('flame'),
   }
 }
 
@@ -79,6 +129,75 @@ function machineRect(result: ShotResult, params: TrebuchetParams): Rect {
     }
   }
   return padRect(r, Math.max(0.4, reach * 0.12))
+}
+
+/** A square window of world height `span` centred on the shot, with lead room. */
+function windowAt(
+  result: FiredShot,
+  flightT: number,
+  span: number,
+  lead: number,
+): Rect {
+  const at = sampleTrajectory(result.trajectory, flightT)
+  const cx = at.x + span * CHASE_LEAD * lead
+  return { x0: cx - span / 2, y0: at.y - span / 2, x1: cx + span / 2, y1: at.y + span / 2 }
+}
+
+/**
+ * The whole camera move for a thrown boulder, as one continuous function of
+ * time in the air.
+ *
+ * The ordinary auto camera answers "how far did it go", which is the right
+ * question for a machine you are dimensioning and the wrong one for nine tonnes
+ * of granite: at 835 m the shot is two pixels across and the throw is a line on
+ * a chart. This holds the boulder at about two fifths of the sheet and lets the
+ * ground streak past instead, which is the only way the thing reads as fast.
+ *
+ * It is written as one function, and blended rather than switched, because the
+ * first version *did* switch — machine, then chase, then blast — and no easing
+ * rate could rescue it. A stiff rate turned each change into a cut; a gentle one
+ * lagged the boulder several window-widths behind the frame and lost it off the
+ * edge entirely. The three framings are still here, but the camera is only ever
+ * given somewhere continuous to be:
+ *
+ * - It **leaves from the machine.** At `flightT` zero this returns the machine's
+ *   own framing exactly, so release is seamless and the push-in happens over the
+ *   first half second while the shot is still near the frame.
+ * - It **rides** at `CHASE_SPAN` for the body of the flight.
+ * - It **opens out before the landing**, not after it. Anticipating the impact
+ *   is both better camerawork and the thing that keeps the flash off the whole
+ *   sheet: pulled out afterwards, the frame was still a few metres wide when the
+ *   fireball lit, which is a full-screen white flare nobody asked for.
+ *
+ * Both blends are clamped to a third of the flight each, so a short throw gets a
+ * proportionally shorter move rather than two overlapping ones.
+ *
+ * `fitRect` fits the *smaller* viewport axis, so a square of side `span`
+ * guarantees exactly that much world height and rather more width.
+ */
+function chaseRect(
+  result: FiredShot,
+  params: TrebuchetParams,
+  machine: Rect,
+  flightT: number,
+): Rect {
+  const flight = Math.max(result.flightTime, 1e-6)
+  // No floor on the span: `isBoulderShot` will not let a projectile under 1.2 m
+  // through, so the tightest window this can produce is still metres across.
+  const d = params.projectileDiameter
+  const enter = Math.min(CHASE_ENTER, flight / 3)
+  const open = Math.min(BLAST_OPEN, flight / 3)
+
+  // Opening for the landing owns the tail of the flight, and takes the lead room
+  // with it — what matters at the impact is centred on the crater rather than
+  // ahead of it.
+  const opening = smoothstep((flightT - (flight - open)) / open)
+  const span = Math.exp(
+    Math.log(d * CHASE_SPAN) + (Math.log(d * BLAST_SPAN) - Math.log(d * CHASE_SPAN)) * opening,
+  )
+  const chase = windowAt(result, flightT, span, 1 - opening)
+
+  return blendRect(machine, chase, smoothstep(flightT / enter))
 }
 
 function fieldRect(result: FiredShot, params: TrebuchetParams): Rect {
@@ -131,6 +250,52 @@ export function Stage({
   // re-derives from this anchor rather than compounding per-event ratios,
   // which accumulate rounding until the sheet drifts under steady fingers.
   const pinchRef = useRef<{ dist: number; mx: number; my: number; cam: Camera } | null>(null)
+
+  // --- the boulder ----------------------------------------------------------
+  const boulder = isBoulderShot(params)
+  const [sprite, setSprite] = useState<HTMLImageElement | null>(null)
+  const [reduceMotion, setReduceMotion] = useState(
+    () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false,
+  )
+  /**
+   * When the boulder landed, in wall time. Not derived and not derivable: the
+   * shot's own clock ends at the impact, and everything after it happens in the
+   * room rather than in the model. A ref rather than state for the same reason
+   * the camera is one — it is read during the paint and never renders on its own.
+   */
+  const blastRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    if (!boulder) return
+    let cancelled = false
+    // A sprite that will not load is not something the reader can act on: the
+    // sheet falls back to the quench mark and the shot still flies.
+    void loadBoulder().then(
+      (img) => {
+        if (!cancelled) setSprite(img)
+      },
+      () => {},
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [boulder])
+
+  useEffect(() => {
+    const mq = window.matchMedia?.('(prefers-reduced-motion: reduce)')
+    if (!mq) return
+    const update = () => setReduceMotion(mq.matches)
+    mq.addEventListener('change', update)
+    return () => mq.removeEventListener('change', update)
+  }, [])
+
+  // A fresh answer from the solver re-arms the fireball, so nudging a slider
+  // while parked on the impact detonates again rather than leaving a crater
+  // that has already gone cold. Declared above the paint effect so the disarm
+  // lands before the paint that would otherwise read a stale timestamp.
+  useEffect(() => {
+    blastRef.current = null
+  }, [result])
 
   useEffect(() => {
     const el = hostRef.current
@@ -201,7 +366,30 @@ export function Stage({
       return
     }
 
+    // The fireball's clock. Armed by the landing, disarmed by scrubbing back
+    // off it — the drawing is a pure function of the cursor everywhere else and
+    // an explosion that outlived its own cause would be the one thing on the
+    // sheet that could not be rewound. Silenced outright under reduced motion,
+    // which leaves the crater and takes away the flash.
+    const landed = result.ok && isDone(result.timeline, t)
+    if (!landed || !boulder) blastRef.current = null
+    else blastRef.current ??= performance.now()
+    const blast =
+      blastRef.current == null || reduceMotion
+        ? null
+        : (performance.now() - blastRef.current) / 1000
+
     let target: Rect
+    // How hard the camera is pulled toward its target, per frame.
+    //
+    // Riding with a boulder needs a stiff one: the ordinary rate lags a target
+    // moving at 90 m/s by several boulder-widths, which throws the shot clean
+    // off a window this tight. It can afford to be stiff because `chaseRect`
+    // hands over somewhere continuous to be, so there is no jump for the easing
+    // to have to soften. The last beat is the opposite — a long, slack pull-back
+    // off the crater to the whole field, which is the reveal of how far the
+    // thing actually went and should take its time.
+    let rate = 0.22
     // Editing outranks every automatic framing but not an explicit one: someone
     // who has pinned the camera to the field or dragged it themselves has said
     // where they want to look, and a slider is not permission to overrule that.
@@ -214,7 +402,23 @@ export function Stage({
       // just far enough to keep the shot and its trail on the sheet.
       const releaseT = result.timeline.releaseT
       if (t <= releaseT) target = rects.machine
-      else {
+      else if (boulder && !reduceMotion) {
+        // Only for the boulder: ride with it, hold on the impact long enough for
+        // the fireball, then let go and pull back to the range — which is still
+        // the headline of this sheet and is unreadable from inside a crater.
+        if (!landed || blast == null || blast < BLAST_HOLD) {
+          rate = 0.6
+          target = chaseRect(
+            result,
+            params,
+            rects.machine,
+            landed ? result.flightTime : t - releaseT,
+          )
+        } else {
+          rate = 0.09
+          target = rects.field
+        }
+      } else {
         let flown: Rect = rects.machine
         const flightT = t - releaseT
         for (const pt of result.trajectory) {
@@ -235,7 +439,7 @@ export function Stage({
     } else if (near(camRef.current, fitted)) {
       camRef.current = fitted
     } else {
-      camRef.current = approach(camRef.current, fitted, 0.22)
+      camRef.current = approach(camRef.current, fitted, rate)
       settled = false
     }
 
@@ -254,9 +458,14 @@ export function Stage({
       preview,
       highlight,
       units,
+      sprite,
+      blast,
     })
 
-    if (settled) return
+    // Playback has already stopped by the time the boulder lands, so the
+    // fireball has nothing driving it but this: keep asking for frames until it
+    // burns out, then let the sheet go quiet on the crater.
+    if (settled && (blast == null || blast >= BLAST_LIFE)) return
     const id = requestAnimationFrame(() => setTick((n) => n + 1))
     return () => cancelAnimationFrame(id)
   }, [
@@ -277,6 +486,9 @@ export function Stage({
     units,
     fontsReady,
     tick,
+    boulder,
+    sprite,
+    reduceMotion,
   ])
 
   // Shared by pointerup and pointercancel — a cancelled touch must tear down

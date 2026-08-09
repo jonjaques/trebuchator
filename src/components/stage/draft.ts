@@ -82,6 +82,27 @@ export type Instruction =
       align?: CanvasTextAlign
       baseline?: CanvasTextBaseline
     }
+  /**
+   * A bitmap, square, centred on (x, y) and rotated about it.
+   *
+   * The one op in this vocabulary that is not drawn. It exists for a single
+   * caller — the granite boulder in `blast.ts`'s half of the sheet — and a
+   * setting-out drawing has no business carrying photographs otherwise. It is
+   * square because the only sprite is a sphere, which needs no aspect ratio,
+   * and centred because everything it stands in for (the shot, the pouch, the
+   * impact) is positioned by its centre.
+   */
+  | {
+      op: 'image'
+      img: CanvasImageSource
+      x: number
+      y: number
+      /** Side length in screen pixels. */
+      size: number
+      /** Radians, clockwise on screen. */
+      rotate?: number
+      alpha?: number
+    }
 
 /**
  * Text width in pixels. An internal seam, not part of the interface: the canvas

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { layout, type Palette, type SheetInput } from './sheet.ts'
+import { isBoulderShot, layout, type Palette, type SheetInput } from './sheet.ts'
 import type { Instruction, MeasureText } from './draft.ts'
 import { fitRect } from './camera.ts'
 import { simulateShot } from '@/lib/treb/simulate.ts'
-import { presetById } from '@/lib/treb/presets.ts'
+import { PRESETS, presetById } from '@/lib/treb/presets.ts'
 
 /**
  * Every glyph is 0.6 em wide. Real metrics come from the canvas, but nothing
@@ -22,6 +22,8 @@ const palette: Palette = {
   verdigris: '#verdigris',
   oak: '#oak',
   iron: '#iron',
+  ember: '#ember',
+  flame: '#flame',
 }
 
 const texts = (ins: Instruction[]) =>
@@ -155,5 +157,123 @@ describe('the whole sheet', () => {
           i.op === 'path' && !i.close && i.stroke?.color === palette.ink2 && i.stroke.width === 1.5,
       )
     expect(groundLines(below)).toHaveLength(groundLines(level).length + 1)
+  })
+})
+
+describe('the boulder', () => {
+  const params = presetById('man-thrower')!.params
+  const result = simulateShot(params)
+  if (!result.ok) throw new Error('the man thrower should throw')
+
+  // Something to hand `layout` in place of a decoded image. Nothing in the
+  // drawing touches it — it is carried straight through to `drawImage`.
+  const sprite = {} as CanvasImageSource
+
+  const sheet = (over: Partial<SheetInput> = {}): SheetInput => ({
+    w: 900,
+    h: 500,
+    cam: fitRect({ x0: -20, y0: -2, x1: 60, y1: 50 }, 900, 500, 56),
+    palette,
+    params,
+    result,
+    t: 0,
+    showDimensions: false,
+    showAngles: false,
+    showGrid: false,
+    ghosts: [],
+    units: 'metric',
+    sprite,
+    ...over,
+  })
+
+  const images = (ins: Instruction[]) => ins.filter((i) => i.op === 'image')
+
+  it('is the only machine in the library throwing one', () => {
+    // The trigger is physical rather than a preset id, so it survives someone
+    // lengthening the sling. These two thresholds are what keep it from also
+    // catching the siege engines, which throw stone at a fifth the size, and
+    // the pumpkin hurlers, which throw something boulder-sized at a quarter the
+    // density.
+    const boulders = PRESETS.filter((p) => isBoulderShot(p.params)).map((p) => p.id)
+    expect(boulders).toEqual(['man-thrower'])
+  })
+
+  it('stays a boulder when the machine around it is retuned', () => {
+    expect(isBoulderShot({ ...params, slingLength: 40, cwMass: 500_000 })).toBe(true)
+    expect(isBoulderShot({ ...params, projectileMass: 1500 })).toBe(false)
+  })
+
+  it('is drawn in place of the quench mark, cradled and in the air alike', () => {
+    const cocked = layout(sheet(), measure)
+    const flying = layout(sheet({ t: result.timeline.releaseT + 2 }), measure)
+    expect(images(cocked)).toHaveLength(1)
+    expect(images(flying)).toHaveLength(1)
+    const dots = (ins: Instruction[]) =>
+      ins.filter((i) => i.op === 'circle' && i.fill?.color === palette.quench)
+    expect(dots(cocked)).toHaveLength(0)
+    expect(dots(flying)).toHaveLength(0)
+  })
+
+  it('falls back to the quench mark until the sprite has decoded', () => {
+    // A sprite that has not loaded — or never will — must not take the shot off
+    // the sheet.
+    const ins = layout(sheet({ sprite: null }), measure)
+    expect(images(ins)).toHaveLength(0)
+    expect(ins.filter((i) => i.op === 'circle' && i.fill?.color === palette.quench)).toHaveLength(1)
+  })
+
+  it('tumbles slowly, and only once it is off the sling', () => {
+    const turn = (t: number) => {
+      const img = images(layout(sheet({ t }), measure))[0]
+      if (img.op !== 'image') throw new Error('expected the boulder')
+      return img.rotate ?? 0
+    }
+    const held = turn(result.timeline.releaseT)
+    const flown = turn(result.timeline.releaseT + 4)
+    // Under a turn a second. Free rotation at the speed it left the sling would
+    // be roughly sixteen, which reads as machinery rather than as nine tonnes.
+    expect(Math.abs(flown - held) / 4).toBeLessThan(2 * Math.PI)
+    expect(Math.abs(flown - held)).toBeGreaterThan(0.5)
+  })
+
+  it('leaves a crater on landing and only detonates when given a clock', () => {
+    const landed = layout(sheet({ t: result.timeline.duration }), measure)
+    const blazing = layout(sheet({ t: result.timeline.duration, blast: 0.2 }), measure)
+    const fire = (ins: Instruction[]) =>
+      ins.filter((i) => i.op === 'circle' && i.fill?.color === palette.quench && i.fill.alpha != null)
+    // The crater is permanent; the fireball is on `Stage`'s wall clock, and is
+    // absent under reduced motion, which is what a null blast means.
+    expect(fire(landed)).toHaveLength(0)
+    expect(fire(blazing).length).toBeGreaterThan(0)
+    expect(blazing.length).toBeGreaterThan(landed.length)
+  })
+
+  it('replaces the splash rather than drawing both marks', () => {
+    const stone = layout(sheet({ t: result.timeline.duration }), measure)
+    // The splash is five two-point rays in flat quench. The whip inside the
+    // machine is the same colour and weight, so the run length is what tells
+    // them apart.
+    const splash = (ins: Instruction[]) =>
+      ins.filter(
+        (i) =>
+          i.op === 'path' &&
+          i.points.length === 2 &&
+          i.stroke?.color === palette.quench &&
+          i.stroke.width === 1.5 &&
+          i.stroke.alpha == null,
+      )
+    expect(splash(stone)).toHaveLength(0)
+    // …and it is still there for every machine that is not throwing granite.
+    const backyard = presetById('backyard')!.params
+    const shot = simulateShot(backyard)
+    if (!shot.ok) throw new Error('the backyard preset should throw')
+    expect(
+      splash(
+        layout(
+          sheet({ params: backyard, result: shot, t: shot.timeline.duration, sprite: null }),
+          measure,
+        ),
+      ),
+    ).toHaveLength(5)
   })
 })

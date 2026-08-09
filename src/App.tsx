@@ -9,7 +9,8 @@ import { SweepChart } from '@/components/SweepChart.tsx'
 import { Stage, type CameraMode } from '@/components/stage/Stage.tsx'
 import { Button } from '@/components/ui/button.tsx'
 import { useShot, useSimClient } from '@/lib/useSimulation.ts'
-import { PRESETS, presetById } from '@/lib/treb/presets.ts'
+import { PRESETS, presetById, type Preset } from '@/lib/treb/presets.ts'
+import { presetFromUrl, withMachine } from '@/lib/share.ts'
 import {
   sweepConflict,
   TUNABLES,
@@ -47,11 +48,17 @@ import { cn } from '@/lib/utils.ts'
 /** The dimensions the Pareto search varies. Masses stay the builder's own. */
 const PARETO_KEYS: TunableKey[] = ['slingLength', 'cwHanger', 'initialBeamAngle', 'armShort']
 
+/** The machine to open with: the one a shared link names, or the first preset. */
+function openingPreset(): Preset {
+  const id = presetFromUrl(window.location.href)
+  return (id ? presetById(id) : null) ?? PRESETS[0]
+}
+
 export default function App() {
   const client = useSimClient()
 
-  const [presetId, setPresetId] = useState<string | null>('backyard')
-  const [params, setParams] = useState<TrebuchetParams>(() => ({ ...PRESETS[0].params }))
+  const [presetId, setPresetId] = useState<string | null>(() => openingPreset().id)
+  const [params, setParams] = useState<TrebuchetParams>(() => ({ ...openingPreset().params }))
   const [units, setUnits] = useState<UnitSystem>(() => {
     const stored = localStorage.getItem('trebuchator:units')
     return stored === 'metric' || stored === 'imperial' ? stored : detectUnitSystem()
@@ -150,6 +157,17 @@ export default function App() {
   }, [])
 
   useEffect(() => () => clearTimeout(editTimer.current), [])
+
+  // The address bar keeps naming what is on the sheet, so copying it shares the
+  // right machine and reloading returns to it. `replaceState`, not `pushState`:
+  // reading down the preset list is browsing a menu rather than navigating, and
+  // a back button that stepped back through every machine you glanced at would
+  // be a trap. `withMachine` drops the parameter for anything that is not a
+  // preset, which is what stops an edited machine from being shared under the
+  // name of the one it started from.
+  useEffect(() => {
+    window.history.replaceState(null, '', withMachine(window.location.href, presetId))
+  }, [presetId])
 
   useEffect(() => {
     localStorage.setItem('trebuchator:units', units)

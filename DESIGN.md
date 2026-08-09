@@ -15,6 +15,8 @@ colors:
   bad: "#f0705f"
   oak: "#a97b4f"
   iron: "#99a0a6"
+  ember: "#fff6dc"
+  flame: "#ffc247"
   ramp-1: "#cfc6b4"
   ramp-2: "#9a9080"
   ramp-3: "#6a6154"
@@ -220,6 +222,11 @@ or an error.
   loss, not identity, so they must stay a ramp.
 - **Material — canvas only. Oak** (dark `#a97b4f` · light `#8a6440`) draws timber; **Iron**
   (dark `#99a0a6` · light `#6e7378`) draws hardware, rails and the counterweight hatching.
+- **Fire — canvas only, and one machine only. Ember** (dark `#fff6dc` · light `#fff2c4`) is
+  the white-hot core of the boulder's fireball; **Flame** (dark `#ffc247` · light `#f0a615`)
+  is the gold between that core and the body. The body itself is `quench` — the fireball
+  *is* the projectile, so it has every claim on the projectile's colour, and only the two
+  tones hotter than quench are new. See the Fireball Exception below.
 
 ### Named Rules
 
@@ -232,9 +239,31 @@ another colour.
 borrowed for emphasis, branding, hover states, or decoration, and they never appear
 together on the same element.
 
-**The Depiction Rule.** Oak and iron are not interface colours. They exist to draw timber
-and metal on the canvas and in the wordmark, and they must never appear in a control, a
-label, a border or a panel.
+**The Depiction Rule.** Oak, iron, ember and flame are not interface colours. They exist to
+draw timber, metal and fire on the canvas and in the wordmark, and they must never appear in
+a control, a label, a border or a panel. They are deliberately absent from the `@theme inline`
+block in `index.css`, so there is no Tailwind utility for any of them — the rule is enforced
+by there being nothing to type.
+
+**The Fireball Exception.** The Don'ts below forbid stone and fire, and one machine breaks
+both on purpose. A machine dimensioned around a six-foot granite boulder — `isBoulderShot`
+in `sheet.ts`, which is a test on the projectile's size and density, not a preset id — draws
+a photograph of the rock instead of the quench mark, and detonates on landing. It is an
+easter egg and it is fenced accordingly:
+
+- **All of the kitsch is in `blast.ts`.** Nothing else in the drawing knows it exists;
+  deleting that module and its two call sites takes the whole thing with it.
+- **The permanent record stays drafted.** The crater is a dished ground line with the ground
+  band's own 45° hatching and radial fractures — because a reader might measure it. Only the
+  2.6 seconds of fireball are loud, and they leave nothing behind.
+- **No new signal hue.** Two depiction tokens, on the same footing as oak and iron.
+- **It is silent under `prefers-reduced-motion`.** The crater is drawn, the fireball is not,
+  and the camera does not chase. A full-frame flash is a real photosensitivity concern and
+  this is decoration.
+
+The rule is not weakened: fire is still forbidden as *atmosphere*. It is permitted here as a
+consequence — nine tonnes of granite arriving at sixty metres a second — for one machine, on
+one frame of the drawing, in a module you can delete.
 
 **The Prose Rule.** `ink-3` never carries a sentence. It measures 3.4:1 against `sheet` in
 light and 3.7:1 in dark, which is under the 4.5:1 floor for body text at this size, and it is
@@ -516,4 +545,6 @@ and outside it below; under 16px the protractor is not drawn at all.
   vendored from shadcn. `DraftSlider` exists because the stock slider's pill handle was the
   wrong language.
 - **Don't** dress the medieval subject: no blackletter, no parchment texture, no stone, no
-  fire. The machine is engineering.
+  fire. The machine is engineering. (The one sanctioned breach is the Fireball Exception
+  under Colors — scoped to a single machine and quarantined in `blast.ts`. It is not a
+  precedent for atmosphere anywhere else.)

@@ -106,6 +106,13 @@
     --verdigris: #0d7c70;
     --oak: #8a6440;
     --iron: #6e7378;
+    /* Canvas-only depiction, same standing as oak and iron: they draw a
+       material and are banned from the interface, so they are deliberately
+       absent from the @theme block above and have no Tailwind utility. The two
+       hot tones a fireball needs that --quench cannot reach. Only the boulder
+       easter egg uses them. */
+    --ember: #fff2c4;
+    --flame: #f0a615;
     --warn: #8a6a00;
     --bad: #a32a1e;
     /* Sequential, light to dark: these encode magnitude of loss, not identity,
@@ -162,6 +169,8 @@
     --verdigris: #3fd0bc;
     --oak: #a97b4f;
     --iron: #99a0a6;
+    --ember: #fff6dc;
+    --flame: #ffc247;
     --warn: #d9b44a;
     --bad: #f0705f;
     --ramp-1: #cfc6b4;

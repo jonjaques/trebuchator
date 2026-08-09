@@ -25,6 +25,38 @@ export function padRect(r: Rect, pad: number): Rect {
   return { x0: r.x0 - pad, y0: r.y0 - pad, x1: r.x1 + pad, y1: r.y1 + pad }
 }
 
+/**
+ * Move `k` of the way from one framing to another.
+ *
+ * Centres interpolate linearly and half-extents in log space, for exactly the
+ * reason `approach` does the same to scale: a linear zoom crawls out of a tight
+ * framing and then arrives in a rush.
+ *
+ * This exists so a camera can be given a *continuous target* rather than a
+ * sequence of framings it eases between. Easing smooths a jump but it cannot
+ * hide one: a target that switches from the machine to a window a fortieth the
+ * size still reads as a cut however gently the camera chases it. Returns `a`
+ * exactly at `k = 0` and `b` exactly at `k = 1`.
+ */
+export function blendRect(a: Rect, b: Rect, k: number): Rect {
+  const mix = (p: number, q: number) => p + (q - p) * k
+  const geo = (p: number, q: number) => {
+    const lo = Math.log(Math.max(p, 1e-6))
+    return Math.exp(lo + (Math.log(Math.max(q, 1e-6)) - lo) * k)
+  }
+  const cx = mix((a.x0 + a.x1) / 2, (b.x0 + b.x1) / 2)
+  const cy = mix((a.y0 + a.y1) / 2, (b.y0 + b.y1) / 2)
+  const hw = geo((a.x1 - a.x0) / 2, (b.x1 - b.x0) / 2)
+  const hh = geo((a.y1 - a.y0) / 2, (b.y1 - b.y0) / 2)
+  return { x0: cx - hw, y0: cy - hh, x1: cx + hw, y1: cy + hh }
+}
+
+/** Ease in and out, so a blend leaves and arrives at rest. */
+export function smoothstep(k: number): number {
+  const u = Math.min(1, Math.max(0, k))
+  return u * u * (3 - 2 * u)
+}
+
 /** Camera that contains `rect` inside a w x h viewport, with px of screen inset. */
 export function fitRect(rect: Rect, w: number, h: number, inset: number): Camera {
   const vw = Math.max(1, w - inset * 2)
