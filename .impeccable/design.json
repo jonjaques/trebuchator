@@ -1,0 +1,289 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-09T03:09:57Z",
+  "title": "Design System: Trebuchator",
+  "extensions": {
+    "colorMeta": {
+      "ground": {
+        "role": "neutral",
+        "displayName": "Ground",
+        "canonical": "oklch(16% 0.008 60)",
+        "lightValue": "#e9e3d5",
+        "purpose": "The surface everything sits on. Warm near-black in dark, never a neutral #0a0a0a.",
+        "tonalRamp": ["oklch(15% 0.008 60)", "oklch(26% 0.010 60)", "oklch(37% 0.012 60)", "oklch(48% 0.014 60)", "oklch(59% 0.014 60)", "oklch(70% 0.012 60)", "oklch(83% 0.010 60)", "oklch(95% 0.006 60)"]
+      },
+      "sheet": {
+        "role": "neutral",
+        "displayName": "Sheet",
+        "canonical": "oklch(21% 0.008 60)",
+        "lightValue": "#f4f0e6",
+        "purpose": "The drawing surface and the rails.",
+        "tonalRamp": ["oklch(15% 0.008 60)", "oklch(26% 0.010 60)", "oklch(37% 0.012 60)", "oklch(48% 0.014 60)", "oklch(59% 0.014 60)", "oklch(70% 0.012 60)", "oklch(83% 0.010 60)", "oklch(95% 0.006 60)"]
+      },
+      "raised": {
+        "role": "neutral",
+        "displayName": "Raised",
+        "canonical": "oklch(25% 0.010 60)",
+        "lightValue": "#fbf8f1",
+        "purpose": "Popovers and the one step up from sheet.",
+        "tonalRamp": ["oklch(15% 0.010 60)", "oklch(26% 0.012 60)", "oklch(37% 0.014 60)", "oklch(48% 0.016 60)", "oklch(59% 0.016 60)", "oklch(70% 0.014 60)", "oklch(83% 0.010 60)", "oklch(95% 0.006 60)"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "oklch(92% 0.015 85)",
+        "lightValue": "#241f1a",
+        "purpose": "Primary text and the heaviest drawn line.",
+        "tonalRamp": ["oklch(15% 0.012 85)", "oklch(26% 0.014 85)", "oklch(37% 0.016 85)", "oklch(48% 0.018 85)", "oklch(59% 0.018 85)", "oklch(70% 0.018 85)", "oklch(83% 0.016 85)", "oklch(95% 0.012 85)"]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Ink 2",
+        "canonical": "oklch(68% 0.020 85)",
+        "lightValue": "#5b5347",
+        "purpose": "Labels, secondary text, the drawn sling.",
+        "tonalRamp": ["oklch(15% 0.016 85)", "oklch(26% 0.018 85)", "oklch(37% 0.020 85)", "oklch(48% 0.022 85)", "oklch(59% 0.022 85)", "oklch(70% 0.020 85)", "oklch(83% 0.018 85)", "oklch(95% 0.012 85)"]
+      },
+      "ink-3": {
+        "role": "neutral",
+        "displayName": "Ink 3",
+        "canonical": "oklch(52% 0.020 85)",
+        "lightValue": "#8b8171",
+        "purpose": "Units, hints, ground hatching, axis figures. Meta text that must recede.",
+        "tonalRamp": ["oklch(15% 0.016 85)", "oklch(26% 0.018 85)", "oklch(37% 0.020 85)", "oklch(48% 0.022 85)", "oklch(59% 0.022 85)", "oklch(70% 0.020 85)", "oklch(83% 0.018 85)", "oklch(95% 0.012 85)"]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Rule",
+        "canonical": "oklch(31% 0.014 60)",
+        "lightValue": "#c9c0ae",
+        "purpose": "Every 1px separator, border and grid line in the system.",
+        "tonalRamp": ["oklch(15% 0.012 60)", "oklch(26% 0.014 60)", "oklch(37% 0.016 60)", "oklch(48% 0.016 60)", "oklch(59% 0.016 60)", "oklch(70% 0.014 60)", "oklch(83% 0.012 60)", "oklch(95% 0.008 60)"]
+      },
+      "quench": {
+        "role": "primary",
+        "displayName": "Quench",
+        "canonical": "oklch(70% 0.190 42)",
+        "lightValue": "#b8420c",
+        "purpose": "Hot iron out of the slack tub. The projectile and nothing else: the shot, its trajectory, its whip inside the machine, the range figure, the slider cursor's centre line, the payoff band of the energy budget.",
+        "tonalRamp": ["oklch(15% 0.070 42)", "oklch(26% 0.110 42)", "oklch(37% 0.140 42)", "oklch(48% 0.170 42)", "oklch(59% 0.190 42)", "oklch(70% 0.190 42)", "oklch(82% 0.120 42)", "oklch(95% 0.040 42)"]
+      },
+      "verdigris": {
+        "role": "secondary",
+        "displayName": "Verdigris",
+        "canonical": "oklch(78% 0.120 178)",
+        "lightValue": "#0d7c70",
+        "purpose": "Bronze patina. Measurement only: dimension lines, witness lines, protractors, graduations, the section-head tick, focus rings, selected segments.",
+        "tonalRamp": ["oklch(15% 0.040 178)", "oklch(26% 0.060 178)", "oklch(37% 0.080 178)", "oklch(48% 0.100 178)", "oklch(59% 0.110 178)", "oklch(70% 0.120 178)", "oklch(82% 0.090 178)", "oklch(95% 0.030 178)"]
+      },
+      "warn": {
+        "role": "tertiary",
+        "displayName": "Warn",
+        "canonical": "oklch(78% 0.120 90)",
+        "lightValue": "#8a6a00",
+        "purpose": "Status only. The solver has a reservation about this machine.",
+        "tonalRamp": ["oklch(15% 0.040 90)", "oklch(26% 0.060 90)", "oklch(37% 0.080 90)", "oklch(48% 0.100 90)", "oklch(59% 0.110 90)", "oklch(70% 0.120 90)", "oklch(82% 0.090 90)", "oklch(95% 0.030 90)"]
+      },
+      "bad": {
+        "role": "tertiary",
+        "displayName": "Bad",
+        "canonical": "oklch(68% 0.150 25)",
+        "lightValue": "#a32a1e",
+        "purpose": "Status only. This machine will not throw, or an action destroys something.",
+        "tonalRamp": ["oklch(15% 0.060 25)", "oklch(26% 0.090 25)", "oklch(37% 0.115 25)", "oklch(48% 0.135 25)", "oklch(59% 0.150 25)", "oklch(70% 0.150 25)", "oklch(82% 0.100 25)", "oklch(95% 0.035 25)"]
+      },
+      "oak": {
+        "role": "neutral",
+        "displayName": "Oak",
+        "canonical": "oklch(60% 0.070 60)",
+        "lightValue": "#8a6440",
+        "purpose": "Material depiction only. Draws timber on the canvas and in the wordmark. Never appears in the interface.",
+        "tonalRamp": ["oklch(15% 0.030 60)", "oklch(26% 0.045 60)", "oklch(37% 0.055 60)", "oklch(48% 0.065 60)", "oklch(59% 0.070 60)", "oklch(70% 0.065 60)", "oklch(83% 0.045 60)", "oklch(95% 0.020 60)"]
+      },
+      "iron": {
+        "role": "neutral",
+        "displayName": "Iron",
+        "canonical": "oklch(67% 0.012 240)",
+        "lightValue": "#6e7378",
+        "purpose": "Material depiction only. Draws hardware, rails and the counterweight hatching. Never appears in the interface.",
+        "tonalRamp": ["oklch(15% 0.010 240)", "oklch(26% 0.012 240)", "oklch(37% 0.014 240)", "oklch(48% 0.014 240)", "oklch(59% 0.014 240)", "oklch(70% 0.012 240)", "oklch(83% 0.010 240)", "oklch(95% 0.006 240)"]
+      },
+      "ramp-1": {
+        "role": "neutral",
+        "displayName": "Ramp 1",
+        "canonical": "oklch(83% 0.020 90)",
+        "lightValue": "#8c8474",
+        "purpose": "Lightest step of the loss ramp. Encodes magnitude, not identity — must stay a lightness ramp rather than becoming three hues.",
+        "tonalRamp": ["oklch(15% 0.016 90)", "oklch(26% 0.018 90)", "oklch(37% 0.020 90)", "oklch(48% 0.020 90)", "oklch(59% 0.020 90)", "oklch(70% 0.020 90)", "oklch(83% 0.020 90)", "oklch(95% 0.012 90)"]
+      },
+      "ramp-2": {
+        "role": "neutral",
+        "displayName": "Ramp 2",
+        "canonical": "oklch(64% 0.020 90)",
+        "lightValue": "#625a4d",
+        "purpose": "Middle step of the loss ramp.",
+        "tonalRamp": ["oklch(15% 0.016 90)", "oklch(26% 0.018 90)", "oklch(37% 0.020 90)", "oklch(48% 0.020 90)", "oklch(59% 0.020 90)", "oklch(70% 0.020 90)", "oklch(83% 0.020 90)", "oklch(95% 0.012 90)"]
+      },
+      "ramp-3": {
+        "role": "neutral",
+        "displayName": "Ramp 3",
+        "canonical": "oklch(46% 0.016 80)",
+        "lightValue": "#3a342b",
+        "purpose": "Darkest step of the loss ramp.",
+        "tonalRamp": ["oklch(15% 0.012 80)", "oklch(26% 0.014 80)", "oklch(37% 0.016 80)", "oklch(48% 0.016 80)", "oklch(59% 0.016 80)", "oklch(70% 0.016 80)", "oklch(83% 0.014 80)", "oklch(95% 0.010 80)"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "The range figure and only the range figure. One per screen, set in quench." },
+      "headline": { "displayName": "Headline", "purpose": "The efficiency percentage — the only other number at this size." },
+      "title": { "displayName": "Title / Stencil", "purpose": "Section heads only. Uppercase and tracked because it is doing structural work; about eight on screen, not eighty." },
+      "body": { "displayName": "Body", "purpose": "Notes, warnings, error text, energy-bucket explanations. Sentence case, always." },
+      "label": { "displayName": "Label", "purpose": "Everything that names a thing: field names, stat names, chips, captions. Appears in dozens; the reader is scanning them." },
+      "micro": { "displayName": "Micro", "purpose": "Units, hints, secondary counts. Meta text that must recede." },
+      "numeric": { "displayName": "Numeric", "purpose": "Every value in a stat row, a field box, a chart axis or a legend. Always tabular." }
+    },
+    "shadows": [
+      { "name": "overlay-rail", "value": "0 25px 50px -12px rgb(0 0 0 / 0.25)", "purpose": "The only sanctioned shadow. A design or readout rail that has left the column layout below xl and is floating over the sheet. Removed at xl and above." }
+    ],
+    "motion": [
+      { "name": "state-transition", "value": "150ms ease", "purpose": "Default for colour and opacity changes on controls: hover, selection, band dimming." },
+      { "name": "popover-enter", "value": "100ms", "purpose": "Popover fade and 95% zoom-in. The only entrance animation in the system." },
+      { "name": "press", "value": "translateY(1px)", "purpose": "Button active state. One pixel, the way a real control moves." },
+      { "name": "camera-ease", "value": "k = 1 - exp(-0.22) per frame, scale interpolated in log space", "purpose": "Canvas camera easing. Log-space scale so a pull-back from the machine to the whole field reads as an even zoom rather than a slow start and a rush." },
+      { "name": "reduced-motion", "value": "animation-duration: 0.001ms; transition-duration: 0.001ms", "purpose": "Global clamp under prefers-reduced-motion: reduce." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px", "purpose": "Transport splits into two rows below this." },
+      { "name": "md", "value": "768px", "purpose": "Top bar splits into two rows below this." },
+      { "name": "xl", "value": "1280px", "purpose": "Rails dock as columns at and above this; below, they overlay one at a time." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-default",
+      "description": "Solid ink chip for the one committing action in a group.",
+      "html": "<button class=\"ds-btn\">Save shot</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; height: 32px; padding: 0 10px; border: 1px solid transparent; border-radius: 2px; background: var(--ink); color: var(--sheet); font-family: 'Instrument Sans Variable', ui-sans-serif, system-ui, sans-serif; font-size: 0.71rem; font-weight: 500; line-height: 1.25; white-space: nowrap; cursor: pointer; transition: background 150ms ease, transform 150ms ease; } .ds-btn:hover { background: color-mix(in oklch, var(--ink), transparent 20%); } .ds-btn:focus-visible { outline: 2px solid var(--verdigris); outline-offset: 1px; } .ds-btn:active { transform: translateY(1px); }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "The workhorse secondary action — Adopt best, Fire again, Find best pin.",
+      "html": "<button class=\"ds-btn-outline\">Adopt best</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 28px; padding: 0 10px; border: 1px solid var(--rule); border-radius: 2px; background: transparent; color: var(--ink); font-family: 'Instrument Sans Variable', ui-sans-serif, system-ui, sans-serif; font-size: 0.71rem; font-weight: 400; line-height: 1.25; cursor: pointer; transition: background 150ms ease, border-color 150ms ease, transform 150ms ease; } .ds-btn-outline:hover { background: var(--raised); border-color: var(--ink-3); } .ds-btn-outline:focus-visible { outline: 2px solid var(--verdigris); outline-offset: 1px; } .ds-btn-outline:active { transform: translateY(1px); } .ds-btn-outline:disabled { opacity: 0.5; pointer-events: none; }"
+    },
+    {
+      "name": "Icon Toggle",
+      "kind": "chip",
+      "refersTo": "icon-toggle",
+      "description": "View controls in the transport. Off is a rule border with a receding glyph; on takes verdigris and a faint wash. State rides on aria-pressed.",
+      "html": "<div style=\"display:flex; gap:6px\"><button class=\"ds-toggle\" aria-pressed=\"false\" aria-label=\"Show grid\"><svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M3 3h18v18H3z\"/><path d=\"M9 3v18M15 3v18M3 9h18M3 15h18\"/></svg></button><button class=\"ds-toggle\" aria-pressed=\"true\" aria-label=\"Show grid\"><svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M3 3h18v18H3z\"/><path d=\"M9 3v18M15 3v18M3 9h18M3 15h18\"/></svg></button></div>",
+      "css": ".ds-toggle { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; flex-shrink: 0; border: 1px solid var(--rule); border-radius: 1px; background: transparent; color: var(--ink-3); cursor: pointer; transition: color 150ms ease, border-color 150ms ease, background 150ms ease; } .ds-toggle:hover { border-color: var(--ink-3); color: var(--ink-2); } .ds-toggle:focus-visible { outline: 2px solid var(--verdigris); outline-offset: 1px; } .ds-toggle[aria-pressed=\"true\"] { border-color: var(--verdigris); color: var(--verdigris); background: color-mix(in oklch, var(--verdigris), transparent 90%); }"
+    },
+    {
+      "name": "Segmented Control",
+      "kind": "custom",
+      "refersTo": "icon-toggle-on",
+      "description": "Machine type, units, sweep mode and playback speed. A real role=radiogroup; hairline border, no gaps between segments, selected segment in verdigris on a faint wash.",
+      "html": "<div class=\"ds-seg\" role=\"radiogroup\" aria-label=\"How each point is set up\"><button role=\"radio\" aria-checked=\"true\">As built</button><button role=\"radio\" aria-checked=\"false\">Best case</button></div>",
+      "css": ".ds-seg { display: inline-flex; overflow: hidden; border: 1px solid var(--rule); border-radius: 1px; } .ds-seg button { padding: 6px 8px; border: 0; background: transparent; color: var(--ink-3); font-family: 'Instrument Sans Variable', ui-sans-serif, system-ui, sans-serif; font-size: 0.71rem; font-weight: 400; line-height: 1.25; cursor: pointer; transition: color 150ms ease, background 150ms ease; } .ds-seg button:hover { color: var(--ink-2); } .ds-seg button:focus-visible { outline: 2px solid var(--verdigris); outline-offset: -2px; } .ds-seg button[aria-checked=\"true\"] { color: var(--verdigris); background: color-mix(in oklch, var(--verdigris), transparent 88%); }"
+    },
+    {
+      "name": "Number Box",
+      "kind": "input",
+      "refersTo": "field-box",
+      "description": "The authoritative value entry. Right-aligned tabular figure with its unit set beside it; the border moves to verdigris on focus-within.",
+      "html": "<div class=\"ds-numbox\"><input type=\"text\" inputmode=\"decimal\" value=\"6.562\" aria-label=\"Sling length\" /><span>ft</span></div>",
+      "css": ".ds-numbox { display: inline-flex; align-items: center; gap: 4px; width: 86px; padding: 4px 6px; border: 1px solid var(--rule); border-radius: 1px; background: var(--ground); transition: border-color 150ms ease; } .ds-numbox:focus-within { border-color: var(--verdigris); } .ds-numbox input { width: 100%; min-width: 0; border: 0; background: transparent; outline: none; text-align: right; color: var(--ink); font-family: 'Geist Mono Variable', ui-monospace, monospace; font-size: 0.75rem; font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1, 'zero' 1; } .ds-numbox span { flex-shrink: 0; color: var(--ink-3); font-family: 'Geist Mono Variable', ui-monospace, monospace; font-size: 0.65rem; }"
+    },
+    {
+      "name": "Parameter Field",
+      "kind": "custom",
+      "refersTo": "slider-thumb",
+      "description": "The design rail's repeating unit: name, an optional derived aside, a hairline slider with a slide-rule cursor, and the authoritative number box. The slider feels out a shape; the box is what you build to.",
+      "html": "<div class=\"ds-field\"><div class=\"ds-field-head\"><label for=\"ds-f1\">Sling length</label><span class=\"ds-aside\">83% of long arm</span></div><div class=\"ds-field-row\"><div class=\"ds-slider\" role=\"slider\" tabindex=\"0\" aria-label=\"Sling length\" aria-valuetext=\"6.562 ft\"><div class=\"ds-slider-track\"><div class=\"ds-slider-range\"></div></div><div class=\"ds-slider-thumb\"></div></div><div class=\"ds-numbox\"><input id=\"ds-f1\" type=\"text\" inputmode=\"decimal\" value=\"6.562\" aria-label=\"Sling length value\" /><span>ft</span></div></div></div>",
+      "css": ".ds-field { padding: 6px 0; font-family: 'Instrument Sans Variable', ui-sans-serif, system-ui, sans-serif; } .ds-field-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding-bottom: 4px; } .ds-field-head label { color: var(--ink-2); font-size: 0.71rem; font-weight: 400; line-height: 1.25; } .ds-aside { flex-shrink: 0; color: var(--ink-3); font-family: 'Geist Mono Variable', ui-monospace, monospace; font-size: 0.65rem; font-variant-numeric: tabular-nums; } .ds-field-row { display: flex; align-items: center; gap: 8px; } .ds-slider { position: relative; display: flex; align-items: center; flex: 1; height: 20px; outline: none; cursor: grab; } .ds-slider:active { cursor: grabbing; } .ds-slider-track { position: relative; width: 100%; height: 1px; background: var(--rule); } .ds-slider-range { position: absolute; inset-block: 0; left: 0; width: 62%; height: 1px; background: var(--ink-3); } .ds-slider-thumb { position: absolute; left: calc(62% - 3.5px); width: 7px; height: 14px; border-left: 1px solid var(--ink-2); border-right: 1px solid var(--ink-2); } .ds-slider-thumb::after { content: ''; position: absolute; inset-block: 0; left: 50%; width: 1px; transform: translateX(-50%); background: var(--quench); } .ds-slider:hover .ds-slider-thumb { border-color: var(--ink); } .ds-slider:focus-visible .ds-slider-thumb { border-color: var(--verdigris); } .ds-slider:focus-visible .ds-slider-thumb::after { background: var(--verdigris); }"
+    },
+    {
+      "name": "Section Header",
+      "kind": "custom",
+      "refersTo": "section-head",
+      "description": "How the rails group anything. A verdigris tick, a stencil head, an optional note, closed by a bottom rule. There are no cards in this system; this is the grouping device.",
+      "html": "<section class=\"ds-section\"><h3 class=\"ds-stencil\"><span class=\"ds-tick\" aria-hidden=\"true\"></span>Structure</h3><p class=\"ds-note\">Peak loads through the stroke. Size the axle and the beam for these, not for the static weight.</p></section>",
+      "css": ".ds-section { padding: 12px; border-bottom: 1px solid var(--rule); font-family: 'Instrument Sans Variable', ui-sans-serif, system-ui, sans-serif; } .ds-stencil { display: flex; align-items: baseline; gap: 8px; margin: 0; padding-bottom: 4px; color: var(--ink); font-size: 0.6875rem; font-weight: 500; line-height: 1.15; letter-spacing: 0.1em; text-transform: uppercase; } .ds-tick { flex-shrink: 0; width: 12px; height: 1px; background: var(--verdigris); } .ds-note { margin: 0; padding-bottom: 6px; color: var(--ink-3); font-size: 0.6875rem; line-height: 1.375; }"
+    },
+    {
+      "name": "Stat Row",
+      "kind": "custom",
+      "refersTo": "section-head",
+      "description": "The readout rail's entire vocabulary, repeated about twenty times: name, a leader rule filling the gap, the tabular value, the unit. It is why the panel scans as a table of measurements rather than a stack of cards.",
+      "html": "<div class=\"ds-stat\"><span class=\"ds-stat-label\">Sling tension</span><span class=\"ds-leader\" aria-hidden=\"true\"></span><span class=\"ds-stat-value\">4.21<span class=\"ds-stat-unit\">kN</span></span></div>",
+      "css": ".ds-stat { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 3px 0; font-family: 'Instrument Sans Variable', ui-sans-serif, system-ui, sans-serif; } .ds-stat-label { flex-shrink: 0; color: var(--ink-3); font-size: 0.71rem; line-height: 1.25; } .ds-leader { flex: 1; height: 1px; transform: translateY(-2px); background: color-mix(in oklch, var(--rule), transparent 40%); } .ds-stat-value { flex-shrink: 0; color: var(--ink-2); font-family: 'Geist Mono Variable', ui-monospace, monospace; font-size: 0.75rem; font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1, 'zero' 1; } .ds-stat-unit { padding-left: 4px; color: var(--ink-3); font-size: 0.625rem; }"
+    },
+    {
+      "name": "Energy Bar",
+      "kind": "custom",
+      "refersTo": "section-head",
+      "description": "Parts of a whole in one 100% bar. The payoff takes the single accent, the graded overheads take a lightness ramp, and 'never released' is a dashed outlined void because it is unused capacity rather than a loss.",
+      "html": "<div class=\"ds-energy\" role=\"img\" aria-label=\"Into the shot 52 percent, Left in the machine 22 percent, Hoisting the shot 8 percent, Friction and air 4 percent, Never released 15 percent\"><span class=\"ds-band\" style=\"width:52%; background:var(--quench)\"></span><span class=\"ds-band\" style=\"width:22%; background:var(--ramp-1)\"></span><span class=\"ds-band\" style=\"width:8%; background:var(--ramp-2)\"></span><span class=\"ds-band\" style=\"width:4%; background:var(--ramp-3)\"></span><span class=\"ds-band ds-band-void\" style=\"width:15%\"></span></div>",
+      "css": ".ds-energy { display: flex; gap: 2px; width: 100%; height: 24px; } .ds-band { min-width: 3px; height: 100%; border-radius: 1px; transition: opacity 150ms ease; } .ds-energy:hover .ds-band { opacity: 0.45; } .ds-energy .ds-band:hover { opacity: 1; } .ds-band-void { background: transparent; border: 1px dashed var(--rule); }"
+    },
+    {
+      "name": "Range Readout",
+      "kind": "custom",
+      "refersTo": "section-head",
+      "description": "The one display-scale figure on the sheet. Quench, tabular, leading-none, with its unit set small and receding beside it — the DOM twin of the range dimension drawn across the bottom of the canvas.",
+      "html": "<div class=\"ds-range\"><span class=\"ds-range-figure\">231.8</span><span class=\"ds-range-unit\">ft</span></div>",
+      "css": ".ds-range { display: flex; align-items: flex-end; gap: 8px; padding: 4px 0 8px; } .ds-range-figure { color: var(--quench); font-family: 'Geist Mono Variable', ui-monospace, monospace; font-size: 2.6rem; font-weight: 500; line-height: 1; font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1, 'zero' 1; } .ds-range-unit { padding-bottom: 4px; color: var(--ink-3); font-family: 'Geist Mono Variable', ui-monospace, monospace; font-size: 0.875rem; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Setting-Out Floor",
+    "overview": "A setting-out floor is the full-size layout a master carpenter chalks onto the shop floor before cutting a single timber. Every line is at true scale, every dimension is one you can hold a tape against, and nothing is on the floor that you would not build from. That is the whole brief for this interface. The range is not a statistic in a card — it is the dimension line across the bottom of the sheet, drawn with witness lines, arrowheads and the figure set into a gap in the rule, exactly as a draughtsman would carry it.\n\nThe register is exact, quiet and worked. Nothing raises its voice; precision is the entire personality, and the design earns attention by being correct rather than by being loud. It is also warm, aged and material — vellum and charred oak, hot iron and bronze patina. The palette is never neutral grey, because the thing being drawn is timber and metal and the ground it stands on should know that. Light mode is a diazo whiteprint: warm vellum with dark ink. Dark mode, which is the default, is chalk on charred oak.\n\nTwo things it must never be mistaken for. Not a dashboard — no rounded cards, no drop shadows, no KPI tiles; readings sit on ruled rows on a sheet, not in boxes. Not siege-engine kitsch — no blackletter, no parchment texture, no stone or fire. The medieval subject is treated as engineering, never as atmosphere.",
+    "keyCharacteristics": [
+      "Hairline rules and tonal layering do all the separating; there is effectively no shadow.",
+      "Corners are 1–4px — square enough to read as drafted, radiused only enough to look deliberate.",
+      "Sans names things, mono measures them, and the two never swap jobs.",
+      "Exactly four signal hues, each with one job, on a warm ink-on-material ground.",
+      "Full-viewport, no page scroll: the sheet is a surface, not a document."
+    ],
+    "rules": [
+      { "name": "The Four Hues Rule", "body": "Quench, verdigris, warn and bad are the complete signal palette and it is closed. A fifth is never introduced, whatever the role seems to need. If something requires distinguishing, the answer is a label, a weight, or a position — not another colour.", "section": "colors" },
+      { "name": "The One Job Rule", "body": "Quench is the shot. Verdigris is measurement. Neither is ever borrowed for emphasis, branding, hover states, or decoration, and they never appear together on the same element.", "section": "colors" },
+      { "name": "The Depiction Rule", "body": "Oak and iron are not interface colours. They exist to draw timber and metal on the canvas and in the wordmark, and they must never appear in a control, a label, a border or a panel.", "section": "colors" },
+      { "name": "The Two-Surface Rule", "body": "Every colour exists in both :root and .dark, and a new one is added to both in the same edit. The canvas reads its palette out of computed styles at runtime and falls back to #888 for a token it cannot find — so a half-added colour does not error, it just quietly draws grey.", "section": "colors" },
+      { "name": "The Sans-for-Names, Mono-for-Numbers Rule", "body": "Instrument Sans names things; Geist Mono measures them. A quantity never sets in the sans and a name never sets in the mono. This one contrast carries the whole design and does not need reinforcing with weight or colour.", "section": "typography" },
+      { "name": "The Tracked-Caps Rule", "body": "Uppercase with 0.1em tracking survives only on .stencil, where it is doing structural work — marking where one part of the sheet ends and the next begins. Everything else is sentence case at 400. Do not reintroduce tracked capitals on labels, buttons or chips.", "section": "typography" },
+      { "name": "The Tabular Rule", "body": "Any figure that can change sets .tnum (font-variant-numeric: tabular-nums, font-feature-settings: 'tnum' 1, 'zero' 1). Every number in this app is compared against another number and must never change width as it ticks.", "section": "typography" },
+      { "name": "The No-Page-Scroll Rule", "body": "The viewport is the sheet. If content does not fit, a panel scrolls inside its own bounds — the shell never does.", "section": "layout" },
+      { "name": "The One Rail Rule", "body": "Below xl, at most one rail is open. Opening the other closes it.", "section": "layout" },
+      { "name": "The Flat Sheet Rule", "body": "Surfaces are flat and stay flat. Separation is a 1px rule or a step in tone, never a shadow. A shadow appears only when an element has genuinely left the layout and is floating over the sheet.", "section": "elevation" },
+      { "name": "The Square Corner Rule", "body": "No radius above 4px, anywhere, ever. If something needs to feel softer, it is in the wrong system.", "section": "shapes" },
+      { "name": "The Hairline Rule", "body": "Separation is 1px. Never 2px, never a coloured band, never a gap where a rule belongs.", "section": "shapes" }
+    ],
+    "dos": [
+      "Do add every new colour to both :root and .dark in the same edit — the canvas falls back to #888 and will not tell you.",
+      "Do set every changing figure in tabular mono (.tnum) so columns never shuffle.",
+      "Do separate with a 1px rule in rule, or a step in tone, before reaching for space.",
+      "Do keep radii at 4px or below, and default to 2px.",
+      "Do give focus the global 2px verdigris outline at 1px offset.",
+      "Do draw measurements in drafting convention — witness lines, outward arrowheads, the figure in a gap in the rule — wherever a measurement appears, canvas or DOM.",
+      "Do drop an annotation that has become illegible (a dimension under 52px, a protractor under 16px, an energy band under 0.15%) rather than shrinking or overlapping it.",
+      "Do state units next to figures in ink-3 micro type, never inside the figure itself."
+    ],
+    "donts": [
+      "Don't introduce a fifth signal hue. Four are sanctioned and the list is closed; use a label, a weight or a position instead.",
+      "Don't use quench for anything but the projectile, or verdigris for anything but measurement, focus and selection.",
+      "Don't put oak or iron in the interface. They draw timber and metal, nothing else.",
+      "Don't add a shadow. The only one in the system belongs to a rail that has left the layout below xl.",
+      "Don't build cards. Group with a Section — stencil head, verdigris tick, bottom rule.",
+      "Don't set labels, buttons or chips in tracked capitals; that is .stencil's job and .stencil is for section heads.",
+      "Don't let the shell scroll. Panels scroll inside themselves; the viewport is the sheet.",
+      "Don't reach for a pill, a rounded card or a soft corner — including on any control vendored from shadcn. DraftSlider exists because the stock slider's pill handle was the wrong language.",
+      "Don't dress the medieval subject: no blackletter, no parchment texture, no stone, no fire. The machine is engineering."
+    ]
+  }
+}
