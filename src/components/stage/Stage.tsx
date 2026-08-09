@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import type { FiredShot, ShotResult, TrebuchetParams } from '@/lib/treb/types.ts'
 import type { UnitSystem } from '@/lib/format.ts'
 import { paint } from './paint.ts'
@@ -107,6 +107,14 @@ export function Stage({
   // playback paused a drag moved the camera without ever repainting it.
   const [tick, setTick] = useState(0)
   const dragRef = useRef<{ x: number; y: number; cx: number; cy: number } | null>(null)
+  // Live pointer positions by id. One down is a pan; two down is a pinch. The
+  // canvas is `touch-none`, so the browser will never pinch for us — without
+  // this a second finger just restarted the drag with a jump.
+  const pointersRef = useRef(new Map<number, { x: number; y: number }>())
+  // The camera and geometry at the moment the second finger landed. Each move
+  // re-derives from this anchor rather than compounding per-event ratios,
+  // which accumulate rounding until the sheet drifts under steady fingers.
+  const pinchRef = useRef<{ dist: number; mx: number; my: number; cam: Camera } | null>(null)
 
   useEffect(() => {
     const el = hostRef.current
@@ -238,6 +246,40 @@ export function Stage({
     tick,
   ])
 
+  // Shared by pointerup and pointercancel — a cancelled touch must tear down
+  // the same gesture state or the next touch inherits a phantom finger.
+  const endPointer = (e: ReactPointerEvent<HTMLCanvasElement>) => {
+    if (e.currentTarget.hasPointerCapture(e.pointerId))
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    pointersRef.current.delete(e.pointerId)
+    const pts = [...pointersRef.current.values()]
+    if (pts.length === 2 && pinchRef.current && camRef.current) {
+      // Three fingers down to two: re-anchor on the survivors, whichever pair
+      // they are — the old anchor may describe a finger that just left.
+      const rect = e.currentTarget.getBoundingClientRect()
+      pinchRef.current = {
+        dist: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y),
+        mx: (pts[0].x + pts[1].x) / 2 - rect.left,
+        my: (pts[0].y + pts[1].y) / 2 - rect.top,
+        cam: camRef.current,
+      }
+    } else if (pts.length === 1 && camRef.current) {
+      // A pinch losing one finger degrades to a pan from where the survivor
+      // stands, so lifting a finger never jumps the sheet.
+      pinchRef.current = null
+      dragRef.current = {
+        x: pts[0].x,
+        y: pts[0].y,
+        cx: camRef.current.cx,
+        cy: camRef.current.cy,
+      }
+    } else if (pts.length === 0) {
+      pinchRef.current = null
+      dragRef.current = null
+      setGrabbing(false)
+    }
+  }
+
   return (
     <div ref={hostRef} className="relative h-full w-full overflow-hidden bg-sheet">
       <canvas
@@ -269,14 +311,56 @@ export function Stage({
           if (!camRef.current) return
           e.currentTarget.setPointerCapture(e.pointerId)
           setGrabbing(true)
-          dragRef.current = {
-            x: e.clientX,
-            y: e.clientY,
-            cx: camRef.current.cx,
-            cy: camRef.current.cy,
+          pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+          const pts = [...pointersRef.current.values()]
+          if (pts.length === 2) {
+            // Second finger down: the drag becomes a pinch, anchored where the
+            // fingers are now.
+            dragRef.current = null
+            const rect = e.currentTarget.getBoundingClientRect()
+            pinchRef.current = {
+              dist: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y),
+              mx: (pts[0].x + pts[1].x) / 2 - rect.left,
+              my: (pts[0].y + pts[1].y) / 2 - rect.top,
+              cam: camRef.current,
+            }
+          } else if (pts.length === 1) {
+            dragRef.current = {
+              x: e.clientX,
+              y: e.clientY,
+              cx: camRef.current.cx,
+              cy: camRef.current.cy,
+            }
           }
+          // A third finger neither pans nor re-anchors: the pinch carries on
+          // between the first two.
         }}
         onPointerMove={(e) => {
+          if (pointersRef.current.has(e.pointerId))
+            pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+          const pinch = pinchRef.current
+          if (pinch && pointersRef.current.size >= 2) {
+            const [a, b] = [...pointersRef.current.values()]
+            const rect = e.currentTarget.getBoundingClientRect()
+            const mx = (a.x + b.x) / 2 - rect.left
+            const my = (a.y + b.y) / 2 - rect.top
+            const dist = Math.hypot(a.x - b.x, a.y - b.y)
+            const scale = pinch.cam.scale * (Math.max(dist, 1) / Math.max(pinch.dist, 1))
+            // Same invariant as the wheel: the world point under the gesture
+            // stays under the gesture, while it moves and while it spreads.
+            const wx = pinch.cam.cx + (pinch.mx - size.w / 2) / pinch.cam.scale
+            const wy = pinch.cam.cy - (pinch.my - size.h / 2) / pinch.cam.scale
+            camRef.current = {
+              scale,
+              cx: wx - (mx - size.w / 2) / scale,
+              cy: wy + (my - size.h / 2) / scale,
+            }
+            onModeChange('free')
+            setTick((n) => n + 1)
+            return
+          }
+
           const d = dragRef.current
           const cam = camRef.current
           if (!d || !cam) return
@@ -288,11 +372,8 @@ export function Stage({
           onModeChange('free')
           setTick((n) => n + 1)
         }}
-        onPointerUp={(e) => {
-          e.currentTarget.releasePointerCapture(e.pointerId)
-          dragRef.current = null
-          setGrabbing(false)
-        }}
+        onPointerUp={endPointer}
+        onPointerCancel={endPointer}
       />
       {/* Nothing to paint, in the two ways that happens. The first solve costs a
           worker boot plus 20–45 ms, and an unmarked blank sheet is the first
