@@ -3,6 +3,7 @@ import type { SweepMode, SweepPoint, TunableKey } from '@/lib/treb/optimize.ts'
 import { TUNABLES } from '@/lib/treb/optimize.ts'
 import { num, toDisplay, unitSymbol, type Dimension, type UnitSystem } from '@/lib/format.ts'
 import { niceStep, tickDecimals, usePlotWidth } from './charts.ts'
+import { cn } from '@/lib/utils.ts'
 
 /**
  * Range against one parameter, everything else held.
@@ -19,6 +20,33 @@ import { niceStep, tickDecimals, usePlotWidth } from './charts.ts'
  * line down to the axis, figure in the gap) so it reads the same way as every
  * measurement on the drawing.
  */
+
+/**
+ * A figure with its unit set beside it, in the sheet's own rule: the number in
+ * tabular mono, the symbol in `ink-3` micro type, never inside the figure.
+ *
+ * Right-aligned in a reserved width so the caption's columns hold still as the
+ * hovered value runs from two digits to four. `wide` is the range column, which
+ * carries the larger numbers.
+ */
+function Figure({
+  text,
+  unit,
+  wide,
+  tone = 'text-ink',
+}: {
+  text: string
+  unit: string
+  wide?: boolean
+  tone?: string
+}) {
+  return (
+    <span className={cn('tnum label text-right font-mono', wide ? 'w-20' : 'w-14', tone)}>
+      {text}
+      {unit && <span className="micro pl-0.5 text-ink-3">{unit}</span>}
+    </span>
+  )
+}
 
 interface Props {
   points: SweepPoint[]
@@ -106,7 +134,9 @@ export function SweepChart({
     .map((p, i) => `${i ? 'L' : 'M'}${sx(p.value).toFixed(1)},${sy(dsp(p.range)).toFixed(1)}`)
     .join('')
   const hovered = hover != null ? valid[hover] : null
-  const fmtX = (v: number) => `${num(toDisplay(v, dim, units), dim === 'angle' ? 0 : 2)}${xUnit}`
+  const fmtX = (v: number) => num(toDisplay(v, dim, units), dim === 'angle' ? 0 : 2)
+  /** Spoken form, for the label a screen reader reads off the whole figure. */
+  const sayX = (v: number) => `${fmtX(v)} ${xUnit}`.trim()
   const inRange = current >= x0 && current <= x1
   const gain = Number.isFinite(atCurrent) ? best.range - atCurrent : Number.NaN
 
@@ -144,7 +174,7 @@ export function SweepChart({
           viewBox={`0 0 ${W} ${H}`}
           className="block cursor-crosshair select-none"
           role="img"
-          aria-label={`Range against ${spec?.label ?? paramKey}. Currently ${fmtX(current)} giving ${num(dsp(atCurrent), 1)} ${yUnit}. Best is ${fmtX(best.value)} giving ${num(dsp(best.range), 1)} ${yUnit}.`}
+          aria-label={`Range against ${spec?.label ?? paramKey}. Currently ${sayX(current)} giving ${num(dsp(atCurrent), 1)} ${yUnit}. Best is ${sayX(best.value)} giving ${num(dsp(best.range), 1)} ${yUnit}.`}
           onMouseLeave={() => {
             setHover(null)
             onHover?.(null)
@@ -341,58 +371,64 @@ export function SweepChart({
         </svg>
       </div>
 
-      <figcaption className="flex flex-wrap items-baseline gap-x-4 gap-y-1 pt-1.5">
-        <span className="label text-ink-2">
-          {hovered ? (
-            <>
-              <span className="text-ink-3">At </span>
-              <span className="tnum font-mono text-ink">{fmtX(hovered.value)}</span>
-              <span className="text-ink-3"> this machine throws </span>
-              <span className="tnum font-mono text-ink">
-                {num(dsp(hovered.range), 1)} {yUnit}
-              </span>
-            </>
+      {/* A caption whose height is a function of the width and nothing else.
+          It was a wrapping flex row of four sentences, and the hovered reading
+          is longer than the resting one — so pointing at the curve wrapped the
+          row onto a second line, which grew the drawer, which shrank the sheet
+          above it. The chart moved out from under the pointer that was reading
+          it. Two rows now, always both, every cell on one line.
+
+          It is also a table rather than four sentences, because it was always
+          answering one question in two readings — you are here, you could be
+          there — and a table says that in a glance where prose made the reader
+          parse "Best sling length is 113.48ft for +31.7 ft". */}
+      <figcaption className="flex flex-col gap-1 pt-2 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+        {/* Every column is a reserved width, not `auto`. Auto columns size to
+            their content, so "Yours" becoming "Hovered" and 50.00 becoming
+            113.48 shuffled the whole row sideways under a pointer that was
+            trying to read it. */}
+        <div className="grid shrink-0 grid-cols-[3.5rem_auto_auto_auto_auto] items-baseline gap-x-2 gap-y-0.5 whitespace-nowrap">
+          <span className="label text-ink-3">{hovered ? 'Hovered' : 'Yours'}</span>
+          <Figure text={fmtX(hovered?.value ?? current)} unit={xUnit} />
+          <span className="label text-ink-3">throws</span>
+          {hovered || Number.isFinite(atCurrent) ? (
+            <Figure text={num(dsp(hovered?.range ?? atCurrent), 1)} unit={yUnit} wide />
           ) : (
-            <>
-              <span className="text-ink-3">Yours: </span>
-              <span className="tnum font-mono text-ink">{fmtX(current)}</span>
-              <span className="text-ink-3"> throws </span>
-              <span className="tnum font-mono text-ink">
-                {Number.isFinite(atCurrent) ? `${num(dsp(atCurrent), 1)} ${yUnit}` : '—'}
-              </span>
-            </>
+            /* The machine is set outside the span being swept, so the curve has
+               no reading for it — a fact worth stating rather than a blank. */
+            <span className="label w-20 text-right text-ink-3">off the curve</span>
           )}
-        </span>
-        <span className="label text-ink-3">
-          Best {spec?.label.toLowerCase()} is{' '}
-          <span className="tnum font-mono text-ink-2">{fmtX(best.value)}</span>
-          {Number.isFinite(gain) && gain > 0.05 && (
-            <>
-              {' '}
-              for{' '}
-              <span className="tnum font-mono text-quench">
-                +{num(dsp(gain), 1)} {yUnit}
-              </span>
-            </>
+          <span />
+
+          <span className="label text-ink-3">Best</span>
+          <Figure text={fmtX(best.value)} unit={xUnit} />
+          <span className="label text-ink-3">throws</span>
+          <Figure text={num(dsp(best.range), 1)} unit={yUnit} wide />
+          {Number.isFinite(gain) && gain > 0.05 ? (
+            <Figure text={`+${num(dsp(gain), 1)}`} unit={yUnit} tone="text-quench" />
+          ) : (
+            <span className="label pl-1 text-ink-3">that is yours</span>
           )}
-          {Number.isFinite(gain) && gain <= 0.05 && ' — you are already there'}
-        </span>
-        {deadBands.length > 0 && (
-          /* The shading had no key. A reader met a grey block on a chart of
-             ranges with nothing to tell them whether it meant "no data" or
-             "very short shot" — which are opposite conclusions. */
-          <span className="label flex items-center gap-1.5 text-ink-3">
-            <span aria-hidden className="h-2.5 w-4 shrink-0 bg-ink-3/12" />
-            Shaded: will not throw
+        </div>
+
+        <div className="flex min-w-0 flex-col gap-0.5 sm:items-end">
+          <span className="label truncate text-ink-3">
+            {loading
+              ? 'Sweeping…'
+              : mode === 'bestCase'
+                ? 'Each point re-cocked, ideal release'
+                : 'Everything else as built'}
           </span>
-        )}
-        <span className="label ml-auto text-ink-3">
-          {loading
-            ? 'Sweeping…'
-            : mode === 'bestCase'
-              ? 'Each point re-cocked and released ideally'
-              : 'Everything else held exactly as built'}
-        </span>
+          {deadBands.length > 0 && (
+            /* The shading had no key. A reader met a grey block on a chart of
+               ranges with nothing to tell them whether it meant "no data" or
+               "very short shot" — which are opposite conclusions. */
+            <span className="label flex items-center gap-1.5 text-ink-3">
+              <span aria-hidden className="h-2.5 w-4 shrink-0 bg-ink-3/12" />
+              Shaded: will not throw
+            </span>
+          )}
+        </div>
       </figcaption>
     </figure>
   )

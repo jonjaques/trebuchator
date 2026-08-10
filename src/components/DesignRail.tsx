@@ -409,7 +409,7 @@ export function DesignRail({
           disabled={params.releaseMode === 'optimal'}
         />
         <div className="flex gap-1.5 pt-1">
-          <Tip text="Fires once with an ideal release, reads the angle the sling was at when it let go, and sets the pin to it. One simulation, not a search.">
+          <Tip text="Fires once with an ideal release and bends the pin to the angle that gave. One simulation, not a search.">
             <Button
               size="sm"
               variant="outline"
@@ -421,7 +421,7 @@ export function DesignRail({
               {tuning ? 'Finding…' : 'Find best pin'}
             </Button>
           </Tip>
-          <Tip text="Lets go at the instant that maximises range, rather than at a pin angle. Not a machine you can build — it is the ceiling a bent pin is chasing.">
+          <Tip text="Releases at whichever instant throws furthest. Not buildable — it is the ceiling a bent pin is chasing.">
             <Button
               size="sm"
               variant={params.releaseMode === 'optimal' ? 'default' : 'outline'}

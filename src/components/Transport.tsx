@@ -451,7 +451,7 @@ export function Transport({
               on={showDimensions}
               onClick={() => onShowDimensions(!showDimensions)}
               label="Show dimensions (D)"
-              tip="Letters the machine's own measurements onto the sheet, in drafting convention. Turning them on rewinds to the cocked pose, where they are legible."
+              tip="The machine's own measurements, drafted onto the sheet. Rewinds to the cocked pose, where they are legible."
             >
               <Ruler className="size-3.5" aria-hidden />
             </IconToggle>
@@ -459,7 +459,7 @@ export function Transport({
               on={showAngles}
               onClick={() => onShowAngles(!showAngles)}
               label="Show angles (A)"
-              tip="Graduated protractors on the pivot and the beam tip. The dashed radial at the tip is the pin angle you have bent; watch the sling close on it."
+              tip="Protractors on the pivot and beam tip. The dashed radial is the pin you have bent — watch the sling close on it."
             >
               <DraftingCompass className="size-3.5" aria-hidden />
             </IconToggle>
@@ -483,7 +483,7 @@ export function Transport({
               on={notes}
               onClick={() => onNotes(!notes)}
               label="Show the notes beside each reading (N)"
-              tip="Prints the explanation under every field and reading in the rails. Folding it away is a visual choice — the text stays there for a screen reader either way."
+              tip="Prints the explanation under every field and reading in the rails."
             >
               <Info className="size-3.5" aria-hidden />
             </IconToggle>

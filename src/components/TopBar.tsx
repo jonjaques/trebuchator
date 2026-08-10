@@ -344,7 +344,7 @@ export function TopBar({
             takes no pointer events, so a tip explaining *why* would be the one
             tip nobody could open. The reason is already in the results rail,
             in full. */}
-        <Tip text="Keeps this trajectory on the sheet as a dashed ghost, and its machine in the results rail, so the next change has something to beat.">
+        <Tip text="Keeps this trajectory on the sheet as a dashed ghost, to compare the next change against.">
           <Button
             variant="outline"
             size="sm"
@@ -427,7 +427,7 @@ function ShareButton({ presetId }: { presetId: string | null }) {
       text={
         state === 'copied'
           ? 'Copied.'
-          : 'Copies a link that opens this machine. Only the machines in the menu have one — an edited machine is thirty numbers that are not in the address, and a saved one lives in this browser and nobody else’s.'
+          : 'Copies a link to this machine. Only the ones in the menu have a link — an edited or saved machine is not in the address.'
       }
     >
       <Button
@@ -577,7 +577,7 @@ function PanelButtons({
 }) {
   return (
     <>
-      <Tip text="The machine’s dimensions, masses and materials. Only one rail is open at a time on a screen this size.">
+      <Tip text="The machine’s dimensions, masses and materials.">
         <Button
           size="icon"
           variant="outline"
@@ -589,7 +589,7 @@ function PanelButtons({
           <PanelLeft className="size-3.5" aria-hidden />
         </Button>
       </Tip>
-      <Tip text="What the shot did: range, release, efficiency and the loads to size the frame for.">
+      <Tip text="What the shot did, and the loads to size the frame for.">
         <Button
           size="icon"
           variant="outline"

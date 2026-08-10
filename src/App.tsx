@@ -737,12 +737,12 @@ export default function App() {
                           value: 'bestCase',
                           label: 'Best case',
                           title:
-                            'Re-cock the beam and release at the ideal instant for every value — what this dimension could give you if you tuned around it.',
+                            'Re-cock and re-time the release at every value — the best this dimension could do.',
                         },
                       ]}
                     />
 
-                    <Tip text="Sets this parameter to the peak of the curve. The panel then re-solves it at the finer step, so the range may land a little off the point you adopted.">
+                    <Tip text="Sets this parameter to the peak of the curve, then re-solves it at a finer step — so the range may land a little off the point you adopted.">
                       <Button
                         size="sm"
                         variant="outline"

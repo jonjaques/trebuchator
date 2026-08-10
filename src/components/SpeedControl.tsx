@@ -47,7 +47,7 @@ export function SpeedControl({ speed, onSpeed }: { speed: number; onSpeed: (s: n
           button. A drawn chevron, too, rather than the `▾` character that was
           here — that glyph lands on a different baseline in every font that has
           it, and this sheet already has an icon set. */}
-      <Tip text="Playback speed. The stroke is over in well under a second — slow it down to watch the sling close on the pin.">
+      <Tip text="Playback speed. The stroke is over in under a second — slow it down to watch the sling close on the pin.">
         <PopoverTrigger asChild>
           <button
             className="tap-target tnum relative flex h-7 shrink-0 items-center gap-1 rounded-sm border border-rule px-2 font-mono text-[11px] text-ink-2 transition-colors hover:border-ink-3 hover:text-ink"
