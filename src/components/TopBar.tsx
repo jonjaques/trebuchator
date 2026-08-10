@@ -110,12 +110,17 @@ export function TopBar({
           the edge. Wrapping costs a row only on the phones that need one, which
           is cheaper than a fourth breakpoint and a shrunken wordmark. */}
       <div className="flex min-h-12 flex-wrap items-center gap-2 px-3 py-1.5 lg:min-h-0 lg:flex-nowrap lg:py-0 lg:px-0">
-        <TrebuchetMark />
-        <div className="leading-none">
-          <h1 className="wordmark text-ink">Trebuchator</h1>
-          <p className="label hidden whitespace-nowrap pt-1 text-ink-3 sm:block">
-            Counterweight siege engine calculator
-          </p>
+        {/* One flex item rather than two siblings so the hover that sets the
+            mark's trajectory marching covers the whole lockup, not a 28px
+            square nobody's pointer will find. */}
+        <div className="brand flex items-center gap-2">
+          <TrebuchetMark />
+          <div className="leading-none">
+            <h1 className="wordmark text-ink">Trebuchator</h1>
+            <p className="label hidden whitespace-nowrap pt-1 text-ink-3 sm:block">
+              Counterweight siege engine calculator
+            </p>
+          </div>
         </div>
         <div className="ml-auto flex items-center gap-1.5 lg:hidden">
           <UnitToggle units={units} onUnits={onUnits} />
@@ -500,33 +505,65 @@ function PanelButtons({
   )
 }
 
-/** The machine in miniature: frame, beam, weight, sling. */
+/**
+ * The machine in miniature, caught at the moment of release — and throwing
+ * toward +x, which the old mark had backwards while the solver has a test
+ * insisting on it. Drawn in the sheet's own vocabulary: hatched ground band,
+ * timber beam, hairline sling, the quench shot with its dashed trajectory.
+ * Hovering the lockup (`.brand`, in index.css) sets the dashes marching.
+ */
 function TrebuchetMark() {
   return (
-    <svg viewBox="0 0 28 24" className="size-6 shrink-0" aria-hidden focusable="false">
-      <g fill="none" stroke="currentColor" strokeWidth="1.4" className="text-ink-3">
-        <path d="M4 21 L13 8 L22 21" />
-        <path d="M2 21 H26" />
+    <svg viewBox="0 0 30 26" className="size-7 shrink-0" aria-hidden focusable="false">
+      <g fill="none" stroke="var(--ink-3)" strokeWidth="1.2">
+        <path d="M1.5 22.5 H29" />
+        <path d="M6 22.5 l-2.2 2.2 M10.5 22.5 l-2.2 2.2 M15 22.5 l-2.2 2.2" />
       </g>
       <path
-        d="M6 4 L21 15"
+        d="M5 22.5 L10.5 9.5 L16 22.5"
+        fill="none"
+        stroke="var(--ink-2)"
+        strokeWidth="1.5"
+        opacity="0.75"
+      />
+      <path d="M9.03 13.07 V15.4" stroke="var(--ink-3)" strokeWidth="1.1" fill="none" />
+      {/* Filled with the header's own ground so the frame leg reads as passing
+          behind the weight rather than through it. */}
+      <rect
+        x="6.83"
+        y="15.4"
+        width="4.4"
+        height="4.4"
+        fill="var(--ground)"
+        stroke="var(--ink-2)"
+        strokeWidth="1.3"
+      />
+      <path
+        d="M14 1 L9.03 13.07"
         stroke="var(--oak)"
-        strokeWidth="2.4"
+        strokeWidth="3"
         strokeLinecap="round"
         fill="none"
       />
-      <rect
-        x="18.5"
-        y="16"
-        width="5"
-        height="5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.2"
-        className="text-ink-2"
+      <circle
+        cx="10.5"
+        cy="9.5"
+        r="1.35"
+        fill="var(--ground)"
+        stroke="var(--ink-2)"
+        strokeWidth="1.1"
       />
-      <path d="M6 4 L3 11" stroke="var(--ink-3)" strokeWidth="1" fill="none" />
-      <circle cx="3" cy="11" r="2" fill="var(--quench)" />
+      <path d="M14 1 L18.6 3.2" stroke="var(--ink-2)" strokeWidth="1.2" fill="none" />
+      <circle cx="19.1" cy="3.3" r="2.2" fill="var(--quench)" />
+      <path
+        className="mark-flight"
+        d="M22.4 2.3 C 24.6 1.4 26.6 1 28.8 1"
+        fill="none"
+        stroke="var(--quench)"
+        strokeWidth="1.7"
+        strokeDasharray="2.8 2.3"
+        opacity="0.9"
+      />
     </svg>
   )
 }

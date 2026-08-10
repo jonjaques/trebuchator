@@ -260,6 +260,15 @@
     margin-inline-end: -0.2em;
   }
 
+  /* Hovering the brand lockup lets the mark's shot fly: the trajectory
+       dashes march downrange. Pure decoration, so reduced motion switches it
+       off entirely — the static mark already tells the whole story. */
+  @media (prefers-reduced-motion: no-preference) {
+    .brand:hover .mark-flight {
+      animation: mark-flight 0.6s linear infinite;
+    }
+  }
+
   /* Meta text that must recede: units, hints, secondary counts. */
   .micro {
     font-weight: 400;
@@ -284,6 +293,14 @@
 
   .rule-l {
     border-left: 1px solid var(--rule);
+  }
+}
+
+/* Exactly one dash period of the mark's trajectory (2.8 + 2.3 in its viewBox
+   units), so the march loops without a visible seam. */
+@keyframes mark-flight {
+  to {
+    stroke-dashoffset: -5.1;
   }
 }
 
