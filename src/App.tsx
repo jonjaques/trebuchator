@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, ChevronUp, Target } from 'lucide-react'
 import { TopBar } from '@/components/TopBar.tsx'
+import { Explain } from '@/components/Explain.tsx'
+import { Tip } from '@/components/Tip.tsx'
 import { SegmentedControl } from '@/components/SegmentedControl.tsx'
 import { DesignRail } from '@/components/DesignRail.tsx'
 import { ReadoutRail, type SavedShot } from '@/components/ReadoutRail.tsx'
@@ -674,6 +676,26 @@ export default function App() {
                       <ChevronDown className="size-4" aria-hidden />
                     </Button>
                     <span className="stencil shrink-0 text-ink">What if</span>
+                    <Explain title="What if" className="-ml-0.5">
+                      <p>
+                        One dimension swept across its whole useful span, with the machine fired at
+                        every point on the curve. Hovering a point flies that machine on the sheet
+                        above, so the curve and the drawing are answering the same question at the
+                        same moment.
+                      </p>
+                      <p>
+                        <strong className="text-ink">As built</strong> changes that one number and
+                        nothing else — the honest answer to "what if I cut this longer", stale pin
+                        and all. <strong className="text-ink">Best case</strong> re-cocks the beam
+                        and releases at the ideal instant for every point, which is what the
+                        dimension could give you if you tuned around it.
+                      </p>
+                      <p>
+                        They are different questions and the gap between them is worth reading: it
+                        is how much of the curve's shape is the dimension and how much is the pin
+                        you happen to have bent.
+                      </p>
+                    </Explain>
                     {/* A native select for a 12-item list — the platform picker is
                       the right control on a phone — but with its own chrome off,
                       because a macOS select is rounder than anything else drawn
@@ -720,17 +742,18 @@ export default function App() {
                       ]}
                     />
 
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="label h-7 shrink-0 gap-1.5"
-                      disabled={sweepBusy || !sweepBest || sweepBlocked != null}
-                      onClick={() => sweepBest && patch({ [sweepKey]: sweepBest.value })}
-                      title="Set this parameter to the value that throws furthest"
-                    >
-                      <Target className="size-3" aria-hidden />
-                      Adopt best
-                    </Button>
+                    <Tip text="Sets this parameter to the peak of the curve. The panel then re-solves it at the finer step, so the range may land a little off the point you adopted.">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="label h-7 shrink-0 gap-1.5"
+                        disabled={sweepBusy || !sweepBest || sweepBlocked != null}
+                        onClick={() => sweepBest && patch({ [sweepKey]: sweepBest.value })}
+                      >
+                        <Target className="size-3" aria-hidden />
+                        Adopt best
+                      </Button>
+                    </Tip>
                   </div>
                   {(sweepBlocked ?? sweepError) ? (
                     <p className="body mx-auto max-w-prose px-2 py-10 text-center text-ink-2">

@@ -12,8 +12,9 @@ import {
   type CustomMaterial,
 } from '@/lib/treb/library.ts'
 import { MaterialEditor } from './MaterialEditor.tsx'
+import { Tip } from './Tip.tsx'
 import type { MachineType, TrebuchetParams } from '@/lib/treb/types.ts'
-import { num, show, type UnitSystem } from '@/lib/format.ts'
+import { num, show, unitSymbol, type UnitSystem } from '@/lib/format.ts'
 import { useNotes } from '@/lib/notes.ts'
 import { cn } from '@/lib/utils.ts'
 import { ChevronDown, Crosshair, Wand2 } from 'lucide-react'
@@ -70,9 +71,11 @@ function MaterialPick({
   return (
     <div className="py-1.5">
       <div className="flex items-center justify-between gap-2">
-        <label htmlFor={id} className="label text-ink-2" title={notes ? undefined : hint}>
-          {label}
-        </label>
+        <Tip text={notes ? undefined : hint}>
+          <label htmlFor={id} className="label text-ink-2">
+            {label}
+          </label>
+        </Tip>
         <div className="relative">
           <select
             id={id}
@@ -127,7 +130,31 @@ export function DesignRail({
   return (
     /* Tail padding so the last field clears the bottom edge on a full scroll. */
     <div className="thin-scroll h-full overflow-y-auto pb-8">
-      <Section title="Machine" note={machine.note}>
+      <Section
+        title="Machine"
+        note={machine.note}
+        help={
+          <>
+            <p>
+              All three drop a weight and whip a sling; what differs is how the weight is allowed to
+              move while it falls. That is the whole design question, because a weight that falls
+              straighter gives up more of its height to the shot.
+            </p>
+            <p>
+              <strong className="text-ink">Bolted</strong> is the simplest to build and the least
+              efficient — the weight is dragged around an arc rather than dropped.{' '}
+              <strong className="text-ink">Hinged</strong> lets it swing on its own axle and is what
+              the medieval engineers settled on. <strong className="text-ink">Floating arm</strong>{' '}
+              rolls the axle along rails so the weight falls dead vertically, and buys the most
+              range for the most metalwork.
+            </p>
+            <p>
+              Switching type keeps every dimension you have set, so it is a fair comparison rather
+              than a fresh start.
+            </p>
+          </>
+        }
+      >
         <SegmentedControl
           label="Machine type"
           variant="boxed"
@@ -138,7 +165,29 @@ export function DesignRail({
         />
       </Section>
 
-      <Section title="Beam">
+      <Section
+        title="Beam"
+        help={
+          <>
+            <p>
+              The ratio between the two arms is the machine's gearing. Long against short around
+              3.75 : 1 is the usual answer and 3 : 1 to 6 : 1 the usual band — below it the shot
+              never gets up to speed, above it the beam is a lever the counterweight cannot turn
+              quickly enough and the stroke drags.
+            </p>
+            <p>
+              Beam mass is not a detail. It rotates with everything else, so every kilogram of
+              timber is energy spent turning the beam instead of throwing the shot — which is what
+              the energy budget in the results rail is showing you.
+            </p>
+            <p>
+              Leave <em>uniform beam</em> on unless you have actually measured yours. A real beam is
+              tapered and ironbound at the pivot; if you have hung it from its axle and timed a
+              small swing, turn it off and enter what you measured.
+            </p>
+          </>
+        }
+      >
         <Field
           label="Long arm"
           measures="armLong"
@@ -213,12 +262,37 @@ export function DesignRail({
             />
           </>
         )}
+        {/* The unit was missing here, on a line telling a builder where to
+            balance a beam. Every other figure in the rail states it. */}
         <p className="body pt-1 text-ink-2">
-          Balance point {show(beam.cg, 'length', units, 2)} from the pivot.
+          Balance point {show(beam.cg, 'length', units, 2)} {unitSymbol('length', units)} from the
+          pivot.
         </p>
       </Section>
 
-      <Section title="Counterweight">
+      <Section
+        title="Counterweight"
+        help={
+          <>
+            <p>
+              Around 100 : 1 against the shot is where efficiency peaks, and the machines in the
+              historical record sit there — which is a result this solver reproduces rather than a
+              rule it was told. Past it you keep gaining range and stop gaining it cheaply: the
+              extra mass goes into the frame as load, not into the shot as speed.
+            </p>
+            <p>
+              Hanger length sets how far the weight falls and how late it keeps pulling. Box size is
+              a real constraint rather than a cosmetic one — a box that reaches the ground before
+              the stroke finishes stops the machine mid-throw.
+            </p>
+            <p>
+              <em>Fill material</em> sizes the box to hold the mass you have already set. Sand and
+              rubble are what a weekend build ends up filled with; lead is what the numbers want and
+              nobody can afford.
+            </p>
+          </>
+        }
+      >
         <Field
           label="Mass"
           value={params.cwMass}
@@ -276,7 +350,30 @@ export function DesignRail({
         )}
       </Section>
 
-      <Section title="Sling & release">
+      <Section
+        title="Sling & release"
+        help={
+          <>
+            <p>
+              The sling is where most of the speed comes from — the beam tip does part of the work
+              and the sling whips the rest. Start it near the length of the long arm; that rule of
+              thumb is right often enough to be worth beginning from.
+            </p>
+            <p>
+              The <strong className="text-ink">pin angle</strong> is the one number here you will
+              hold a protractor against. It is the angle between the long arm and the sling at the
+              instant the loop slips off the spigot, and you set it by bending the finger of steel
+              at the beam tip. Bend it wrong and a good machine throws into the ground or straight
+              up.
+            </p>
+            <p>
+              <em>Ideal release</em> is not a machine you can build — it lets go at whichever
+              instant throws furthest, which is the ceiling a bent pin is chasing.{' '}
+              <em>Find best pin</em> reads that instant off one shot and hands you the angle for it.
+            </p>
+          </>
+        }
+      >
         <Field
           label="Sling length"
           measures="slingLength"
@@ -312,31 +409,57 @@ export function DesignRail({
           disabled={params.releaseMode === 'optimal'}
         />
         <div className="flex gap-1.5 pt-1">
-          <Button
-            size="sm"
-            variant="outline"
-            className="label h-7 flex-1 gap-1.5"
-            disabled={tuning}
-            onClick={onTunePin}
-          >
-            <Crosshair className="size-3" aria-hidden />
-            {tuning ? 'Finding…' : 'Find best pin'}
-          </Button>
-          <Button
-            size="sm"
-            variant={params.releaseMode === 'optimal' ? 'default' : 'outline'}
-            className="label h-7 flex-1"
-            onClick={() =>
-              patch({ releaseMode: params.releaseMode === 'optimal' ? 'pin' : 'optimal' })
-            }
-            title="Release at the instant that maximises range — the ceiling a tuned pin is chasing."
-          >
-            Ideal release
-          </Button>
+          <Tip text="Fires once with an ideal release, reads the angle the sling was at when it let go, and sets the pin to it. One simulation, not a search.">
+            <Button
+              size="sm"
+              variant="outline"
+              className="label h-7 flex-1 gap-1.5"
+              disabled={tuning}
+              onClick={onTunePin}
+            >
+              <Crosshair className="size-3" aria-hidden />
+              {tuning ? 'Finding…' : 'Find best pin'}
+            </Button>
+          </Tip>
+          <Tip text="Lets go at the instant that maximises range, rather than at a pin angle. Not a machine you can build — it is the ceiling a bent pin is chasing.">
+            <Button
+              size="sm"
+              variant={params.releaseMode === 'optimal' ? 'default' : 'outline'}
+              className="label h-7 flex-1"
+              aria-pressed={params.releaseMode === 'optimal'}
+              onClick={() =>
+                patch({ releaseMode: params.releaseMode === 'optimal' ? 'pin' : 'optimal' })
+              }
+            >
+              Ideal release
+            </Button>
+          </Tip>
         </div>
       </Section>
 
-      <Section title="Frame">
+      <Section
+        title="Frame"
+        help={
+          <>
+            <p>
+              Pivot height sets how much room the counterweight has to fall and how high the shot is
+              when it leaves. Both help, and both are bought with timber and with a taller thing to
+              keep upright under the loads in the results rail.
+            </p>
+            <p>
+              <strong className="text-ink">Cocked angle</strong> is where the beam sits before you
+              pull the pin, measured from vertical. It has one natural value — the angle at which
+              the beam tip rests on the trough — and the aside beside it says whether yours is
+              there.
+            </p>
+            <p>
+              The trough is the rail the shot slides along before it lifts off. It is not cosmetic:
+              the shot is held to it by a real constraint, and where the normal force passes through
+              zero is where liftoff happens.
+            </p>
+          </>
+        }
+      >
         <Field
           label="Pivot height"
           measures="pivotHeight"
@@ -382,7 +505,28 @@ export function DesignRail({
         )}
       </Section>
 
-      <Section title="Projectile">
+      <Section
+        title="Projectile"
+        help={
+          <>
+            <p>
+              Mass and diameter are set separately because they do different jobs: mass decides how
+              much of the counterweight's energy the shot can take, diameter decides how much of it
+              the air takes back. A light, wide shot is the worst of both.
+            </p>
+            <p>
+              Picking a <em>material</em> sets the mass from the diameter you have already entered
+              and that material's real density — so a 200 mm ball of granite weighs what a 200 mm
+              ball of granite weighs.
+            </p>
+            <p>
+              Drag coefficient: 0.47 for a smooth sphere, 0.55 for rough stone or a pumpkin, 0.8 for
+              something lumpy. It matters more than builders expect — the air is working on the shot
+              during the stroke, not only in flight.
+            </p>
+          </>
+        }
+      >
         <Field
           label="Mass"
           value={params.projectileMass}
@@ -429,6 +573,25 @@ export function DesignRail({
       <Section
         title="Losses"
         note="Bearing friction and the drag the shot feels before it is even released."
+        help={
+          <>
+            <p>
+              This is where a machine that models beautifully and throws badly goes wrong. Friction
+              here is Coulomb friction scaled by the real bearing reactions, so it costs more on a
+              heavy machine than on a light one — which is why a scaled-up build rarely reaches the
+              range its drawing promised.
+            </p>
+            <p>
+              Axle radius multiplies the friction coefficient into a torque. A greased timber
+              bearing on a fat axle can take a fifth of the stroke; the same coefficient on a thin
+              steel shaft barely registers. Both numbers matter and only together.
+            </p>
+            <p>
+              Setting a <em>bearing type</em> fills in both coefficients from a real one. Start
+              there rather than guessing.
+            </p>
+          </>
+        }
       >
         <MaterialPick
           label="Bearing type"
@@ -494,7 +657,27 @@ export function DesignRail({
         />
       </Section>
 
-      <Section title="Conditions">
+      <Section
+        title="Conditions"
+        help={
+          <>
+            <p>
+              The weather on the day, and two dials that exist for comparison rather than for a
+              build. Turning <em>air resistance</em> off gives the textbook vacuum range — useful
+              for seeing what the air is costing you, and nothing else.
+            </p>
+            <p>
+              <em>Drop to target</em> is how far below the machine the ground is where the shot
+              lands. Shooting downhill is worth more range than almost anything you can do to the
+              machine, which is why siege engines were dragged uphill.
+            </p>
+            <p>
+              Gravity is here because it is a parameter of the model and it would be dishonest to
+              hide it. 9.81 on Earth.
+            </p>
+          </>
+        }
+      >
         <ToggleField
           label="Air resistance"
           checked={params.enableDrag}

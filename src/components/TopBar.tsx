@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import {
+  ArrowLeftRight,
   BookmarkPlus,
   Check,
   ChevronDown,
@@ -14,6 +15,8 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button.tsx'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover.tsx'
+import { Explain } from './Explain.tsx'
+import { Tip } from './Tip.tsx'
 import { SegmentedControl } from './SegmentedControl.tsx'
 import { ParetoChart } from './ParetoChart.tsx'
 import { PRESETS } from '@/lib/treb/presets.ts'
@@ -100,16 +103,26 @@ export function TopBar({
     /* Two rows below `lg`, one above. On a phone the wordmark, the preset name
        and four icon buttons cannot share a row without the first two colliding
        — which is exactly what they did. The switch used to be at `md`, but the
-       single row does not actually fit until about 900px: between the two it
+       single row does not actually fit until about 1000px: between the two it
        overflowed a shell that deliberately cannot scroll, so the last control
-       was silently clipped off the edge rather than wrapping. */
-    <header className="rule-b flex shrink-0 flex-col bg-ground lg:h-12 lg:flex-row lg:items-center lg:gap-2 lg:px-3">
-      {/* Wraps rather than clips. Below about 380px the wordmark and the four
-          settings controls genuinely do not fit on one line, and the shell
-          cannot scroll — so without this the last control was simply gone off
-          the edge. Wrapping costs a row only on the phones that need one, which
-          is cheaper than a fourth breakpoint and a shrunken wordmark. */}
-      <div className="flex min-h-12 flex-wrap items-center gap-2 px-3 py-1.5 lg:min-h-0 lg:flex-nowrap lg:py-0 lg:px-0">
+       was silently clipped off the edge rather than wrapping.
+
+       At `xl` the header is three cells and they are the *body's* three columns:
+       identity over the design rail at `21rem`, actions over the sheet, settings
+       over the results rail at `20rem` — each separated by the same 1px rule
+       that runs down the column beneath it. The bar used to be a left cluster,
+       a right cluster and 800px of nothing between them on a wide screen; this
+       spends that width on structure instead, and the sheet's own column now has
+       a header of its own. Below `xl` the cells collapse back to a plain
+       toolbar, because there are no columns to agree with. */
+    <header className="rule-b flex shrink-0 flex-col bg-ground lg:h-12 lg:flex-row lg:items-stretch">
+      {/* The settings cluster sits beside the wordmark down to about 340px, and
+          wraps below that rather than clipping — the shell cannot scroll, so
+          without the wrap the last control is simply gone off the edge. It used
+          to wrap at every phone width, which cost a whole row on an iPhone: the
+          units control was a two-cell segment 104px wide, and shrinking it to
+          one 56px chip is what bought the row back. */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 lg:flex-nowrap lg:py-0 xl:rule-r xl:w-[21rem] xl:shrink-0">
         {/* One flex item rather than two siblings so the hover that sets the
             mark's trajectory marching covers the whole lockup, not a 28px
             square nobody's pointer will find. */}
@@ -122,7 +135,7 @@ export function TopBar({
             </p>
           </div>
         </div>
-        <div className="ml-auto flex items-center gap-1.5 lg:hidden">
+        <div className="ml-auto flex items-center gap-1 lg:hidden">
           <UnitToggle units={units} onUnits={onUnits} />
           <ThemeButton dark={dark} onDark={onDark} />
           <PanelButtons
@@ -134,17 +147,33 @@ export function TopBar({
         </div>
       </div>
 
-      {/* The action buttons share the row's slack equally instead of huddling
-          at the left with a dead gap before the settings cluster. */}
-      <div className="rule-t flex h-12 flex-1 items-center gap-2 px-3 lg:h-auto lg:border-t-0 lg:px-0">
-        <span className="mx-1 hidden h-6 w-px bg-rule lg:block" aria-hidden />
+      {/* Real vertical padding rather than a fixed height. `h-12` was here and
+          did nothing: `flex-1` sets `flex-basis: 0%`, which in this column
+          header overrides the height outright, so the row collapsed to its 32px
+          buttons and they sat hard against both rules. The height belongs at
+          `lg`, where this row *is* the header row. */}
+      <div className="rule-t flex min-w-0 items-center gap-2 px-3 py-2 lg:flex-1 lg:border-t-0 lg:py-0">
+        {/* At `xl` the cell's own left rule does this job, and two separators a
+            few pixels apart would read as a mistake. */}
+        <span className="mx-1 hidden h-6 w-px bg-rule lg:block xl:hidden" aria-hidden />
 
         {/* Controlled so picking closes it. Uncontrolled, the menu stayed open
           over the sheet after a choice, hiding the machine it had just changed
           — the one thing the reader wanted to look at. */}
         <Popover open={presetOpen} onOpenChange={setPresetOpen}>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="label h-8 min-w-0 flex-1 gap-2">
+            {/* On a phone the four actions share the row's slack, because there
+                is exactly enough of it. From `sm` up they stop growing: `flex-1`
+                gave each of them a quarter of the bar, and a 400px-wide "Save
+                shot" reads as a banner rather than as a control. The menu keeps
+                growing to `14rem` because it is the one whose label varies, and
+                that is enough for the longest preset name without truncation. */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="label h-8 min-w-0 flex-1 gap-2 sm:max-w-56"
+              aria-label={`Machine: ${currentName}. Choose another.`}
+            >
               <span className="truncate">{currentName}</span>
               <ChevronDown className="size-3 shrink-0 text-ink-3" aria-hidden />
             </Button>
@@ -168,14 +197,17 @@ export function TopBar({
                       >
                         <div className="label text-ink">{m.name}</div>
                       </button>
-                      <button
-                        onClick={() => onDeleteMachine(m.id)}
-                        aria-label={`Delete ${m.name}`}
-                        title={`Delete ${m.name}`}
-                        className="tap-target relative px-3 text-ink-3 transition-colors hover:bg-ground hover:text-bad focus-visible:text-bad"
+                      <Tip
+                        text={`Forget ${m.name}. Kept in this browser only, so there is nowhere to get it back from.`}
                       >
-                        <Trash2 className="size-3.5" aria-hidden />
-                      </button>
+                        <button
+                          onClick={() => onDeleteMachine(m.id)}
+                          aria-label={`Delete ${m.name}`}
+                          className="tap-target relative px-3 text-ink-3 transition-colors hover:bg-ground hover:text-bad focus-visible:text-bad"
+                        >
+                          <Trash2 className="size-3.5" aria-hidden />
+                        </button>
+                      </Tip>
                     </div>
                   ))}
                 </div>
@@ -237,8 +269,7 @@ export function TopBar({
             <Button
               variant="outline"
               size="sm"
-              className="label h-8 min-w-0 flex-1 gap-1.5"
-              title="Search feasible builds for the frontier of range against frame load"
+              className="label h-8 min-w-0 flex-1 gap-1.5 sm:flex-none"
             >
               <Wand2 className="size-3.5" aria-hidden />
               {optimizing ? 'Searching…' : 'Optimize'}
@@ -248,6 +279,29 @@ export function TopBar({
             sitting flush against both edges with the chart's axis labels
             touching the bezel. */}
           <PopoverContent align="start" className="w-[min(26rem,calc(100vw-1.5rem))] p-0">
+            <div className="rule-b flex items-center gap-2 px-3 py-2">
+              <h3 className="stencil flex flex-1 items-baseline gap-2 text-ink">
+                <span className="h-px w-3 shrink-0 bg-verdigris" aria-hidden />
+                Optimize for
+              </h3>
+              <Explain title="The frontier">
+                <p>
+                  This is not a search for one best machine. Every gain is bought with frame: a
+                  longer sling throws further and loads the axle harder, and there is no arrangement
+                  that gives you the first without the second.
+                </p>
+                <p>
+                  So the search keeps the builds where nothing else wins on <em>both</em> counts,
+                  and draws them as a curve. Reading left to right along it is reading the price of
+                  range in kilonewtons through your pivot. Your machine as built is on the same
+                  chart, so you can see what you would be paying.
+                </p>
+                <p>
+                  Sling length, hanger, cocked angle and short arm are varied. Masses stay yours —
+                  they are usually the part already sitting in the yard.
+                </p>
+              </Explain>
+            </div>
             <div className="px-3 py-2.5">
               <SegmentedControl
                 label="Optimize for"
@@ -286,42 +340,49 @@ export function TopBar({
           </PopoverContent>
         </Popover>
 
-        <Button
-          variant="outline"
-          size="sm"
-          className="label h-8 min-w-0 flex-1 gap-1.5"
-          onClick={onSave}
-          disabled={!canSave}
-          title="Keep this shot on the sheet as a dashed ghost to compare against"
-        >
-          <BookmarkPlus className="size-3.5" aria-hidden />
-          Save shot
-        </Button>
+        {/* The disabled case says nothing here on purpose: a disabled control
+            takes no pointer events, so a tip explaining *why* would be the one
+            tip nobody could open. The reason is already in the results rail,
+            in full. */}
+        <Tip text="Keeps this trajectory on the sheet as a dashed ghost, and its machine in the results rail, so the next change has something to beat.">
+          <Button
+            variant="outline"
+            size="sm"
+            className="label h-8 min-w-0 flex-1 gap-1.5 sm:flex-none"
+            onClick={onSave}
+            disabled={!canSave}
+          >
+            <BookmarkPlus className="size-3.5" aria-hidden />
+            Save shot
+          </Button>
+        </Tip>
 
         <ShareButton presetId={presetId} />
 
-        <div className="ml-auto flex items-center gap-1.5">
-          {/* The width is reserved rather than the text hidden: an always-present
-              "Solving" is announced on every pass through the bar and never
-              announced when it actually starts, which is backwards. */}
-          <span
-            className="label hidden w-12 pr-1 text-right text-ink-3 sm:inline-block"
-            aria-live="polite"
-          >
-            {busy ? 'Solving' : ''}
-          </span>
+        {/* Solving stays in the sheet's cell rather than moving to the settings
+            one: it is a fact about the drawing, and at `xl` it now sits at the
+            right edge of the column the drawing is in.
 
-          <div className="hidden items-center gap-1.5 lg:flex">
-            <UnitToggle units={units} onUnits={onUnits} />
-            <ThemeButton dark={dark} onDark={onDark} />
-            <PanelButtons
-              showDesign={showDesign}
-              showResults={showResults}
-              onToggleDesign={onToggleDesign}
-              onToggleResults={onToggleResults}
-            />
-          </div>
-        </div>
+            The width is reserved rather than the text hidden: an always-present
+            "Solving" is announced on every pass through the bar and never
+            announced when it actually starts, which is backwards. */}
+        <span
+          className="label ml-auto hidden w-12 shrink-0 pl-2 text-right text-ink-3 sm:inline-block"
+          aria-live="polite"
+        >
+          {busy ? 'Solving' : ''}
+        </span>
+      </div>
+
+      <div className="hidden items-center justify-end gap-1.5 px-3 lg:flex xl:rule-l xl:w-[20rem] xl:shrink-0">
+        <UnitToggle units={units} onUnits={onUnits} />
+        <ThemeButton dark={dark} onDark={onDark} />
+        <PanelButtons
+          showDesign={showDesign}
+          showResults={showResults}
+          onToggleDesign={onToggleDesign}
+          onToggleResults={onToggleResults}
+        />
       </div>
     </header>
   )
@@ -362,34 +423,37 @@ function ShareButton({ presetId }: { presetId: string | null }) {
   }
 
   return (
-    <Button
-      size="icon"
-      variant="outline"
-      className="tap-target relative size-8 shrink-0"
-      onClick={() => void copy()}
-      disabled={!shareable}
-      aria-label="Copy a link to this machine"
-      title={
-        shareable
-          ? 'Copy a link to this machine'
-          : 'Only the machines in the list have a link. This one is yours, and it is kept in this browser.'
+    <Tip
+      text={
+        state === 'copied'
+          ? 'Copied.'
+          : 'Copies a link that opens this machine. Only the machines in the menu have one — an edited machine is thirty numbers that are not in the address, and a saved one lives in this browser and nobody else’s.'
       }
     >
-      {/* The swapped glyph is the whole confirmation. A colour would have to be
+      <Button
+        size="icon"
+        variant="outline"
+        className="tap-target relative size-8 shrink-0"
+        onClick={() => void copy()}
+        disabled={!shareable}
+        aria-label="Copy a link to this machine"
+      >
+        {/* The swapped glyph is the whole confirmation. A colour would have to be
           verdigris or nothing, and verdigris means measurement here. */}
-      {state === 'copied' ? (
-        <Check className="size-3.5" aria-hidden />
-      ) : (
-        <Link2 className="size-3.5" aria-hidden />
-      )}
-      <span className="sr-only" aria-live="polite">
-        {state === 'copied'
-          ? 'Link copied'
-          : state === 'failed'
-            ? 'Could not reach the clipboard. The link is in the address bar.'
-            : ''}
-      </span>
-    </Button>
+        {state === 'copied' ? (
+          <Check className="size-3.5" aria-hidden />
+        ) : (
+          <Link2 className="size-3.5" aria-hidden />
+        )}
+        <span className="sr-only" aria-live="polite">
+          {state === 'copied'
+            ? 'Link copied'
+            : state === 'failed'
+              ? 'Could not reach the clipboard. The link is in the address bar.'
+              : ''}
+        </span>
+      </Button>
+    </Tip>
   )
 }
 
@@ -439,32 +503,64 @@ function SaveMachineRow({ onSave }: { onSave: (name: string) => void }) {
   )
 }
 
+const UNIT_NAME: Record<UnitSystem, { chip: string; spoken: string }> = {
+  metric: { chip: 'm·kg', spoken: 'metres and kilograms' },
+  imperial: { chip: 'ft·lb', spoken: 'feet and pounds' },
+}
+
+/**
+ * Which units the sheet is lettered in.
+ *
+ * A two-cell segmented control before, and it was the widest thing in the top
+ * bar at 104px — for a choice of two that every reader already understands and
+ * that nobody makes twice. Showing only the system you are *in*, with the swap
+ * arrows that say it is a toggle, costs 56px and is what stops the identity row
+ * from wrapping on a phone.
+ *
+ * The visible chip leads the accessible name rather than being replaced by it,
+ * so "click m kg" still reaches this control by voice.
+ */
 function UnitToggle({ units, onUnits }: { units: UnitSystem; onUnits: (u: UnitSystem) => void }) {
+  const next: UnitSystem = units === 'metric' ? 'imperial' : 'metric'
   return (
-    <SegmentedControl
-      label="Units"
-      value={units}
-      onChange={onUnits}
-      options={[
-        { value: 'metric', label: 'm · kg' },
-        { value: 'imperial', label: 'ft · lb' },
-      ]}
-    />
+    <Tip text={`Lettered in ${UNIT_NAME[units].spoken}. Switch to ${UNIT_NAME[next].spoken}.`}>
+      <Button
+        variant="outline"
+        size="sm"
+        className="tap-target relative h-7 shrink-0 gap-1 px-1.5 lg:h-8"
+        onClick={() => onUnits(next)}
+        aria-label={`${UNIT_NAME[units].chip} — ${UNIT_NAME[units].spoken}. Switch to ${UNIT_NAME[next].spoken}.`}
+      >
+        <span className="micro font-mono text-ink">{UNIT_NAME[units].chip}</span>
+        <ArrowLeftRight className="size-3 text-ink-3" aria-hidden />
+      </Button>
+    </Tip>
   )
 }
 
 function ThemeButton({ dark, onDark }: { dark: boolean; onDark: (v: boolean) => void }) {
   return (
-    <Button
-      size="icon"
-      variant="outline"
-      className="tap-target relative size-8 shrink-0"
-      onClick={() => onDark(!dark)}
-      aria-label={dark ? 'Switch to the light sheet' : 'Switch to the dark sheet'}
-      title={dark ? 'Light sheet' : 'Dark sheet'}
+    <Tip
+      text={
+        dark
+          ? 'Chalk on charred oak. Switch to the whiteprint.'
+          : 'A warm whiteprint. Switch to the dark sheet.'
+      }
     >
-      {dark ? <Sun className="size-3.5" aria-hidden /> : <Moon className="size-3.5" aria-hidden />}
-    </Button>
+      <Button
+        size="icon"
+        variant="outline"
+        className="tap-target relative size-7 shrink-0 lg:size-8"
+        onClick={() => onDark(!dark)}
+        aria-label={dark ? 'Switch to the light sheet' : 'Switch to the dark sheet'}
+      >
+        {dark ? (
+          <Sun className="size-3.5" aria-hidden />
+        ) : (
+          <Moon className="size-3.5" aria-hidden />
+        )}
+      </Button>
+    </Tip>
   )
 }
 
@@ -481,26 +577,30 @@ function PanelButtons({
 }) {
   return (
     <>
-      <Button
-        size="icon"
-        variant="outline"
-        className="tap-target relative size-8 shrink-0 xl:hidden"
-        onClick={onToggleDesign}
-        aria-pressed={showDesign}
-        aria-label="Toggle the design panel"
-      >
-        <PanelLeft className="size-3.5" aria-hidden />
-      </Button>
-      <Button
-        size="icon"
-        variant="outline"
-        className="tap-target relative size-8 shrink-0 xl:hidden"
-        onClick={onToggleResults}
-        aria-pressed={showResults}
-        aria-label="Toggle the results panel"
-      >
-        <PanelRight className="size-3.5" aria-hidden />
-      </Button>
+      <Tip text="The machine’s dimensions, masses and materials. Only one rail is open at a time on a screen this size.">
+        <Button
+          size="icon"
+          variant="outline"
+          className="tap-target relative size-7 shrink-0 lg:size-8 xl:hidden"
+          onClick={onToggleDesign}
+          aria-pressed={showDesign}
+          aria-label="Toggle the design panel"
+        >
+          <PanelLeft className="size-3.5" aria-hidden />
+        </Button>
+      </Tip>
+      <Tip text="What the shot did: range, release, efficiency and the loads to size the frame for.">
+        <Button
+          size="icon"
+          variant="outline"
+          className="tap-target relative size-7 shrink-0 lg:size-8 xl:hidden"
+          onClick={onToggleResults}
+          aria-pressed={showResults}
+          aria-label="Toggle the results panel"
+        >
+          <PanelRight className="size-3.5" aria-hidden />
+        </Button>
+      </Tip>
     </>
   )
 }

@@ -361,7 +361,17 @@ whitespace.
 ### Named Rules
 
 **The No-Page-Scroll Rule.** The viewport is the sheet. If content does not fit, a panel
-scrolls inside its own bounds — the shell never does.
+scrolls inside its own bounds — the shell never does. **A bar of controls is not a panel.**
+The transport's view row was an `overflow-x-auto` strip, which put a second scrollbar inside
+a shell that deliberately has none, and on a phone left the last control over the edge of it
+with nothing to say so. A row of controls that will not fit **folds into a popover** — it
+never scrolls sideways and it never clips.
+
+**The Measured-Fold Rule.** That fold is decided by a `ResizeObserver` on the bar and a set
+of named pixel constants, not by a breakpoint. The transport's width is the *sheet's* width
+rather than the window's — a docked rail at `xl` takes 21rem out of it — so a viewport media
+query gets the case wrong in both directions. Where a control group's own width decides
+whether it fits, measure the container it sits in.
 
 **The One Rail Rule.** Below `xl`, at most one rail is open. Opening the other closes it.
 
@@ -447,13 +457,26 @@ its unit set beside the figure. That is the test for anything new.
   row with no gaps between segments, the selected one taking `verdigris` text on a
   `verdigris/12` wash. `boxed` is separate cells in a caller-supplied grid, selected taking
   a `verdigris` border and a `verdigris/10` wash, for options that need room to be read
-  rather than scanned. Used for machine type, units, sweep mode and playback speed.
+  rather than scanned. Used for machine type, sweep mode, the optimizer's goal and playback
+  speed.
 
   It is one component and not four copies because `role="radiogroup"` is a **promise about
   the keyboard**: one tab stop for the group, arrows and Home/End within it. All four
   copies declared the role and none of them kept it, so a screen reader told people to
   arrow through a control that only answered Tab. Anything new that reads as a choice from
   a short fixed list uses this rather than restating the pattern.
+
+- **Swap chip:** the units control, and the one two-state choice that is *not* a segmented
+  control. It shows only the system in force — `m·kg` or `ft·lb`, set in mono because they
+  are unit tokens — with `ArrowLeftRight` in `ink-3` beside it, and toggles on click. A
+  segment was 104px for a choice everybody already understands and nobody makes twice, and
+  it was the single widest thing in the top bar: at 56px the identity row stops wrapping on
+  a phone. The visible chip **leads** the accessible name rather than being replaced by it,
+  so the control is still reachable by voice.
+
+  This is not a licence to demote other choices. It earns the shape because both options fit
+  in one glyph-width token and the reader can see which one is in force everywhere else on
+  the sheet.
 
 ### Cards / Containers
 
@@ -505,6 +528,23 @@ job is teaching, most of the teaching was unreachable on the device a builder is
 Whatever the toggle says, the text is always in the DOM and `sr-only` when folded, and every
 one that describes a control is wired to it with `aria-describedby`. A hint is never the only
 copy of something a reader needs.
+
+**Three tiers of explanation, and each has one job.** The notes layer above is the middle
+one. Below it, **`Tip`** names an icon-only control — one clause, `body` type on the solid
+`ink` chip, no delay. It is a mouse and keyboard affordance and Radix will not open it on a
+tap, so nothing that a reader *needs* may live there; it is always a restatement of an
+`aria-label` that is already on the control. Above it, **`Explain`** is a `CircleHelp` glyph
+in `ink-3` beside a `.stencil` heading, opening a popover of two or three paragraphs — why a
+rule of thumb exists, what a reading is for at the bench, what to apply a factor of safety
+to. That one is a **popover and not a tooltip on purpose**: this product's second job is
+teaching someone standing over a half-built machine holding a phone, and a tooltip is the
+one control that device can never open.
+
+Native `title` is gone from the app entirely. It waits a second, cannot be set in the
+sheet's type, is read out by some screen readers on top of the `aria-label` beside it, and
+shows nothing at all on a touch screen. `Tip` is transparent when passed no text, so a
+caller whose hint is already being printed by the notes layer wraps unconditionally and
+gets nothing added to the tree.
 
 **The Protractor.** A graduated arc on a joint, filled at 6% opacity, ticked every 10°
 with every third major, with a radial pointer on the live angle. The one at the beam tip

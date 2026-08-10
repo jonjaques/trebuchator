@@ -376,6 +376,18 @@ can outrank them however it is written. The `[data-slot]:focus-visible` block at
 of `index.css` sits outside every layer for exactly that reason; move it into one and every
 Button silently goes back to wearing a glow the design system has no vocabulary for.
 
+**Explanation has three tiers and no `title` attributes.** `Tip` (a Radix tooltip) names an
+icon-only control for a mouse or a keyboard; the notes layer prints what a control measures
+under every row; `Explain` is the `?` beside a section head, opening a popover of two or
+three paragraphs. The middle tier is the load-bearing one — a tooltip cannot be opened by a
+tap, so nothing a reader on a phone *needs* may live in a `Tip`, and every one of them is a
+restatement of an `aria-label` already on the control. `Explain` is a popover rather than a
+tooltip for exactly that reason. `Tip` carries its own `TooltipProvider` rather than
+expecting one at the root: Radix *throws* without one, and rooting it means any component
+test that renders a labelled control dies in a context lookup six directories away. It also
+returns its children untouched when given no text, so callers whose hint is conditional on
+the notes layer can wrap unconditionally.
+
 **Explanations are a layer, not a tooltip.** `lib/notes.ts` holds one boolean in context;
 `Field`, `ToggleField` and `ReadoutRail`'s `Stat` read it to decide whether their hint is
 painted in `body` type or `sr-only`. It is never conditionally *rendered* — the text is
@@ -404,6 +416,17 @@ browser's `localStorage`, and an edited machine is thirty numbers that are not i
 Either would hand someone a link that quietly loads something other than what the sender
 was looking at. Every function there takes the href rather than reading `window.location`,
 so the rule about what is shareable is asserted without a DOM.
+
+**A bar of controls folds; it never scrolls sideways.** The transport's view row carried
+`overflow-x-auto`, which meant a second scrollbar inside a shell that deliberately cannot
+scroll — and at 400px the last control sat over the edge of it, invisible. It now measures
+its own container with a `ResizeObserver` and moves the camera and annotation toggles into a
+popover when they will not fit, where each one gets a name and a sentence instead of a
+glyph. The threshold is pixel constants and not a breakpoint because the bar is the
+*sheet's* width, not the window's: a rail docked at `xl` takes 21rem out of it and a media
+query on the viewport is wrong in both directions. It starts folded before the observer has
+reported, because the popover button is narrower than anything it could displace and
+unfolding on the second frame is invisible where folding would be a jump.
 
 **`SegmentedControl` owns the radiogroup keyboard contract.** Machine type, units, sweep
 mode and playback speed were four hand-rolled copies, each declaring `role="radiogroup"`

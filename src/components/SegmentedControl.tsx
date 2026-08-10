@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import { Tip } from './Tip.tsx'
 import { cn } from '@/lib/utils.ts'
 
 /**
@@ -98,20 +99,20 @@ export function SegmentedControl<T extends string | number>({
       {options.map((o, i) => {
         const on = i === selected
         return (
-          <button
-            key={o.value}
-            ref={(el) => {
-              cells.current[i] = el
-            }}
-            role="radio"
-            aria-checked={on}
-            tabIndex={i === tabStop ? 0 : -1}
-            title={o.title}
-            onClick={() => onChange(o.value)}
-            className={cn(CELL[variant], on ? ON[variant] : OFF[variant], cellClassName)}
-          >
-            {o.label}
-          </button>
+          <Tip key={o.value} text={o.title}>
+            <button
+              ref={(el) => {
+                cells.current[i] = el
+              }}
+              role="radio"
+              aria-checked={on}
+              tabIndex={i === tabStop ? 0 : -1}
+              onClick={() => onChange(o.value)}
+              className={cn(CELL[variant], on ? ON[variant] : OFF[variant], cellClassName)}
+            >
+              {o.label}
+            </button>
+          </Tip>
         )
       })}
     </div>

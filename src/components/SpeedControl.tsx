@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover.tsx'
 import { SegmentedControl } from './SegmentedControl.tsx'
+import { Tip } from './Tip.tsx'
 import { num } from '@/lib/format.ts'
 import { SPEED_STOPS } from '@/lib/speeds.ts'
 
@@ -40,18 +42,22 @@ export function SpeedControl({ speed, onSpeed }: { speed: number; onSpeed: (s: n
 
   return (
     <Popover>
-      <PopoverTrigger asChild>
-        <button
-          className="tap-target tnum relative flex h-7 shrink-0 items-center gap-1 rounded-sm border border-rule px-2 font-mono text-[11px] text-ink-2 transition-colors hover:border-ink-3 hover:text-ink"
-          title="Playback speed"
-          aria-label={`Playback speed, currently ${fmt(speed)}`}
-        >
-          {fmt(speed)}
-          <span aria-hidden className="text-ink-3">
-            ▾
-          </span>
-        </button>
-      </PopoverTrigger>
+      {/* Tip outside the trigger, not inside it: both are `asChild` slots, and
+          the tooltip has to be the one that wraps or its props never reach the
+          button. A drawn chevron, too, rather than the `▾` character that was
+          here — that glyph lands on a different baseline in every font that has
+          it, and this sheet already has an icon set. */}
+      <Tip text="Playback speed. The stroke is over in well under a second — slow it down to watch the sling close on the pin.">
+        <PopoverTrigger asChild>
+          <button
+            className="tap-target tnum relative flex h-7 shrink-0 items-center gap-1 rounded-sm border border-rule px-2 font-mono text-[11px] text-ink-2 transition-colors hover:border-ink-3 hover:text-ink"
+            aria-label={`Playback speed, currently ${fmt(speed)}`}
+          >
+            {fmt(speed)}
+            <ChevronDown className="size-3 text-ink-3" aria-hidden />
+          </button>
+        </PopoverTrigger>
+      </Tip>
       <PopoverContent align="end" className="w-52 p-2">
         <div className="label pb-2 text-ink-3">Playback speed</div>
         <SegmentedControl

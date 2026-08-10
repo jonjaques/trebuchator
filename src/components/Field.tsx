@@ -1,6 +1,8 @@
 import { useId, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { DraftSlider } from './DraftSlider.tsx'
+import { Explain } from './Explain.tsx'
+import { Tip } from './Tip.tsx'
 import { Switch } from '@/components/ui/switch.tsx'
 import { useNotes } from '@/lib/notes.ts'
 import { usePointAt } from '@/lib/pointing.ts'
@@ -128,10 +130,13 @@ export function Field({
     >
       <div className="flex items-baseline justify-between gap-2 pb-1">
         {/* The tooltip is the fallback for a mouse when the notes are folded
-            away, not the only copy of the text — see `lib/notes.ts`. */}
-        <label htmlFor={id} className="label truncate text-ink-2" title={notes ? undefined : hint}>
-          {label}
-        </label>
+            away, not the only copy of the text — see `lib/notes.ts`. With the
+            notes on it would be the same sentence twice. */}
+        <Tip text={notes ? undefined : hint}>
+          <label htmlFor={id} className="label truncate text-ink-2">
+            {label}
+          </label>
+        </Tip>
         {aside && <span className="tnum micro shrink-0 font-mono text-ink-3">{aside}</span>}
       </div>
       <div className="flex items-center gap-2">
@@ -191,9 +196,11 @@ export function ToggleField({
   return (
     <div className="py-2">
       <div className="flex items-center justify-between gap-3">
-        <label htmlFor={id} className="label text-ink-2" title={notes ? undefined : hint}>
-          {label}
-        </label>
+        <Tip text={notes ? undefined : hint}>
+          <label htmlFor={id} className="label text-ink-2">
+            {label}
+          </label>
+        </Tip>
         <Switch
           id={id}
           checked={checked}
@@ -222,10 +229,17 @@ export function Section({
   title,
   children,
   note,
+  help,
 }: {
   title: string
   children: React.ReactNode
   note?: string
+  /**
+   * The paragraph the section head has no room for, behind a `?`. Longer and
+   * more discursive than a field hint: why a rule of thumb exists, what the
+   * readings are for at the bench.
+   */
+  help?: React.ReactNode
 }) {
   return (
     <details open className="group/sec rule-b px-3 py-3 last:border-b-0">
@@ -234,6 +248,7 @@ export function Section({
           <span className="h-px w-3 shrink-0 bg-verdigris" aria-hidden />
           {title}
         </h3>
+        {help && <Explain title={title}>{help}</Explain>}
         <ChevronDown
           className="size-3 shrink-0 text-ink-3 transition-transform group-open/sec:rotate-180"
           aria-hidden
