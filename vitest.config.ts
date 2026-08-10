@@ -21,5 +21,14 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     setupFiles: ['./src/test-setup.ts'],
+    // Vitest's 5 s default is a web-app default and this suite is not a web app:
+    // a Pareto search fires several hundred machines and the release-tuning check
+    // fires two full sweeps, which take about a second here and five to eight on
+    // a GitHub runner. Both had started failing on `main` for no reason but the
+    // runner being slower than a laptop — a red build that says nothing about the
+    // code is worse than no build at all. Raised globally rather than per test,
+    // because the next honest multi-second solver test would hit exactly this and
+    // the failure gives no hint that a timeout is what it is.
+    testTimeout: 30_000,
   },
 })
