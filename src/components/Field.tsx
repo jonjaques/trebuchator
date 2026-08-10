@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { DraftSlider } from './DraftSlider.tsx'
 import { Explain } from './Explain.tsx'
@@ -6,6 +6,7 @@ import { Tip } from './Tip.tsx'
 import { Switch } from '@/components/ui/switch.tsx'
 import { useNotes } from '@/lib/notes.ts'
 import { usePointAt } from '@/lib/pointing.ts'
+import { throttle, track } from '@/lib/analytics.ts'
 import type { DimensionKey } from './stage/sheet.ts'
 import { cn } from '@/lib/utils.ts'
 import {
@@ -110,6 +111,11 @@ export function Field({
   const commit = (text: string) => {
     const parsed = Number.parseFloat(text)
     if (Number.isFinite(parsed)) {
+      // Which of the two controls a reader reaches for. The number box is the
+      // authoritative one and the slider is for feeling out a shape, so if the
+      // sliders turn out to be the only thing anyone touches, the ranges and
+      // response curves are the thing to spend effort on rather than the boxes.
+      track('param_input', { field: label, control: 'number' })
       onChange(fromDisplay(Math.min(Math.max(parsed, dMin), dMax), dim, units))
     }
     setDraft(null)
@@ -149,7 +155,12 @@ export function Field({
           max={1}
           step={step != null && !logScale ? toDisplay(step, dim, units) / (dMax - dMin) : 0.002}
           disabled={disabled}
-          onValueChange={([s]) => onChange(fromDisplay(fromPos(s), dim, units))}
+          onValueChange={([s]) => {
+            // A drag is one reach for one control and sixty events; the leading
+            // edge of the burst is the row worth keeping.
+            throttle(`input:${label}`, 3000, 'param_input', { field: label, control: 'slider' })
+            onChange(fromDisplay(fromPos(s), dim, units))
+          }}
         />
         <div className="flex w-[86px] shrink-0 items-center gap-1 rounded-sm border border-rule bg-ground px-1.5 py-1 focus-within:border-verdigris">
           <input
@@ -241,8 +252,23 @@ export function Section({
    */
   help?: React.ReactNode
 }) {
+  const opened = useRef(true)
   return (
-    <details open className="group/sec rule-b px-3 py-3 last:border-b-0">
+    <details
+      open
+      /* Chrome fires `toggle` when React inserts the element with `open` set, so
+         a bare handler here reported eleven sections being opened on every page
+         load — a burst that says nothing, drowns the one section a reader
+         actually folded, and fires twice again under StrictMode. Only a change
+         from what this section was last seen at is an act. */
+      onToggle={(e) => {
+        const on = e.currentTarget.open
+        if (on === opened.current) return
+        opened.current = on
+        track('section_toggled', { section: title, on })
+      }}
+      className="group/sec rule-b px-3 py-3 last:border-b-0"
+    >
       <summary className="flex cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
         <h3 className="stencil text-ink flex flex-1 items-baseline gap-2">
           <span className="h-px w-3 shrink-0 bg-verdigris" aria-hidden />

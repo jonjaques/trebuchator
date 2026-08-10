@@ -16,6 +16,7 @@ import { Tip } from './Tip.tsx'
 import type { MachineType, TrebuchetParams } from '@/lib/treb/types.ts'
 import { num, show, unitSymbol, type UnitSystem } from '@/lib/format.ts'
 import { useNotes } from '@/lib/notes.ts'
+import { track } from '@/lib/analytics.ts'
 import { cn } from '@/lib/utils.ts'
 import { ChevronDown, Crosshair, Wand2 } from 'lucide-react'
 
@@ -56,11 +57,14 @@ const MACHINES: { id: MachineType; name: string; note: string }[] = [
  */
 function MaterialPick({
   label,
+  kind,
   hint,
   options,
   onPick,
 }: {
   label: string
+  /** Which table this picker draws on — the one thing worth measuring here. */
+  kind: string
   hint: string
   options: { id: string; name: string }[]
   onPick: (id: string) => void
@@ -81,7 +85,13 @@ function MaterialPick({
             id={id}
             value=""
             aria-describedby={hintId}
-            onChange={(e) => e.target.value && onPick(e.target.value)}
+            onChange={(e) => {
+              if (!e.target.value) return
+              // The name is a handbook row or the builder's own words; which of
+              // the two is the useful signal, so that is what goes out.
+              track('material_picked', { kind, custom: e.target.value.startsWith('mat-') })
+              onPick(e.target.value)
+            }}
             className="label appearance-none rounded-sm border border-rule bg-ground py-1 pl-2 pr-6 text-ink-2 focus-visible:border-verdigris"
           >
             <option value="">Set from…</option>
@@ -160,7 +170,10 @@ export function DesignRail({
           variant="boxed"
           className="grid-cols-3 pt-1"
           value={params.type}
-          onChange={(type) => patch({ type })}
+          onChange={(type) => {
+            track('machine_type_set', { machine_type: type, from: params.type })
+            patch({ type })
+          }}
           options={MACHINES.map((m) => ({ value: m.id, label: m.name, title: m.note }))}
         />
       </Section>
@@ -330,6 +343,7 @@ export function DesignRail({
         />
         <MaterialPick
           label="Fill material"
+          kind="fill"
           hint="Sizes the box to hold the current mass of this fill."
           options={fills}
           onPick={(id) => {
@@ -547,6 +561,7 @@ export function DesignRail({
         />
         <MaterialPick
           label="Material"
+          kind="shot"
           hint="Sets the mass from the current diameter and this material's density."
           options={shots}
           onPick={(id) => {
@@ -595,6 +610,7 @@ export function DesignRail({
       >
         <MaterialPick
           label="Bearing type"
+          kind="bearing"
           hint="Sets both friction coefficients to this bearing's."
           options={bearings}
           onPick={(id) => patch(bearingPatch(bearings.find((b) => b.id === id)!))}

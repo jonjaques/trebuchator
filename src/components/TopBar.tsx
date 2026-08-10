@@ -24,6 +24,7 @@ import { shareUrl } from '@/lib/share.ts'
 import { GOALS, type ParetoGoal, type ParetoPoint } from '@/lib/treb/optimize.ts'
 import type { SavedMachine } from '@/lib/treb/library.ts'
 import { type UnitSystem } from '@/lib/format.ts'
+import { track } from '@/lib/analytics.ts'
 import { cn } from '@/lib/utils.ts'
 
 interface Props {
@@ -414,8 +415,13 @@ function ShareButton({ presetId }: { presetId: string | null }) {
     if (!href) return
     try {
       await navigator.clipboard.writeText(href)
+      // The clipboard is refused often enough — an insecure origin, a permission
+      // policy, an embedded webview — that "was a link copied" and "was the
+      // button pressed" are genuinely different numbers.
+      track('link_copied', { machine: presetId ?? 'custom', ok: true })
       setState('copied')
     } catch {
+      track('link_copied', { machine: presetId ?? 'custom', ok: false })
       setState('failed')
     }
     clearTimeout(timer.current)

@@ -69,6 +69,49 @@
         "keywords": "trebuchet calculator, trebuchet simulator, counterweight trebuchet, siege engine, projectile range"
       }
     </script>
+
+    <!-- Google Analytics 4.
+         Loaded here rather than from the bundle so a page view is still recorded
+         if the app itself fails to boot — which is exactly the session worth
+         knowing about.
+
+         The guard is the one rule about *whether* to measure, and it lives next
+         to the script it gates so it cannot be written twice and drift. Dev
+         traffic in the production property is indistinguishable from a real
+         reader's after the fact, so it must never get in.
+
+         Two conditions rather than one, because either alone has a hole. The
+         hostname test alone misses `vite --host`, which serves the dev build on
+         a LAN address so a phone can reach it — a perfectly ordinary thing to do
+         and not loopback. The scheme test alone misses nothing in practice but
+         would quietly start measuring if a dev server were ever given a
+         certificate. Note `.localhost` and `.local` as *suffixes*: `app.
+         localhost` resolves to loopback per RFC 6761 and `.local` is what mDNS
+         hands out.
+
+         Deliberately not "is this the production domain": a preview deployment
+         should measure and is separable afterwards by GA's own Hostname
+         dimension, whereas a hardcoded domain here goes silently dead the day it
+         changes and nothing tells you.
+
+         `src/lib/analytics.ts` reads the flag this sets; in development it logs
+         its events to the console instead. -->
+    <script>
+      window.dataLayer = window.dataLayer || []
+      function gtag() {
+        dataLayer.push(arguments)
+      }
+      var loopback = /^(localhost|\[::1\]|127(\.\d+){3})$|\.(localhost|local)$/
+      if (location.protocol === 'https:' && !loopback.test(location.hostname)) {
+        window.__trebAnalytics = true
+        gtag('js', new Date())
+        gtag('config', 'G-9868T5M25F')
+        var ga = document.createElement('script')
+        ga.async = true
+        ga.src = 'https://www.googletagmanager.com/gtag/js?id=G-9868T5M25F'
+        document.head.appendChild(ga)
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -1,5 +1,6 @@
 import { CircleHelp } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover.tsx'
+import { track } from '@/lib/analytics.ts'
 import { cn } from '@/lib/utils.ts'
 
 /**
@@ -26,7 +27,10 @@ export function Explain({
   className?: string
 }) {
   return (
-    <Popover>
+    /* Which explanations are actually opened is the only measure this app has of
+       whether its second job — teaching — is landing. Tracked on open and not on
+       close, so a reader who dismisses one is counted once. */
+    <Popover onOpenChange={(open) => open && track('explain_opened', { topic: title })}>
       <PopoverTrigger asChild>
         <button
           type="button"

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointer
 import { TriangleAlert } from 'lucide-react'
 import type { FiredShot, ShotResult, TrebuchetParams } from '@/lib/treb/types.ts'
 import type { UnitSystem } from '@/lib/format.ts'
+import { once, throttle } from '@/lib/analytics.ts'
 import { isDone, sampleTrajectory } from '@/lib/treb/timeline.ts'
 import { paint } from './paint.ts'
 import { BLAST_LIFE } from './blast.ts'
@@ -304,6 +305,13 @@ export function Stage({
   }, [boulder])
 
   useEffect(() => {
+    if (!boulder || !result?.ok) return
+    // Once per visit. The question about an easter egg is how many readers ever
+    // reach it, not how many times they nudged a slider while it was loaded.
+    once('boulder', 'boulder_thrown', { range_m: result.range, reduced_motion: reduceMotion })
+  }, [boulder, result, reduceMotion])
+
+  useEffect(() => {
     const mq = window.matchMedia?.('(prefers-reduced-motion: reduce)')
     if (!mq) return
     const update = () => setReduceMotion(mq.matches)
@@ -590,6 +598,10 @@ export function Stage({
         onWheel={(e) => {
           const cam = camRef.current
           if (!cam) return
+          // A gesture is one intent and a few hundred events. The leading edge
+          // of each burst is what says the reader went looking at the drawing
+          // rather than only at the rails.
+          throttle('gesture:zoom', 4000, 'sheet_gesture', { gesture: 'zoom' })
           const factor = Math.exp(-e.deltaY * 0.0015)
           // Zoom about the cursor: the world point under it stays put. Zooming
           // about the viewport centre instead made the machine slide away from
@@ -657,6 +669,7 @@ export function Stage({
               cx: wx - (mx - size.w / 2) / scale,
               cy: wy + (my - size.h / 2) / scale,
             }
+            throttle('gesture:pinch', 4000, 'sheet_gesture', { gesture: 'pinch' })
             onModeChange('free')
             setTick((n) => n + 1)
             return
@@ -670,6 +683,7 @@ export function Stage({
             cx: d.cx - (e.clientX - d.x) / cam.scale,
             cy: d.cy + (e.clientY - d.y) / cam.scale,
           }
+          throttle('gesture:pan', 4000, 'sheet_gesture', { gesture: 'pan' })
           onModeChange('free')
           setTick((n) => n + 1)
         }}

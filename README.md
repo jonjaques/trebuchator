@@ -74,15 +74,14 @@ them: efficiency against counterweight mass peaks at a **100 : 1 weight ratio**,
 and the optimal launch angle is exactly 45° in vacuum and lower with drag. Both
 are asserted in the test suite.
 
-```bash
-bun run test        # physics, conservation, ballistics, the drawing, UI
-bun run test:watch
-```
-
 ## Using it
 
 - **Presets** cover a weekend build, a competition floating arm, a pumpkin hurler,
-  a 13th-century siege engine, and Edward I's Warwolf.
+  a 13th-century siege engine, and Edward I's Warwolf. Picking one puts it in the
+  address bar, so the link you copy loads what you were looking at — and the
+  parameter is *dropped* the moment you edit the machine, because thirty numbers
+  are not in the URL and a link that quietly loads something else is worse than
+  no link.
 - **Find best pin** reports the spigot angle to bend, by running the swing once
   with an ideal-release solver and reading back the angle it chose.
 - **Optimize** searches sling length, hanger, cocked angle and short arm and
@@ -98,21 +97,93 @@ bun run test:watch
 - **Angles** (`A`) puts protractors on the joints. The one at the beam tip shows
   the sling closing on your pin angle, which is the whole of tuning in one arc.
 - **Save shot** keeps a trajectory on the sheet as a dashed ghost to compare against.
+- **Your own machines and materials.** Name a build to keep it, and add the fill,
+  shot or bearing that is actually in your yard — wet sand is not dry sand. The
+  shipped tables stay read-only handbook values so that two people quoting a
+  density to each other quote the same number. Both live in this browser's
+  storage; there is no backend, and the copy says so rather than implying a sync
+  that does not exist.
+- **Explanations have three tiers**: a tooltip names an icon, the notes layer
+  (`N`) prints what every control measures under its row, and the `?` beside a
+  section head opens the paragraph on why a rule of thumb exists. Nothing a
+  reader on a phone *needs* is behind a tooltip — those cannot be tapped.
 - Keys: `space` play/pause, `R` fire again, `D` dimensions, `A` angles, `G` grid,
-  `N` explanations. Drag and scroll the sheet to pan and zoom.
+  `N` explanations. Drag and scroll the sheet to pan and zoom; the camera also
+  follows the shot, frames the machine or frames the whole field on request.
 - Units follow your locale on first run (`Intl`, falling back to feet and
-  pounds) and remember whatever you pick after that.
+  pounds) and remember whatever you pick after that. So does the theme.
 
-## How it's put together
+## Development
+
+Package manager is **bun** — `bun.lock` is the lockfile, please don't introduce
+npm, yarn or pnpm.
+
+```bash
+bun install
+bun run dev        # Vite dev server on :5173, with HMR
+```
+
+| Command | |
+|---|---|
+| `bun run dev` | Dev server with hot module replacement |
+| `bun run build` | `tsc -b` on both projects, then a production bundle into `dist/` |
+| `bun run preview` | Serve the production build locally |
+| `bun run test` | Vitest, once |
+| `bun run test:watch` | Vitest, watching |
+| `bun run typecheck` | `tsc -b` alone, no bundle |
+| `bun run lint` | ESLint |
+| `bun run format` | Rewrite with Prettier |
+| `bun run format:check` | Check formatting without writing |
+| `bun run healthcheck` | **All of the above that CI runs**, in one pass |
+| `bun run deploy` | Build and push to Cloudflare Pages by hand |
+
+`bun run healthcheck` is what the GitHub Action runs, from the same script — so a
+green run locally is a green pull request. It deliberately does not stop at the
+first failure, so one pass tells you everything that is wrong.
+
+A few compiler flags turn ordinary-looking code into build failures rather than
+lint warnings: unused locals and parameters, `verbatimModuleSyntax` (type-only
+imports must say `import type`), `erasableSyntaxOnly` (no `enum`, no constructor
+parameter properties) and `allowImportingTsExtensions` (local imports carry the
+extension, `./App.tsx`).
+
+### Layout
+
+```
+src/lib/treb/      the solver — self-contained, SI throughout, no React in it
+src/lib/           app-level modules: units, sharing, storage, measurement
+src/components/    the panels
+src/components/stage/   the drawing: draft.ts → sheet.ts → paint.ts
+src/components/ui/      vendored from shadcn — treat as generated
+docs/analytics.md  what usage data is collected, and what is not
+```
 
 React 19 and TypeScript on Vite, Tailwind v4, drawn to a plain 2D canvas. The solver
-in `src/lib/treb/` is self-contained, SI throughout, and has no React in it — it runs
-in a Web Worker, because a full shot is 20–45 ms and a 40-point parameter sweep is
-over half a second, which is far too long to sit between a slider's mousemove events.
+runs in a **Web Worker**, because a full shot is 20–45 ms and a 40-point parameter
+sweep is over half a second, which is far too long to sit between a slider's
+mousemove events. Nothing above `simulator.ts` knows the worker exists.
 
 [`CLAUDE.md`](./CLAUDE.md) is the architecture document: what each module owns, which
 decisions are load-bearing, and which apparently-reasonable changes are silently
 wrong. It is worth reading before changing anything under `src/lib/treb/`.
+
+### Deployment
+
+`main` is deployed to Cloudflare Pages on push. `bun run deploy` does the same
+thing by hand with Wrangler if you need it.
+
+## Privacy
+
+Trebuchator has **no backend and no accounts**. Your machines, materials and
+preferences are in your own browser's `localStorage` and go nowhere else.
+
+Anonymous usage events go to Google Analytics so that changes to the product can
+be argued from what people do rather than from what we imagine they do — which
+parameters get worked, which explanations get opened, how far machines throw.
+**Nothing you type is ever sent**: not machine names, not material names, not free
+text of any kind. What travels is their shape — how long a name was, which kind of
+material it was. [`docs/analytics.md`](./docs/analytics.md) is the full catalogue,
+including everything deliberately excluded. Development sends nothing at all.
 
 ## Contributing
 

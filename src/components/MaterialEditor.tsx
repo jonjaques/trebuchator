@@ -7,6 +7,7 @@ import { BEARINGS, CW_FILLS, PROJECTILE_MATERIALS } from '@/lib/treb/materials.t
 import type { CustomMaterial } from '@/lib/treb/library.ts'
 import { newId } from '@/lib/store.ts'
 import { num } from '@/lib/format.ts'
+import { track } from '@/lib/analytics.ts'
 
 /**
  * The builder's own matter.
@@ -76,6 +77,9 @@ export function MaterialEditor({ materials, onChange, defaultKind }: Props) {
     const entry: CustomMaterial = bearing
       ? { id: newId('mat'), kind: 'bearing', name: name.trim(), mu: value }
       : { id: newId('mat'), kind, name: name.trim(), density: value }
+    // The kind and nothing else. A name and a density are what somebody has in
+    // their own yard, and the handbook this sits beside is already in the repo.
+    track('material_added', { kind })
     onChange([...materials, entry])
     setName('')
     setFigure('')
@@ -156,7 +160,10 @@ export function MaterialEditor({ materials, onChange, defaultKind }: Props) {
                     size="icon"
                     variant="ghost"
                     className="tap-target relative size-6 shrink-0"
-                    onClick={() => onChange(materials.filter((x) => x.id !== m.id))}
+                    onClick={() => {
+                      track('material_deleted', { kind })
+                      onChange(materials.filter((x) => x.id !== m.id))
+                    }}
                     aria-label={`Delete ${m.name}`}
                   >
                     <Trash2 className="size-3" aria-hidden />

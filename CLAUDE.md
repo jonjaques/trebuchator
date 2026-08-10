@@ -239,6 +239,43 @@ It has to clear the sheet's own furniture — the range dimension 40 px below th
 line, its caption 22 below that, the 12 px hatch band — and framing used to pick that
 number independently of the module that draws the thing it must clear.
 
+## Measurement
+
+**`lib/analytics.ts` is a seam, not a sprinkling of `gtag` calls.** One sink, one
+typed table of events, and nothing above it knows Google Analytics is on the other
+end — the same line `simulator.ts` draws around the worker, for the same reason.
+The tag itself is in `index.html` behind a loopback guard, so a dev server and a
+`vite preview` measure nothing; `analytics.ts` reads the flag that guard sets and
+logs to the console instead. **The rule about whether to measure is stated once,
+next to the script it gates.**
+
+**The table is the interface.** An event is one entry in `Events` and its
+parameters are that entry's type, so a call naming an event that does not exist is
+a build failure. Untyped analytics fails the other way: it compiles, the row never
+appears in a report, and nobody notices for a month.
+
+**Nothing a person typed is ever sent.** Machine names, material names and free
+text stay in the browser; what goes out is their shape — `name_len`, `kind`,
+`custom: true`. A *saved* machine's id names a row in one browser's storage, so it
+reports as `machine: 'saved'` rather than as itself.
+
+**Volume is the design problem.** A slider drag is sixty parameter changes and a
+solved shot chases every one, so `settled()` coalesces on the trailing edge (the
+value the reader stopped on), `throttle()` takes the leading edge of a gesture
+burst, and `once()` covers facts. Only discrete acts call `track` directly. Two
+traps found by watching the console rather than by reasoning: Chrome fires
+`toggle` when React inserts `<details open>`, which reported eleven sections
+opening on every load until `Section` compared against what it was last seen at;
+and StrictMode's remount sent `app_ready` twice, which is why it goes through
+`once`.
+
+Events are tracked **at the handler that knows the intent** — a button press knows
+it was a button press, and an effect watching the state it changed can only guess.
+`useAnalytics.ts` holds only the two things no handler can see: the shape of a
+whole visit, and the settled value of a drag. `docs/analytics.md` is the
+catalogue, and it lists the custom dimensions that must be **registered in GA
+before any parameter appears in a report** — registration is not retroactive.
+
 ## Testing
 
 **Vitest**, configured in `vitest.config.ts` — deliberately separate from

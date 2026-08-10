@@ -14,6 +14,7 @@ import { useShot, useSimClient } from '@/lib/useSimulation.ts'
 import { PRESETS, presetById, type Preset } from '@/lib/treb/presets.ts'
 import { presetFromUrl, withMachine } from '@/lib/share.ts'
 import {
+  goalValue,
   sweepConflict,
   TUNABLES,
   type ParetoGoal,
@@ -45,6 +46,8 @@ import {
 } from '@/lib/format.ts'
 import { NotesContext } from '@/lib/notes.ts'
 import { PointAtContext } from '@/lib/pointing.ts'
+import { throttle, track } from '@/lib/analytics.ts'
+import { useAnalytics } from '@/lib/useAnalytics.ts'
 import { cn } from '@/lib/utils.ts'
 
 /** The dimensions the Pareto search varies. Masses stay the builder's own. */
@@ -138,6 +141,11 @@ export default function App() {
   const duration = timeline?.duration ?? 0
   const t = cursor ?? duration
 
+  // The two things no handler can see: the shape of the whole visit, and the
+  // value a slider settled on after a drag that fired sixty times getting there.
+  // Everything discrete is tracked at its own handler, where the intent is known.
+  useAnalytics({ result, error, params, presetId, units, dark, notes })
+
   const patch = useCallback((next: Partial<TrebuchetParams>) => {
     setParams((prev) => ({ ...prev, ...next }))
     setPresetId(null)
@@ -207,21 +215,37 @@ export default function App() {
     return () => cancelAnimationFrame(raf)
   }, [playing, speed, duration])
 
-  const replay = useCallback(() => {
+  // The transport's own controls leave `via` alone; the keyboard shortcuts pass
+  // 'key'. Which of the two a reader reaches for is the only way to find out
+  // whether the shortcuts printed in the view panel are worth their row.
+  const replay = useCallback((via = 'button') => {
+    track('playback', { action: 'replay', via })
     posRef.current = 0
     setCursor(0)
     setPlaying(true)
   }, [])
 
-  const play = useCallback(() => {
-    // Playing from the finished shot means firing again, not sitting on the end.
-    const from = cursor == null || cursor >= duration - TIME_EPS ? 0 : cursor
-    posRef.current = from
-    setCursor(from)
-    setPlaying(true)
-  }, [cursor, duration])
+  const play = useCallback(
+    (via = 'button') => {
+      track('playback', { action: 'play', via })
+      // Playing from the finished shot means firing again, not sitting on the end.
+      const from = cursor == null || cursor >= duration - TIME_EPS ? 0 : cursor
+      posRef.current = from
+      setCursor(from)
+      setPlaying(true)
+    },
+    [cursor, duration],
+  )
+
+  const pause = useCallback((via = 'button') => {
+    track('playback', { action: 'pause', via })
+    setPlaying(false)
+  }, [])
 
   const seek = useCallback((to: number) => {
+    // A scrub is one intent and a hundred pointer events; the leading edge of
+    // each burst is the row worth keeping.
+    throttle('seek', 4000, 'playback', { action: 'seek', via: 'scrubber' })
     posRef.current = to
     setCursor(to)
     setPlaying(false)
@@ -231,7 +255,8 @@ export default function App() {
   // pose. Dimensions describe the machine as built, and every one of them is
   // legible at rest and folded on top of its neighbours at the end of a stroke.
   const toggleDimensions = useCallback(
-    (next: boolean) => {
+    (next: boolean, via = 'button') => {
+      track('annotation_set', { annotation: 'dimensions', on: next, via })
       setShowDimensions(next)
       if (next && !playing) seek(0)
     },
@@ -241,12 +266,35 @@ export default function App() {
   // Angles are the opposite case: they are most interesting *during* the
   // stroke, where the sling closes on the pin, so enabling them leaves the
   // cursor alone.
-  const toggleAngles = useCallback((next: boolean) => setShowAngles(next), [])
+  const toggleAngles = useCallback((next: boolean, via = 'button') => {
+    track('annotation_set', { annotation: 'angles', on: next, via })
+    setShowAngles(next)
+  }, [])
+
+  const toggleGrid = useCallback((next: boolean, via = 'button') => {
+    track('annotation_set', { annotation: 'grid', on: next, via })
+    setShowGrid(next)
+  }, [])
+
+  const toggleNotes = useCallback((next: boolean, via = 'button') => {
+    track('annotation_set', { annotation: 'notes', on: next, via })
+    setNotes(next)
+  }, [])
+
+  const changeCamera = useCallback((mode: CameraMode, via = 'button') => {
+    // 'free' arrives from a pan or a pinch on the sheet rather than from a
+    // control, and `Stage` reports the gesture itself — counting it here as a
+    // camera choice would make the sheet look like the most-used control in the
+    // app when nobody pressed anything.
+    if (mode !== 'free') track('camera_set', { mode, via })
+    setCameraMode(mode)
+  }, [])
 
   // --- presets -------------------------------------------------------------
   const loadPreset = useCallback((id: string) => {
     const preset = presetById(id)
     if (!preset) return
+    track('machine_loaded', { machine: id, era: preset.era, source: 'preset' })
     setParams({ ...preset.params })
     setPresetId(id)
     setPareto(null)
@@ -273,14 +321,27 @@ export default function App() {
       setSweepBusy(true)
       setSweepPoints([])
       setSweepError(null)
+      const startedAt = Date.now()
       cancel = client.sweep(params, sweepKey, sweepMin, sweepMax, 40, sweepMode, (update) => {
         if (update.kind === 'error') {
+          track('solver_failed', { where: 'sweep', reason: update.message })
           setSweepError(update.message)
           setSweepBusy(false)
           return
         }
         setSweepPoints(update.points)
-        if (update.done) setSweepBusy(false)
+        if (update.done) {
+          // Timed at the point it finishes rather than estimated: forty points
+          // at `SWEEP_DT` is the longest wait in the app and the one most worth
+          // knowing the real distribution of, across real machines and phones.
+          track('sweep_run', {
+            param: sweepKey,
+            mode: sweepMode,
+            count: update.points.length,
+            seconds: (Date.now() - startedAt) / 1000,
+          })
+          setSweepBusy(false)
+        }
       })
     }, 220)
     return () => {
@@ -291,15 +352,27 @@ export default function App() {
     }
   }, [client, params, sweepKey, sweepMin, sweepMax, sweepMode, sweepOpen, sweepBlocked])
 
+  // Which parameter and mode pairs readers actually ask for and cannot have.
+  // The panel prints the reason where the chart would go; this is how often
+  // anyone reads it.
+  useEffect(() => {
+    if (sweepOpen && sweepBlocked) track('sweep_blocked', { param: sweepKey, mode: sweepMode })
+  }, [sweepOpen, sweepBlocked, sweepKey, sweepMode])
+
   // --- actions -------------------------------------------------------------
   const tunePin = useCallback(async () => {
     setTuning(true)
     setActionError(null)
     try {
       const angle = await client.tunePin(params)
-      if (angle != null) patch({ releaseAngle: angle, releaseMode: 'pin' })
+      if (angle != null) {
+        track('pin_tuned', { angle, machine_type: params.type })
+        patch({ releaseAngle: angle, releaseMode: 'pin' })
+      }
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : String(err))
+      const reason = err instanceof Error ? err.message : String(err)
+      track('solver_failed', { where: 'tune_pin', reason })
+      setActionError(reason)
     } finally {
       setTuning(false)
     }
@@ -312,10 +385,22 @@ export default function App() {
     async (searchFor: ParetoGoal) => {
       setTuning(true)
       setActionError(null)
+      const startedAt = Date.now()
       try {
-        setPareto(await client.pareto(params, PARETO_KEYS, searchFor))
+        const frontier = await client.pareto(params, PARETO_KEYS, searchFor)
+        // An empty frontier is a real and interesting answer — it is the panel
+        // saying "no feasible builds near this machine", and how often that
+        // happens is the measure of whether the search ranges are set right.
+        track('frontier_searched', {
+          goal: searchFor,
+          count: frontier.length,
+          seconds: (Date.now() - startedAt) / 1000,
+        })
+        setPareto(frontier)
       } catch (err) {
-        setActionError(err instanceof Error ? err.message : String(err))
+        const reason = err instanceof Error ? err.message : String(err)
+        track('solver_failed', { where: 'optimize', reason })
+        setActionError(reason)
       } finally {
         setTuning(false)
       }
@@ -345,6 +430,10 @@ export default function App() {
     (name: string) => {
       setMachines((prev) => {
         const next = [...prev, newMachine(name, params)]
+        // The name is the builder's own words and never leaves the browser. Its
+        // length is enough to answer the only question worth asking of it —
+        // whether people name their machines or mash the keyboard past a dialog.
+        track('machine_saved', { name_len: name.length, count: next.length })
         saveMachines(next)
         return next
       })
@@ -356,6 +445,11 @@ export default function App() {
     (id: string) => {
       const machine = machines.find((m) => m.id === id)
       if (!machine) return
+      // The id names a row in this browser's storage and nothing on anyone
+      // else's, so it is reported as the kind of thing it is rather than as
+      // itself — a random id per machine per browser is cardinality with no
+      // question attached to it.
+      track('machine_loaded', { machine: 'saved', era: 'saved', source: 'library' })
       setParams({ ...machine.params })
       // Saved machines share the preset slot: both answer "what is loaded", and
       // two ids would mean every reader of that answer had to check both.
@@ -373,6 +467,7 @@ export default function App() {
   const deleteMachine = useCallback((id: string) => {
     setMachines((prev) => {
       const next = prev.filter((m) => m.id !== id)
+      track('machine_deleted', { count: next.length })
       saveMachines(next)
       return next
     })
@@ -386,16 +481,30 @@ export default function App() {
     saveMaterials(next)
   }, [])
 
-  const applyPareto = useCallback((point: ParetoPoint) => {
-    setParams({ ...point.params })
-    setPresetId(null)
-    setPareto(null)
-    setPreview(null)
-    previewIdRef.current = null
-    posRef.current = 0
-    setCursor(0)
-    setPlaying(true)
-  }, [])
+  const applyPareto = useCallback(
+    (point: ParetoPoint) => {
+      // Measured against candidate zero — the machine as built, evaluated by the
+      // same search at the same step — rather than against the held result. The
+      // frontier is searched at `SWEEP_DT` and `simulateShot` runs finer, so
+      // comparing across the two would report the step size as a gain.
+      const current = pareto?.find((p) => p.isCurrent)
+      const from = current ? goalValue(current, goal) : 0
+      track('frontier_applied', {
+        goal,
+        gain_pct: from > 0 ? ((goalValue(point, goal) - from) / from) * 100 : 0,
+        axle_load_kn: point.axleLoad / 1000,
+      })
+      setParams({ ...point.params })
+      setPresetId(null)
+      setPareto(null)
+      setPreview(null)
+      previewIdRef.current = null
+      posRef.current = 0
+      setCursor(0)
+      setPlaying(true)
+    },
+    [pareto, goal],
+  )
 
   const nextId = useRef(1)
   const saveShot = useCallback(() => {
@@ -406,8 +515,8 @@ export default function App() {
     const label = presetId
       ? PRESETS.find((p) => p.id === presetId)!.name
       : `${show(params.cwMass, 'mass', units, 0)} ${unitSymbol('mass', units)} · ${show(params.slingLength, 'length', units, 2)} ${unitSymbol('length', units)} sling`
-    setSaved((prev) =>
-      [
+    setSaved((prev) => {
+      const next = [
         ...prev,
         {
           id: nextId.current++,
@@ -416,8 +525,12 @@ export default function App() {
           trajectory: result.trajectory.map((p) => ({ x: p.x, y: p.y })),
           params: { ...params },
         },
-      ].slice(-6),
-    )
+      ].slice(-6)
+      // How many ghosts a reader keeps on the sheet at once is the whole
+      // question about the six-shot cap.
+      track('ghost_saved', { count: next.length })
+      return next
+    })
   }, [result, params, presetId, units])
 
   const ghosts = useMemo(
@@ -433,6 +546,27 @@ export default function App() {
     }
     return best
   }, [sweepPoints])
+
+  /**
+   * What adopting a value off the curve is worth, as a percentage.
+   *
+   * Measured against the point on the *same curve* nearest the value in hand,
+   * not against the held result. Both are then fired at `SWEEP_DT`; comparing
+   * across the two step sizes would report the coarser integration as part of
+   * the gain, which is the one thing the panel already warns the reader about.
+   */
+  const sweepGain = useCallback(
+    (range: number) => {
+      const at = params[sweepKey]
+      let nearest: SweepPoint | null = null
+      for (const pt of sweepPoints) {
+        if (!Number.isFinite(pt.range)) continue
+        if (!nearest || Math.abs(pt.value - at) < Math.abs(nearest.value - at)) nearest = pt
+      }
+      return nearest && nearest.range > 0 ? ((range - nearest.range) / nearest.range) * 100 : 0
+    },
+    [params, sweepKey, sweepPoints],
+  )
 
   // --- what-if preview -------------------------------------------------------
   // Hovering the chart fires the hovered machine as a real (coalesced) shot and
@@ -465,6 +599,10 @@ export default function App() {
   const previewHover = useCallback(
     (value: number | null) => {
       if (value == null) return flyPreview(null, null, '')
+      // A hover is a mousemove per pixel of chart. One row per few seconds says
+      // the same thing — that the reader is reading the curve rather than
+      // ignoring the panel — without being the loudest event in the property.
+      throttle('sweep-preview', 5000, 'sweep_previewed', { param: sweepKey, mode: sweepMode })
       const dim: Dimension = sweepSpec.unit === 'ratio' ? 'none' : sweepSpec.unit
       flyPreview(
         `sweep:${value}`,
@@ -472,12 +610,13 @@ export default function App() {
         `${sweepSpec.label.toLowerCase()} ${num(toDisplay(value, dim, units), 2)}${unitSymbol(dim, units)}`,
       )
     },
-    [flyPreview, params, sweepKey, sweepSpec, units],
+    [flyPreview, params, sweepKey, sweepSpec, sweepMode, units],
   )
 
   const previewPareto = useCallback(
     (point: ParetoPoint | null) => {
       if (point == null) return flyPreview(null, null, '')
+      throttle('pareto-preview', 5000, 'frontier_previewed', { goal })
       // Lettered with whatever the frontier was searched for, so the curve on
       // the sheet and the point under the pointer name the same quantity.
       const figure =
@@ -507,18 +646,31 @@ export default function App() {
         // or any toggle in the app — the shortcut ate the activation.
         if (el?.closest('button, a[href], [role="switch"], [role="slider"]')) return
         e.preventDefault()
-        if (playing) setPlaying(false)
-        else play()
+        if (playing) pause('key')
+        else play('key')
       }
-      if (e.key === 'r' || e.key === 'R') replay()
-      if (e.key === 'd' || e.key === 'D') toggleDimensions(!showDimensions)
-      if (e.key === 'a' || e.key === 'A') setShowAngles((v) => !v)
-      if (e.key === 'g' || e.key === 'G') setShowGrid((v) => !v)
-      if (e.key === 'n' || e.key === 'N') setNotes((v) => !v)
+      if (e.key === 'r' || e.key === 'R') replay('key')
+      if (e.key === 'd' || e.key === 'D') toggleDimensions(!showDimensions, 'key')
+      if (e.key === 'a' || e.key === 'A') toggleAngles(!showAngles, 'key')
+      if (e.key === 'g' || e.key === 'G') toggleGrid(!showGrid, 'key')
+      if (e.key === 'n' || e.key === 'N') toggleNotes(!notes, 'key')
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [replay, play, playing, toggleDimensions, showDimensions])
+  }, [
+    replay,
+    play,
+    pause,
+    playing,
+    toggleDimensions,
+    showDimensions,
+    toggleAngles,
+    showAngles,
+    toggleGrid,
+    showGrid,
+    toggleNotes,
+    notes,
+  ])
 
   const ratio = params.armLong / Math.max(params.armShort, 1e-6)
   const massRatio = params.cwMass / Math.max(params.projectileMass, 1e-9)
@@ -537,9 +689,15 @@ export default function App() {
             presetId={presetId}
             onPreset={loadPreset}
             units={units}
-            onUnits={setUnits}
+            onUnits={(next) => {
+              track('units_set', { units: next })
+              setUnits(next)
+            }}
             dark={dark}
-            onDark={setDark}
+            onDark={(next) => {
+              track('theme_set', { theme: next ? 'dark' : 'light' })
+              setDark(next)
+            }}
             onSave={saveShot}
             canSave={result?.ok ?? false}
             machines={machines}
@@ -557,10 +715,12 @@ export default function App() {
             showDesign={showDesign}
             showResults={showResults}
             onToggleDesign={() => {
+              track('panel_toggled', { panel: 'design', on: !showDesign })
               setShowDesign((v) => !v)
               setShowResults(false)
             }}
             onToggleResults={() => {
+              track('panel_toggled', { panel: 'results', on: !showResults })
               setShowResults((v) => !v)
               setShowDesign(false)
             }}
@@ -628,7 +788,7 @@ export default function App() {
                    measurement legible enough to be worth drawing. */
                   editing={editing || pointedAt !== null}
                   mode={cameraMode}
-                  onModeChange={setCameraMode}
+                  onModeChange={(mode) => changeCamera(mode, 'sheet')}
                 />
 
                 {/* Title block, the way a drawing carries its own identification.
@@ -669,7 +829,10 @@ export default function App() {
                       size="icon"
                       variant="ghost"
                       className="tap-target relative -ml-1 size-7 shrink-0 text-ink-3"
-                      onClick={() => setSweepOpen(false)}
+                      onClick={() => {
+                        track('sweep_panel_set', { on: false })
+                        setSweepOpen(false)
+                      }}
                       aria-expanded
                       aria-label="Hide the what-if panel"
                     >
@@ -703,7 +866,11 @@ export default function App() {
                     <div className="relative min-w-[9rem] flex-1">
                       <select
                         value={sweepKey}
-                        onChange={(e) => setSweepKey(e.target.value as TunableKey)}
+                        onChange={(e) => {
+                          const next = e.target.value as TunableKey
+                          track('sweep_key_set', { param: next })
+                          setSweepKey(next)
+                        }}
                         aria-label="Parameter to sweep"
                         className="label w-full appearance-none rounded-sm border border-rule bg-ground py-1 pl-2 pr-6 text-ink-2 focus-visible:border-verdigris"
                       >
@@ -726,7 +893,10 @@ export default function App() {
                     <SegmentedControl
                       label="How each point is set up"
                       value={sweepMode}
-                      onChange={setSweepMode}
+                      onChange={(mode) => {
+                        track('sweep_mode_set', { mode })
+                        setSweepMode(mode)
+                      }}
                       options={[
                         {
                           value: 'asBuilt',
@@ -748,7 +918,16 @@ export default function App() {
                         variant="outline"
                         className="label h-7 shrink-0 gap-1.5"
                         disabled={sweepBusy || !sweepBest || sweepBlocked != null}
-                        onClick={() => sweepBest && patch({ [sweepKey]: sweepBest.value })}
+                        onClick={() => {
+                          if (!sweepBest) return
+                          track('sweep_adopted', {
+                            param: sweepKey,
+                            mode: sweepMode,
+                            via: 'button',
+                            gain_pct: sweepGain(sweepBest.range),
+                          })
+                          patch({ [sweepKey]: sweepBest.value })
+                        }}
                       >
                         <Target className="size-3" aria-hidden />
                         Adopt best
@@ -767,7 +946,16 @@ export default function App() {
                       units={units}
                       loading={sweepBusy}
                       mode={sweepMode}
-                      onPick={(v) => patch({ [sweepKey]: v })}
+                      onPick={(v) => {
+                        const at = sweepPoints.find((p) => p.value === v)
+                        track('sweep_adopted', {
+                          param: sweepKey,
+                          mode: sweepMode,
+                          via: 'chart',
+                          gain_pct: at ? sweepGain(at.range) : 0,
+                        })
+                        patch({ [sweepKey]: v })
+                      }}
                       onHover={previewHover}
                     />
                   )}
@@ -776,7 +964,10 @@ export default function App() {
 
               {!sweepOpen && (
                 <button
-                  onClick={() => setSweepOpen(true)}
+                  onClick={() => {
+                    track('sweep_panel_set', { on: true })
+                    setSweepOpen(true)
+                  }}
                   aria-expanded={false}
                   className="rule-t label flex items-center justify-center gap-1.5 bg-sheet py-1.5 text-ink-3 hover:text-ink-2"
                 >
@@ -792,19 +983,22 @@ export default function App() {
                 speed={speed}
                 onSeek={seek}
                 onPlay={play}
-                onPause={() => setPlaying(false)}
+                onPause={pause}
                 onReplay={replay}
-                onSpeed={setSpeed}
+                onSpeed={(next) => {
+                  track('speed_set', { speed: next, via: 'transport' })
+                  setSpeed(next)
+                }}
                 cameraMode={cameraMode}
-                onCameraMode={setCameraMode}
+                onCameraMode={changeCamera}
                 showDimensions={showDimensions}
                 onShowDimensions={toggleDimensions}
                 showAngles={showAngles}
                 onShowAngles={toggleAngles}
                 showGrid={showGrid}
-                onShowGrid={setShowGrid}
+                onShowGrid={toggleGrid}
                 notes={notes}
-                onNotes={setNotes}
+                onNotes={toggleNotes}
                 disabled={!result?.ok}
               />
             </main>
@@ -824,10 +1018,14 @@ export default function App() {
                 units={units}
                 saved={saved}
                 onRecall={(s) => {
+                  track('ghost_recalled', {})
                   setParams({ ...s.params })
                   setPresetId(null)
                 }}
-                onDrop={(id) => setSaved((prev) => prev.filter((s) => s.id !== id))}
+                onDrop={(id) => {
+                  track('ghost_dropped', {})
+                  setSaved((prev) => prev.filter((s) => s.id !== id))
+                }}
               />
             </aside>
           </div>
