@@ -71,17 +71,27 @@ export function fitRect(rect: Rect, w: number, h: number, inset: number): Camera
 }
 
 /**
- * Ease the camera toward a target. Scale is interpolated in log space so a
- * pull-back from the machine to the whole field reads as an even zoom rather
- * than a slow start and a rush at the end.
+ * Move `k` of the way from one camera to another. Scale is interpolated in log
+ * space so a pull-back from the machine to the whole field reads as an even
+ * zoom rather than a slow start and a rush at the end.
  */
-export function approach(cam: Camera, target: Camera, rate: number): Camera {
-  const k = 1 - Math.exp(-rate)
+export function blendCamera(a: Camera, b: Camera, k: number): Camera {
   return {
-    cx: cam.cx + (target.cx - cam.cx) * k,
-    cy: cam.cy + (target.cy - cam.cy) * k,
-    scale: Math.exp(Math.log(cam.scale) + (Math.log(target.scale) - Math.log(cam.scale)) * k),
+    cx: a.cx + (b.cx - a.cx) * k,
+    cy: a.cy + (b.cy - a.cy) * k,
+    scale: Math.exp(Math.log(a.scale) + (Math.log(b.scale) - Math.log(a.scale)) * k),
   }
+}
+
+/**
+ * Ease the camera toward a target. `rate` is per 60 fps frame — the rates were
+ * tuned on a 60 Hz display — and `dt` is the real time since the last step in
+ * those frames. Without the `dt` term a step was a fixed fraction per *paint*,
+ * so the move ran twice as fast on a 120 Hz display, and any easing lag behind
+ * a moving target swung with the frame time instead of holding steady.
+ */
+export function approach(cam: Camera, target: Camera, rate: number, dt: number): Camera {
+  return blendCamera(cam, target, 1 - Math.exp(-rate * dt))
 }
 
 export function near(a: Camera, b: Camera): boolean {

@@ -14,6 +14,7 @@ import {
 } from './sheet.ts'
 import {
   approach,
+  blendCamera,
   blendRect,
   fitRect,
   near,
@@ -67,6 +68,13 @@ const CHASE_LEAD = 0.16
 /** Seconds spent pushing in off the machine, and opening out for the landing. */
 const CHASE_ENTER = 0.55
 const BLAST_OPEN = 1.2
+/**
+ * Seconds of wall time to absorb a discontinuous cut *into* the chase — the
+ * camera mode flipped to auto mid-flight, or a scrub landing the cursor in the
+ * air. The ordinary entry at release needs none of this: `chaseRect` leaves
+ * from the machine framing the camera is already sitting on.
+ */
+const CHASE_CATCH = 0.35
 /** Seconds the camera stays down on the impact before it lets go of it. */
 const BLAST_HOLD = 1.3
 
@@ -231,6 +239,19 @@ export function Stage({
   const hostRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const camRef = useRef<Camera | null>(null)
+  /**
+   * How the camera is attached to the boulder chase: riding the window exactly
+   * (`'locked'`), or still blending in from wherever a mid-flight mode flip
+   * left it. Null whenever the last paint was not chasing. The lock exists
+   * because easing after the window does not work: the window moves with the
+   * boulder at up to 90 m/s, so an eased camera rides a lag proportional to
+   * the frame time, and frame-time jitter shook that lag — visibly, on a
+   * window barely two boulders tall. The window is already a continuous
+   * function of the cursor, so the camera can simply *be* it.
+   */
+  const chaseRef = useRef<'locked' | { from: Camera; start: number } | null>(null)
+  /** When the previous camera step ran, for frame-rate-independent easing. */
+  const stepRef = useRef(0)
   const [size, setSize] = useState({ w: 0, h: 0 })
   const [palette, setPalette] = useState<Palette | null>(null)
   const [fontsReady, setFontsReady] = useState(false)
@@ -296,6 +317,9 @@ export function Stage({
   // lands before the paint that would otherwise read a stale timestamp.
   useEffect(() => {
     blastRef.current = null
+    // A different shot means a different chase window: re-enter it through the
+    // catch blend rather than hard-cutting from wherever the old lock sat.
+    chaseRef.current = null
   }, [result])
 
   useEffect(() => {
@@ -351,9 +375,14 @@ export function Stage({
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
+    // Sized only when the size actually changed: assigning `canvas.width`
+    // resets the bitmap even when the value is the same, which made every
+    // animation frame pay for a full backing-store clear and reallocation.
     const dpr = Math.min(window.devicePixelRatio || 1, 2)
-    canvas.width = Math.round(size.w * dpr)
-    canvas.height = Math.round(size.h * dpr)
+    const pw = Math.round(size.w * dpr)
+    const ph = Math.round(size.h * dpr)
+    if (canvas.width !== pw) canvas.width = pw
+    if (canvas.height !== ph) canvas.height = ph
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 
     // Only a genuinely empty sheet — no solver answer at all — blanks. A shot
@@ -381,16 +410,13 @@ export function Stage({
         : (performance.now() - blastRef.current) / 1000
 
     let target: Rect
-    // How hard the camera is pulled toward its target, per frame.
-    //
-    // Riding with a boulder needs a stiff one: the ordinary rate lags a target
-    // moving at 90 m/s by several boulder-widths, which throws the shot clean
-    // off a window this tight. It can afford to be stiff because `chaseRect`
-    // hands over somewhere continuous to be, so there is no jump for the easing
-    // to have to soften. The last beat is the opposite — a long, slack pull-back
-    // off the crater to the whole field, which is the reveal of how far the
-    // thing actually went and should take its time.
+    // How hard the camera is pulled toward its target, per 60 fps frame. The
+    // boulder chase takes no rate at all — it rides its window exactly, see
+    // `chaseRef` — so what remains are the ordinary framing moves and the
+    // long, slack pull-back off the crater to the whole field, which is the
+    // reveal of how far the thing actually went and should take its time.
     let rate = 0.22
+    let chasing = false
     // Editing outranks every automatic framing but not an explicit one: someone
     // who has pinned the camera to the field or dragged it themselves has said
     // where they want to look, and a slider is not permission to overrule that.
@@ -408,7 +434,7 @@ export function Stage({
         // the fireball, then let go and pull back to the range — which is still
         // the headline of this sheet and is unreadable from inside a crater.
         if (!landed || blast == null || blast < BLAST_HOLD) {
-          rate = 0.6
+          chasing = true
           target = chaseRect(
             result,
             params,
@@ -432,16 +458,45 @@ export function Stage({
 
     // The inset comes from the module that draws the furniture it has to clear.
     const fitted = fitRect(target, size.w, size.h, SHEET_MARGIN)
+    // Real time since the previous camera step, in the 60 fps frames the rates
+    // are tuned in. Clamped so the first paint — and a tab coming back from
+    // the background — takes one long step instead of teleporting.
+    const now = performance.now()
+    const dt = Math.min(3, ((now - stepRef.current) / 1000) * 60)
+    stepRef.current = now
+
     let settled = true
     if (mode === 'free' && camRef.current) {
       // Leave the camera exactly where the user put it.
-    } else if (!camRef.current) {
-      camRef.current = fitted
-    } else if (near(camRef.current, fitted)) {
-      camRef.current = fitted
+      chaseRef.current = null
+    } else if (chasing && camRef.current) {
+      // Entry from the stroke is continuous — `chaseRect` leaves from the
+      // machine framing the camera is already holding, and `near` is float
+      // dust — so the camera locks straight on. A genuine cut into the chase
+      // blends in over wall time instead; wall rather than shot time so a
+      // mode flip while playback is paused still finishes its move.
+      let hold = chaseRef.current
+      if (hold == null) {
+        hold = near(camRef.current, fitted) ? 'locked' : { from: camRef.current, start: now }
+        chaseRef.current = hold
+      }
+      if (hold !== 'locked') {
+        const k = smoothstep((now - hold.start) / (CHASE_CATCH * 1000))
+        if (k >= 1) chaseRef.current = 'locked'
+        else {
+          camRef.current = blendCamera(hold.from, fitted, k)
+          settled = false
+        }
+      }
+      if (chaseRef.current === 'locked') camRef.current = fitted
     } else {
-      camRef.current = approach(camRef.current, fitted, rate)
-      settled = false
+      chaseRef.current = null
+      if (!camRef.current || near(camRef.current, fitted)) {
+        camRef.current = fitted
+      } else {
+        camRef.current = approach(camRef.current, fitted, rate, dt)
+        settled = false
+      }
     }
 
     paint(ctx, {
