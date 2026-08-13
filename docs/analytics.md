@@ -118,7 +118,9 @@ Everything else is a discrete act and is sent as it happens.
 
 `material_picked` (`kind` `custom`), `material_added` (`kind`),
 `material_deleted` (`kind`), `ghost_saved` (`count`), `ghost_recalled`,
-`ghost_dropped`, `units_set` (`units`), `theme_set` (`theme`).
+`ghost_dropped`, `units_set` (`units`), `theme_set` (`theme`),
+`source_opened` — the repository link in the top bar, which is only on screen
+from `sm` up, so a phone reader has no way to send it.
 
 ### User properties
 

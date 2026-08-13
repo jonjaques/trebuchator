@@ -145,6 +145,7 @@ export function TopBar({
             onToggleDesign={onToggleDesign}
             onToggleResults={onToggleResults}
           />
+          <SourceButton />
         </div>
       </div>
 
@@ -384,6 +385,7 @@ export function TopBar({
           onToggleDesign={onToggleDesign}
           onToggleResults={onToggleResults}
         />
+        <SourceButton />
       </div>
     </header>
   )
@@ -565,6 +567,62 @@ function ThemeButton({ dark, onDark }: { dark: boolean; onDark: (v: boolean) => 
         ) : (
           <Moon className="size-3.5" aria-hidden />
         )}
+      </Button>
+    </Tip>
+  )
+}
+
+/** Where the drawing itself comes from. */
+const REPO_URL = 'https://github.com/jonjaques/trebuchator'
+
+/**
+ * The source, at the end of the settings cluster.
+ *
+ * **`sm` and up, and that is a layout constraint rather than an oversight.**
+ * Below `sm` the identity row is already full: the wordmark and the four
+ * controls sit beside each other down to about 340px and wrap below it, and the
+ * shell deliberately cannot scroll — so a fifth chip does not clip, it costs a
+ * 360–375px phone a whole extra row of header. That is the row the units control
+ * was shrunk from a 104px segment to a 56px chip to buy back, and spending it
+ * again on a link is the wrong trade. A phone gives its pixels to the drawing
+ * here the same way it already does with the strapline, the sheet's title block
+ * and the view toggles. Every bar in this app is at its width limit at that size;
+ * this is the only control that can honestly be the one to go.
+ *
+ * The mark is drawn here rather than imported because lucide dropped its brand
+ * glyphs — and a trademark is not something to redraw in the sheet's own stroked
+ * vocabulary anyway, which is the one place `TrebuchetMark`'s licence to
+ * improvise does not extend to.
+ */
+function SourceButton() {
+  return (
+    <Tip text="The source for all of this — the solver, the drawing, and the tests the physics is validated against.">
+      <Button
+        asChild
+        size="icon"
+        variant="outline"
+        className="tap-target relative hidden size-7 shrink-0 sm:inline-flex lg:size-8"
+      >
+        <a
+          href={REPO_URL}
+          target="_blank"
+          rel="noreferrer"
+          onClick={() => track('source_opened', {})}
+          aria-label="Read the source on GitHub (opens in a new tab)"
+        >
+          {/* A pixel under the lucide glyphs beside it. Those are ~1.2px strokes
+              drawn inside a 24-unit box; this is a solid mark filling a 16-unit
+              one, so equal nominal sizes do not read as equal weights. */}
+          <svg
+            viewBox="0 0 16 16"
+            className="size-3"
+            fill="currentColor"
+            aria-hidden
+            focusable="false"
+          >
+            <path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27s-1.36.09-2 .27c-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z" />
+          </svg>
+        </a>
       </Button>
     </Tip>
   )

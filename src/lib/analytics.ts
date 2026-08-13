@@ -180,6 +180,13 @@ interface Events {
   // --- settings ------------------------------------------------------------
   units_set: { units: UnitSystem }
   theme_set: { theme: string }
+
+  // --- the project itself --------------------------------------------------
+  /**
+   * The repository link followed. No parameters: the question is only whether
+   * anyone wants the source, and the link is on one control in one place.
+   */
+  source_opened: Record<string, never>
 }
 
 export type EventName = keyof Events
